@@ -39,6 +39,8 @@ local_settings.py
 media/
 
 # Data layer — ignora conteúdo das subpastas, mas mantém os .gitkeep
+data/raw/*
+!data/raw/.gitkeep
 data/bronze/*
 !data/bronze/.gitkeep
 data/silver/*

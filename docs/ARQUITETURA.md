@@ -89,22 +89,94 @@ data/
 
 ---
 
-## 5. Roadmap
+## 5. Camada Bronze — Implementação
+
+### Módulos em `core/ingestion/`
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `sources.py` | Registro declarativo de fontes (`FonteDados` + dicionário `FONTES`) |
+| `readers.py` | Leitura do CSV → `pd.DataFrame` (tudo como `str`, sem coerção de tipo) |
+| `bronze.py` | Orquestra leitura + gravação em `data/bronze/<fonte>/` com timestamp |
+
+### Como adicionar uma nova fonte
+
+1. **Abra `core/ingestion/sources.py`** e adicione uma entrada ao dicionário `FONTES`:
+
+```python
+"transferegov": FonteDados(
+    nome="transferegov",
+    arquivo="transferegov.csv",
+    separador=";",
+    encoding="utf-8",
+    descricao="Dados abertos do Transferegov (portal da transparência)",
+),
+```
+
+2. **Coloque o arquivo CSV** em `data/raw/transferegov.csv`.
+
+3. **Rode a ingestão**:
+```bash
+python manage.py rodar_ingestao transferegov
+```
+
+O arquivo Bronze será salvo em `data/bronze/transferegov/transferegov_<timestamp>.csv`.
+
+### Regra de ouro da camada Bronze
+
+> O dado entra como chegou. Nada é corrigido, filtrado ou convertido.
+> Erros de digitação, duplicatas, colunas mal nomeadas — tudo preservado.
+> O Bronze é o seu "desfazimento": se a Silver estragar algo, você reprocessa a partir daqui.
+
+### Por que CSV no Bronze e não Parquet?
+
+O Bronze usa **CSV** porque o objetivo é fidelidade máxima ao dado original:
+- Sem coerção de tipos (`"01/01/2024"` fica string, não `datetime`)
+- Legível por qualquer ferramenta (Excel, Bloco de Notas, `cat`)
+- Sem dependência de biblioteca de leitura especializada
+
+**Parquet** será usado nas camadas **Silver e Gold**, onde os tipos já estão validados e precisamos de performance de leitura analítica (compressão, leitura colunar).
+
+---
+
+## 6. Roadmap
 
 ### Fase 1 — Estrutura inicial ✅
 - Criação do repositório e estrutura de pastas
 - `.gitignore`, `.env.example`, documentação base
 - Primeiro commit
 
-### Fase 2 — Setup Django
-- Criar projeto Django em `config/`
-- Configurar `settings.py` com `BASE_DIR`, variáveis de ambiente e `INSTALLED_APPS`
+### Fase 2 — Setup Django ✅
+- Projeto Django em `config/`, settings base/dev/prod
+- `django-environ` para variáveis sensíveis
 - App `dashboard` registrado e URL raiz funcionando
 
-### Fase 3 — Pipeline Bronze (primeira fonte)
-- Script de ingestão para Transferegov (dados abertos, .zip)
-- Download, extração e gravação em `data/bronze/`
-- Testes unitários para o módulo de ingestão
+### Fase 3 — Pipeline Bronze ✅
+- Registro declarativo de fontes em `sources.py`
+- Leitor genérico `readers.py` (CSV → DataFrame, tudo como string)
+- Ingestão Bronze com timestamp em `bronze.py`
+- Management command `rodar_ingestao`
+- Fixture de teste em `tests/fixtures/`
+
+### Fase 4 — Pipeline Silver
+- Limpeza e padronização (tipos, datas ISO-8601, CNPJ normalizado)
+- Join com tabela de municípios (dimensão)
+- Gravação em `data/silver/`
+
+### Fase 5 — Pipeline Gold e Dashboard inicial
+- Agregações por status, UF e ano
+- View Django com tabela paginada e filtros básicos
+- Gráfico de barras (convênios por status)
+
+### Fase 6 — Demais fontes (SIGCON-MG, SIAFI, SIAD, SEI)
+- Módulos de ingestão e transformação por fonte
+- Consolidação Silver com todas as fontes
+- Indicadores Gold completos
+
+### Fase 7 — Autenticação, deploy e CI/CD
+- Login LDAP/SSO SEPLAG
+- Deploy em servidor interno
+- Pipeline de atualização automática dos dados
 
 ### Fase 4 — Pipeline Silver
 - Limpeza e padronização dos dados Transferegov
@@ -128,7 +200,7 @@ data/
 
 ---
 
-## 6. Referências
+## 7. Referências
 
 - [Transferegov — Portal de Dados Abertos](https://portaldatransparencia.gov.br/download-de-dados/convenios)
 - [Documentação Django](https://docs.djangoproject.com/)

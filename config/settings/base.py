@@ -10,7 +10,9 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 
-DATA_DIR = env.path("DATA_DIR", default=str(BASE_DIR / "data"))()
+# Se DATA_DIR não estiver definido (ou estiver vazio) no .env, usa BASE_DIR/data
+_data_dir_env = env("DATA_DIR", default="")
+DATA_DIR = str(_data_dir_env if _data_dir_env else BASE_DIR / "data")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
