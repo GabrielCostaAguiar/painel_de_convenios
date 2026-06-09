@@ -65,14 +65,43 @@ painel_convenios/
 
 ## Como Rodar
 
-> **Em construção** — esta seção será preenchida nas próximas fases do projeto.
+### Pré-requisitos
+- Python 3.13+
+- Git
 
-Passos previstos:
-1. Criar e ativar o ambiente virtual Python
-2. Instalar dependências: `pip install -r requirements.txt`
-3. Configurar variáveis de ambiente a partir de `.env.example`
-4. Aplicar migrações Django: `python manage.py migrate`
-5. Iniciar servidor de desenvolvimento: `python manage.py runserver`
+### Passos
+
+```bash
+# 1. Clone o repositório e entre na pasta
+git clone <url-do-repositorio>
+cd painel_de_convenios
+
+# 2. Crie e ative o ambiente virtual
+python -m venv .venv
+
+# Windows (PowerShell)
+.\.venv\Scripts\Activate.ps1
+# Linux/Mac
+source .venv/bin/activate
+
+# 3. Instale as dependências
+pip install -r requirements.txt
+# Para desenvolvimento (inclui black, pytest):
+pip install -r requirements-dev.txt
+
+# 4. Configure as variáveis de ambiente
+copy .env.example .env      # Windows
+# cp .env.example .env      # Linux/Mac
+# Edite o .env e defina ao menos DJANGO_SECRET_KEY
+
+# 5. Aplique as migrações
+python manage.py migrate
+
+# 6. Inicie o servidor de desenvolvimento
+python manage.py runserver
+```
+
+Acesse [http://127.0.0.1:8000](http://127.0.0.1:8000) no navegador.
 
 ---
 
