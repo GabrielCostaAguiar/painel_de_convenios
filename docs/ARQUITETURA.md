@@ -220,8 +220,12 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 - App `apps/convenios` com model `Convenio`, migrations e admin
 - Management commands `rodar_transformacao` e `carregar_silver` (idempotente)
 
-### Fase 5 — Pipeline Gold e Dashboard inicial
-- Agregações por status, UF e ano em `core/gold/`
+### Fase 5 — Camada Gold e Servicos ✅
+- Funções de agregação puras em `core/gold/convenios.py`
+- Camada de serviços com cache em `apps/dashboard/services.py`
+- 12 testes unitários (sem banco) cobrindo todos os indicadores
+
+### Fase 6 — Frontend do Dashboard
 - View Django com tabela paginada e filtros básicos
 - Gráfico de barras (convênios por situação)
 
@@ -237,7 +241,41 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 
 ---
 
-## 9. Referências
+## 9. Camada Gold — Implementação
+
+### Módulos em `core/gold/`
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `convenios.py` | Funções puras de agregação (resumo_geral, total_por_situacao, total_por_ano, total_por_concedente) |
+
+### Indicadores disponíveis
+
+| Função | Retorno | Descrição |
+|---|---|---|
+| `resumo_geral(df)` | `dict` | Total de convênios, valor total, nº de situações e concedentes |
+| `total_por_situacao(df)` | `DataFrame` | Quantidade e valor por status |
+| `total_por_ano(df)` | `DataFrame` | Quantidade e valor por ano (série temporal) |
+| `total_por_concedente(df)` | `DataFrame` | Quantidade e valor por órgão federal |
+
+### Serviços e cache (`apps/dashboard/services.py`)
+
+- `get_indicadores(usar_cache=True)` — retorna todos os indicadores, opcionalmente cacheados.
+- `invalidar_cache()` — limpa o cache; chamado automaticamente por `carregar_silver`.
+- TTL configurável via `GOLD_CACHE_SECONDS` em `settings.py` (padrão: 3600 s).
+
+**Estratégia de cache por tipo de dado:**
+
+| Dado | Frequência de mudança | TTL recomendado |
+|---|---|---|
+| Indicadores históricos (anos anteriores) | Nunca após carga inicial | Longo (24 h+) ou permanente |
+| Indicadores do ano corrente | A cada nova carga Silver | Curto (1 h) ou invalidar no `carregar_silver` |
+
+Em produção, configure Redis no `settings.py` para cache que sobreviva reinicializações do servidor.
+
+---
+
+## 10. Referências
 
 - [Transferegov — Portal de Dados Abertos](https://portaldatransparencia.gov.br/download-de-dados/convenios)
 - [Documentação Django](https://docs.djangoproject.com/)

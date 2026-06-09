@@ -109,8 +109,11 @@ class Command(BaseCommand):
                 self.stderr.write(f"Erro ao salvar {nr}: {exc}")
                 erros += 1
 
+        from apps.dashboard.services import invalidar_cache
+        invalidar_cache()
+
         self.stdout.write(
             self.style.SUCCESS(
-                f"Concluído! Criados: {criados} | Atualizados: {atualizados} | Erros: {erros}"
+                f"Concluido! Criados: {criados} | Atualizados: {atualizados} | Erros: {erros}"
             )
         )
