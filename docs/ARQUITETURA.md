@@ -139,56 +139,93 @@ O Bronze usa **CSV** porque o objetivo é fidelidade máxima ao dado original:
 
 ---
 
-## 6. Roadmap
+## 6. Camada Silver — Implementação
+
+### Módulos em `core/transform/`
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `convenios.py` | Funções puras de limpeza + `transformar_bronze()` para orquestração |
+
+### Funções de transformação (puras, testáveis)
+
+| Função | Entrada | Saída |
+|---|---|---|
+| `_limpar_texto` | `"  texto "` | `"texto"` |
+| `_parse_data_br` | `"01/01/2024"` | `date(2024, 1, 1)` |
+| `_parse_valor_br` | `"1.234,56"` | `Decimal("1234.56")` |
+| `transformar_df` | DataFrame Bronze | DataFrame Silver |
+
+### Saída Silver
+
+- Datas: ISO 8601 como string (`"2024-01-01"`)
+- Valores: ponto decimal (`"500000.00"`)
+- Textos: stripped, sem leading/trailing spaces
+- Campos vazios: `""` (nunca `NaN`)
+
+### Como adicionar transformação para nova fonte
+
+1. Crie `core/transform/<nome_fonte>.py` com as funções `transformar_df()` e `transformar_bronze()`.
+2. Registre o módulo em `_TRANSFORMADORES` dentro de `apps/convenios/management/commands/rodar_transformacao.py`.
+3. Rode: `python manage.py rodar_transformacao <nome_fonte>`
+
+---
+
+## 7. Modelo de Dados — `apps/convenios`
+
+### Model: `Convenio`
+
+| Campo | Tipo Django | Descrição |
+|---|---|---|
+| `nr_convenio` | `CharField(30, unique=True)` | Chave natural do domínio (ex: `123456/2024`) |
+| `nr_processo` | `CharField(50, blank=True)` | Número do processo administrativo |
+| `objeto` | `TextField` | Descrição do objeto do convênio |
+| `concedente` | `CharField(255)` | Órgão federal concedente |
+| `convenente` | `CharField(255)` | Entidade convenente (prefeitura, ONG etc.) |
+| `situacao` | `CharField(100)` | Status atual (Ex Execução, Encerrado...) |
+| `valor_global` | `DecimalField(16,2)` | Valor total em reais |
+| `data_inicio` | `DateField(null=True)` | Data de início da vigência |
+| `data_termino` | `DateField(null=True)` | Data de término da vigência |
+| `atualizado_em` | `DateTimeField(auto_now=True)` | Timestamp da última carga |
+
+Índices criados: `situacao`, `concedente`, `data_inicio`.
+
+### Idempotência da carga (`carregar_silver`)
+
+O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
+- Registro inexistente → cria.
+- Registro existente → atualiza todos os campos.
+- Rodar N vezes → mesmo estado final no banco.
+
+---
+
+## 8. Roadmap
 
 ### Fase 1 — Estrutura inicial ✅
 - Criação do repositório e estrutura de pastas
 - `.gitignore`, `.env.example`, documentação base
-- Primeiro commit
 
 ### Fase 2 — Setup Django ✅
 - Projeto Django em `config/`, settings base/dev/prod
 - `django-environ` para variáveis sensíveis
-- App `dashboard` registrado e URL raiz funcionando
+- App `dashboard` com URL raiz funcionando
 
 ### Fase 3 — Pipeline Bronze ✅
-- Registro declarativo de fontes em `sources.py`
-- Leitor genérico `readers.py` (CSV → DataFrame, tudo como string)
-- Ingestão Bronze com timestamp em `bronze.py`
+- Registro declarativo de fontes (`sources.py`)
+- Leitor genérico (`readers.py`), ingestão com timestamp (`bronze.py`)
 - Management command `rodar_ingestao`
-- Fixture de teste em `tests/fixtures/`
 
-### Fase 4 — Pipeline Silver
-- Limpeza e padronização (tipos, datas ISO-8601, CNPJ normalizado)
-- Join com tabela de municípios (dimensão)
-- Gravação em `data/silver/`
-
-### Fase 5 — Pipeline Gold e Dashboard inicial
-- Agregações por status, UF e ano
-- View Django com tabela paginada e filtros básicos
-- Gráfico de barras (convênios por status)
-
-### Fase 6 — Demais fontes (SIGCON-MG, SIAFI, SIAD, SEI)
-- Módulos de ingestão e transformação por fonte
-- Consolidação Silver com todas as fontes
-- Indicadores Gold completos
-
-### Fase 7 — Autenticação, deploy e CI/CD
-- Login LDAP/SSO SEPLAG
-- Deploy em servidor interno
-- Pipeline de atualização automática dos dados
-
-### Fase 4 — Pipeline Silver
-- Limpeza e padronização dos dados Transferegov
-- Join com tabela de municípios (dimensão)
-- Gravação em `data/silver/`
+### Fase 4 — Pipeline Silver e Models ✅
+- Transformações puras e testáveis em `core/transform/convenios.py`
+- App `apps/convenios` com model `Convenio`, migrations e admin
+- Management commands `rodar_transformacao` e `carregar_silver` (idempotente)
 
 ### Fase 5 — Pipeline Gold e Dashboard inicial
-- Agregações por status, UF e ano
+- Agregações por status, UF e ano em `core/gold/`
 - View Django com tabela paginada e filtros básicos
-- Gráfico de barras (convênios por status)
+- Gráfico de barras (convênios por situação)
 
-### Fase 6 — Demais fontes (SIGCON-MG, SIAFI, SIAD, SEI)
+### Fase 6 — Demais fontes (Transferegov, SIAFI, SIAD, SEI)
 - Módulos de ingestão e transformação por fonte
 - Consolidação Silver com todas as fontes
 - Indicadores Gold completos
@@ -200,7 +237,7 @@ O Bronze usa **CSV** porque o objetivo é fidelidade máxima ao dado original:
 
 ---
 
-## 7. Referências
+## 9. Referências
 
 - [Transferegov — Portal de Dados Abertos](https://portaldatransparencia.gov.br/download-de-dados/convenios)
 - [Documentação Django](https://docs.djangoproject.com/)
