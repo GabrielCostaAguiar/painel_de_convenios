@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load static painel_filters %}
+
+{% block title %}Painel{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      Convênios
+      {% if ano_selecionado %}
+        <span>— {{ ano_selecionado }}</span>
+      {% else %}
+        <span>— Todos os anos</span>
+      {% endif %}
+    </h1>
+  </div>
+
+  <form class="filter-bar" method="get">
+    <label for="sel-ano">Filtrar por ano:</label>
+    <select id="sel-ano" name="ano" class="filter-select" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      {% for ano in anos %}
+        <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>{{ ano }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if vazio %}
+
+  <div class="empty-state">
+    <h2>Nenhum dado disponivel</h2>
+    <p>Execute a pipeline de dados para carregar os convênios:</p>
+    <pre style="margin-top:1rem; color: var(--text-muted); font-size:12px;">
+python manage.py rodar_ingestao convenios
+python manage.py rodar_transformacao convenios
+python manage.py carregar_silver</pre>
+  </div>
+
+{% else %}
+
+  {# ── KPI Cards ─────────────────────────────────────────────────────────── #}
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total de Convenios</div>
+      <div class="kpi-value">{{ resumo.total_convenios }}</div>
+      <div class="kpi-subtext">registros no periodo</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">Valor Total</div>
+      <div class="kpi-value" style="font-size:20px;">{{ resumo.valor_total|brl:"0" }}</div>
+      <div class="kpi-subtext">soma dos valores globais</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">Situacoes</div>
+      <div class="kpi-value">{{ resumo.total_situacoes }}</div>
+      <div class="kpi-subtext">status distintos</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-label">Concedentes</div>
+      <div class="kpi-value">{{ resumo.total_concedentes }}</div>
+      <div class="kpi-subtext">orgaos federais</div>
+    </div>
+  </div>
+
+  {# ── Graficos ──────────────────────────────────────────────────────────── #}
+  <div class="charts-grid">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Convenios por Ano</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="grafico-por-ano"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Distribuicao por Situacao</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="grafico-por-situacao"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Tabelas ───────────────────────────────────────────────────────────── #}
+  <div class="tables-grid">
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Por Situacao</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Situacao</th>
+              <th class="text-right">Qtd.</th>
+              <th class="text-right">Valor Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in por_situacao %}
+            <tr>
+              <td>{{ row.situacao }}</td>
+              <td class="text-right text-mono">{{ row.quantidade }}</td>
+              <td class="text-right text-mono">{{ row.valor_total|brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Por Concedente</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Concedente</th>
+              <th class="text-right">Qtd.</th>
+              <th class="text-right">Valor Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in por_concedente %}
+            <tr>
+              <td>{{ row.concedente }}</td>
+              <td class="text-right text-mono">{{ row.quantidade }}</td>
+              <td class="text-right text-mono">{{ row.valor_total|brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  {# Dados JSON para os gráficos — embutidos de forma segura pelo json_script #}
+  {{ por_ano|json_script:"data-por-ano" }}
+  {{ por_situacao|json_script:"data-por-situacao" }}
+
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="{% static 'js/graficos.js' %}"></script>
+{% endblock %}

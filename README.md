@@ -97,11 +97,27 @@ copy .env.example .env      # Windows
 # 5. Aplique as migrações
 python manage.py migrate
 
-# 6. Inicie o servidor de desenvolvimento
+# 6. Carregue os dados de exemplo na pipeline
+python manage.py rodar_ingestao convenios
+python manage.py rodar_transformacao convenios
+python manage.py carregar_silver
+
+# 7. Crie um superusuário (opcional — acesso ao /admin/)
+python manage.py createsuperuser
+
+# 8. Inicie o servidor de desenvolvimento
 python manage.py runserver
 ```
 
 Acesse [http://127.0.0.1:8000](http://127.0.0.1:8000) no navegador.
+
+### Navegacao do Painel
+
+| Rota | Descricao |
+|---|---|
+| `/` | Painel principal — KPIs, graficos e tabelas |
+| `/?ano=2024` | Filtra todos os indicadores pelo ano selecionado |
+| `/admin/` | Django Admin — gerenciamento de dados |
 
 ---
 

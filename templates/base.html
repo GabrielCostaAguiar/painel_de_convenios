@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Painel de Convênios{% endblock %} — DCGCE/SEPLAG-MG</title>
+  <link rel="stylesheet" href="{% static 'css/painel.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="sigla">SEPLAG</span>
+      <div>
+        Painel de Convênios
+        <div class="navbar-subtitle">DCGCE — Diretoria Central de Gestão e Controle de Execução</div>
+      </div>
+    </div>
+    <div style="color: var(--text-muted); font-size: 12px;">
+      Governo de Minas Gerais
+    </div>
+  </nav>
+
+  <main class="main-container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    Painel de Convênios · DCGCE/SEPLAG-MG · Dados: SIGCON-MG
+  </footer>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
