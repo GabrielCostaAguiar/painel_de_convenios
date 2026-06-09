@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(New-Item -ItemType Directory -Force -Path config, apps\\\\dashboard, core\\\\ingestion, core\\\\transform, core\\\\gold, data\\\\bronze, data\\\\silver, data\\\\gold, static, templates, tests, docs)",
+      "Bash(Out-Null)"
+    ]
+  }
+}
