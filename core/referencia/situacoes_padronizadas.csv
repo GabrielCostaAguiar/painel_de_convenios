@@ -1,0 +1,20 @@
+situacao_original,situacao_padronizada
+Aguardando Prestação de Contas,Aguardando Prestação de Contas
+BLOQUEADO,Bloqueado
+Cancelado,Cancelado
+Convênio Anulado,Anulado
+Convênio Rescindido,Rescindido
+Em execução,Em execução
+Prestação de Contas Aprovada,Finalizado
+Prestação de Contas Aprovada com Ressalvas,Finalizado
+Prestação de Contas Comprovada em Análise,Prestação de Contas em Análise
+Prestação de Contas Concluída,Prestação de Contas Concluída
+Prestação de Contas em Análise,Prestação de Contas em Análise
+Prestação de Contas em Complementação,Prestação de Contas em Análise
+Prestação de Contas enviada para Análise,Prestação de Contas em Análise
+Prestação de Contas Rejeitada,Finalizado
+Proposta/Plano de Trabalho Aprovado,Proposta/Plano de Trabalho Aprovado
+Proposta/Plano de Trabalho Complementado em Análise,Proposta/Plano de Trabalho em Análise
+Proposta/Plano de Trabalho Complementado Enviado para Análise,Proposta/Plano de Trabalho em Análise
+VENCIDO,Vencido
+VIGENTE,Vigente

@@ -1,0 +1,15 @@
+tabela,campo_chave,valor_chave,campo_corrigido,valor_errado,valor_correto,motivo,qlikview_linha
+sigcon_convenio,convenio_codigo,CV s/ nº 2020,convenio_codigo_sigcon,,CV 559/5502,codigo errado no sistema SIGCON,1601
+sigcon_convenio,convenio_codigo,CV 98/2020,convenio_codigo_sigcon,,CV 10954,codigo errado no sistema SIGCON,1601
+sigcon_convenio,convenio_codigo,CV 89/2020,convenio_codigo_sigcon,,CV 10953,codigo errado no sistema SIGCON,1601
+sigcon_convenio,convenio_codigo,TE - 202139600001 - PMMG,convenio_codigo_sigcon,,TE - 202129940004 - PMMG,codigo errado no sistema SIGCON,1602
+sigcon_convenio,convenio_numero_sequencial_siafi,9440702,situacao,BLOQUEADO,VIGENTE,situação bloqueada incorretamente,1603
+sigcon_convenio,convenio_numero_sequencial_siafi,9309074,data_real_convenio,29/01/2025,31/12/2023,data de TA registrada errado (Gabriel 23/09/2024),1606
+sigcon_convenio,convenio_numero_sequencial_siafi,9051491,valor_concedente,787155,708680,valores trocados entre dois convênios,1609
+sigcon_convenio,convenio_numero_sequencial_siafi,9051488,valor_concedente,708680,787155,valores trocados entre dois convênios,1609
+sigcon_convenio,convenio_numero_sequencial_siafi,9051491,valor_total_convenio,787155,708680,valores trocados entre dois convênios,1615
+sigcon_convenio,convenio_numero_sequencial_siafi,9051488,valor_total_convenio,708680,787155,valores trocados entre dois convênios,1615
+sigcon_geral,ano_sigcon,2919,ano_sigcon,2919,2019,ano digitado errado (typo 9→0),1304
+sigcon_geral,data_publicacao_doe_contendo_2919,27/12/2919,data_publicacao_doe,27/12/2919,27/12/2019,data com ano errado (typo 2919),1313
+sigcon_geral,data_publicacao_doe_contendo_2919,12/27/2919,data_publicacao_doe,12/27/2919,27/12/2019,data com ano errado (formato US + typo 2919),1318
+sigcon_chaves,plano_trabalho_tipo_siafi,11,instrumento_tipo,,Acordo / Ajuste,normalização do tipo de instrumento SIAFI,2791

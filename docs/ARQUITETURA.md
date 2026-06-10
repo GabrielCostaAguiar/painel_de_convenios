@@ -36,6 +36,18 @@ A motivação principal é substituir o painel QlikView legado por uma solução
 │  • Join com tabelas de dimensão (município, órgão, programa)    │
 │  • Regras de negócio básicas validadas                          │
 └────────────────────────────┬────────────────────────────────────┘
+                             │  core/transform/chaves.py
+                             │  core/referencia/*.csv
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  RELACIONAMENTO  —  em memória (sem arquivo intermediário)      │
+│  • sigcon_chaves: ponte SIGCON ↔ SICONV via chave SIAFI_UO      │
+│  • Filtro de UOs: UOS_EXCLUIR (11 UOs não-operacionais)         │
+│  • Campos G_: coalesce SICONV+SIGCON (21 campos padronizados)   │
+│  • Campos A_: projeção G_ sobre UO atual via SIAFI2 de-para     │
+│  • De-paras: situações, tipos SIAFI, UOs, concedentes           │
+│  • Correções hard-coded: core/referencia/correcoes.csv (14)     │
+└────────────────────────────┬────────────────────────────────────┘
                              │  scripts em core/gold/
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -62,7 +74,8 @@ A motivação principal é substituir o painel QlikView legado por uma solução
 |---|---|---|
 | Linguagem ETL | Python | Ecosistema rico (pandas, openpyxl), conhecimento da equipe |
 | Framework web | Django | ORM, admin, autenticação prontos; bom para dados tabulares |
-| Formato de armazenamento | CSV | Simplicidade operacional; sem dependência de banco externo nas camadas de dados |
+| Formato Bronze | CSV | Fidelidade máxima ao dado original; legível sem biblioteca especializada; sem coerção de tipo |
+| Formato Silver/Gold | Parquet | Preserva tipos nativos (datetime, float, string nullable); compressão colunar; leitura analítica eficiente |
 | Separação histórico / corrente | Dois diretórios por fonte | Evita reprocessamento do histórico a cada carga incremental |
 | Caminhos dinâmicos | `pathlib.Path` + `BASE_DIR` | Portabilidade entre Windows e Linux; sem hardcode |
 | Controle de versão de dados | `.gitignore` em `data/` | Dados não vão para o Git; apenas código e documentação |
@@ -73,18 +86,16 @@ A motivação principal é substituir o painel QlikView legado por uma solução
 
 ```
 data/
+├── raw/
+│   ├── dcgce_convenio.xlsx           # planilha SIGCON-MG (Excel, input da Bronze)
+│   └── ...
 ├── bronze/
-│   ├── sigcon_historico.csv          # histórico 2002–ano anterior
-│   ├── sigcon_corrente.csv           # ano corrente (sobrescrito a cada carga)
-│   ├── transferegov_historico.csv
-│   └── ...
+│   └── dcgce_convenios/
+│       └── dcgce_convenios_<timestamp>.csv   # histórico de cargas (append-only)
 ├── silver/
-│   ├── convenios_silver.csv          # consolidado limpo
-│   └── ...
+│   └── dcgce_convenios.parquet       # última Silver processada (sobrescrito)
 └── gold/
-    ├── convenios_por_status.csv
-    ├── convenios_por_uf.csv
-    └── ...
+    └── ...                           # agregações prontas para consumo
 ```
 
 ---
@@ -145,29 +156,61 @@ O Bronze usa **CSV** porque o objetivo é fidelidade máxima ao dado original:
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `convenios.py` | Funções puras de limpeza + `transformar_bronze()` para orquestração |
+| `utils.py` | `normalizar_coluna(nome)` — snake_case sem acentos; reutilizável por qualquer fonte |
+| `convenios.py` | Pipeline completo para `dcgce_convenios`: limpeza, conversão, validação e gravação |
 
-### Funções de transformação (puras, testáveis)
+### Pipeline de `transformar_convenios` (fonte: `dcgce_convenios`)
 
-| Função | Entrada | Saída |
+| Passo | O que faz |
+|---|---|
+| Lê Bronze | `pd.read_csv(..., dtype=str, keep_default_na=False)` — tudo como texto |
+| Remove fantasmas | Colunas `Unnamed: N` (artefato do Excel) são descartadas |
+| Normaliza nomes | `normalizar_coluna` → snake_case sem acentos (ex: `Situação` → `situacao`) |
+| Converte datas | `pd.to_datetime(errors="coerce")` → `datetime64[us]`; inválidos → NaT |
+| Converte valores | `pd.to_numeric(errors="coerce")` → `float64`; inválidos → NaN |
+| Limpa IDs | strip + remove artefato `".0"`; vazio → `<NA>`; dtype `string` (nullable) |
+| Limpa categórico | `situacao` → strip + dtype `string` |
+| Valida | Relatório de nulos por coluna, alertas de negativos e duplicatas (apenas log) |
+
+### Schema Silver — `dcgce_convenios`
+
+| Coluna | Dtype pandas | Observação |
 |---|---|---|
-| `_limpar_texto` | `"  texto "` | `"texto"` |
-| `_parse_data_br` | `"01/01/2024"` | `date(2024, 1, 1)` |
-| `_parse_valor_br` | `"1.234,56"` | `Decimal("1234.56")` |
-| `transformar_df` | DataFrame Bronze | DataFrame Silver |
+| `convenio_codigo` | `string` | Identificador textual; pode conter `-` |
+| `convenio_numero_sequencial_siafi` | `string` | 4 registros sem SIAFI (`<NA>`) |
+| `unidade_orcamentaria_codigo` | `string` | Código numérico como texto |
+| `situacao` | `string` | Ex: `VENCIDO`, `EM EXECUÇÃO` |
+| `data_inicio_vigencia` | `datetime64[us]` | Início da vigência |
+| `data_termino_vigencia` | `datetime64[us]` | Término da vigência |
+| `data_real_convenio` | `datetime64[us]` | Data de assinatura |
+| `valor_inicial_concedente_contratado` | `float64` | 18 linhas com NaN (sem valor informado) |
+| `valor_total_aditado_concedente_contratado` | `float64` | |
+| `valor_concedente` | `float64` | |
+| `valor_inicial_proponente_contratado` | `float64` | |
+| `valor_total_aditado_proponente_contratado` | `float64` | |
+| `valor_proponente` | `float64` | |
+| `valor_total_convenio` | `float64` | |
 
-### Saída Silver
+### Arquivo de saída
 
-- Datas: ISO 8601 como string (`"2024-01-01"`)
-- Valores: ponto decimal (`"500000.00"`)
-- Textos: stripped, sem leading/trailing spaces
-- Campos vazios: `""` (nunca `NaN`)
+```
+data/silver/dcgce_convenios.parquet
+```
+
+Formato Parquet (via `pyarrow`): preserva `datetime64`, `float64` e `StringDtype` sem
+reinterpretação. Sobrescrito a cada execução (Silver não mantém histórico — o histórico fica no Bronze).
+
+### Command
+
+```bash
+python manage.py rodar_silver dcgce_convenios
+```
 
 ### Como adicionar transformação para nova fonte
 
-1. Crie `core/transform/<nome_fonte>.py` com as funções `transformar_df()` e `transformar_bronze()`.
-2. Registre o módulo em `_TRANSFORMADORES` dentro de `apps/convenios/management/commands/rodar_transformacao.py`.
-3. Rode: `python manage.py rodar_transformacao <nome_fonte>`
+1. Crie `core/transform/<nome_fonte>.py` com `transformar_<fonte>` e `gravar_silver`.
+2. Registre em `_TRANSFORMADORES` dentro de `apps/dashboard/management/commands/rodar_silver.py`.
+3. Rode: `python manage.py rodar_silver <nome_fonte>`
 
 ---
 
@@ -229,7 +272,13 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 - View Django com tabela paginada e filtros básicos
 - Gráfico de barras (convênios por situação)
 
-### Fase 6 — Demais fontes (Transferegov, SIAFI, SIAD, SEI)
+### Fase 6b — Relacionamento SIGCON↔SICONV (migração do QlikView) — em andamento
+- R1 ✅ estrutura, de-paras, filtro UO, correções
+- R2 montar_sigcon_chaves + join SIAFI2
+- R3 campos G_ (coalesce)
+- R4 campos A_ (projeção UO atual)
+
+### Fase 6c — Demais fontes (Transferegov, SIAFI, SIAD, SEI)
 - Módulos de ingestão e transformação por fonte
 - Consolidação Silver com todas as fontes
 - Indicadores Gold completos
@@ -241,7 +290,73 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 
 ---
 
-## 9. Camada Gold — Implementação
+## 9. Camada de Relacionamento — Implementação (R1–R4)
+
+### Visão geral
+
+A camada de relacionamento fica entre Silver e Gold. Equivale ao "miolo" do script QlikView legado
+(`sigcon_chaves1`, campos `G_`, campos `A_`, filtros de UO e de-paras).
+
+### Módulos
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `core/transform/chaves.py` | `UOS_EXCLUIR` (frozenset), `filtrar_uo()`, `montar_siafi_uo()` |
+| `core/transform/referencias.py` | Carrega CSVs de `core/referencia/` como dicts/DataFrames |
+| `core/gold/relacionamento.py` | `montar_sigcon_chaves()`, `aplicar_campos_g()`, `aplicar_campos_a()` |
+
+### Dados de referência versionados — `core/referencia/`
+
+> Estes CSVs **fazem parte do repositório** (não estão em `data/`, que é gitignored).
+> Representam regras de negócio estáveis extraídas do QlikView.
+
+| Arquivo | Conteúdo | Fonte QlikView |
+|---|---|---|
+| `situacoes_padronizadas.csv` | 19 mapeamentos situação original → padronizada | `Mapa2` |
+| `tipos_siafi.csv` | 2 tipos: `11 → Acordo/Ajuste`, `15 → Transferências Especiais` | `Map_Tipo_SIAFI` |
+| `uo_nomes.csv` | ~120 entradas `código → "código - NOME"` | `MapaG_UO` |
+| `uo_siglas.csv` | ~90 entradas `nome → sigla` | `Mapa5` |
+| `uo_descricoes.csv` | ~90 entradas `nome → "nome - sigla"` | `Mapa4` |
+| `concedentes_padronizados.csv` | ~470 entradas normalização concedentes (**parcial** — completar)| `Mapa3` |
+| `correcoes.csv` | 14 correções hard-coded de dados incorretos no SIGCON | linhas 1601–1318 |
+
+### Chave de relacionamento SIAFI_UO
+
+```
+SIAFI_UO = str(convenio_numero_sequencial_siafi) + str(unidade_orcamentaria_codigo)
+```
+
+Concatenação **direta, sem separador**. Exemplo: `"9309074"` + `"1261"` = ``"93090741261"`.
+Qualquer espaço nos valores de origem corrompe a chave — sempre aplicar `.strip()` antes.
+
+### Filtro de UOs
+
+```python
+from core.transform.chaves import UOS_EXCLUIR, filtrar_uo
+
+df_filtrado = filtrar_uo(df, coluna_uo="unidade_orcamentaria_codigo")
+```
+
+Equivalente ao `Where not match(UO, '5131', '9801', ...)` do QlikView (11 UOs).
+
+### Join SIGCON ↔ SICONV
+
+- **Cardinalidade**: LEFT JOIN de SIGCON → SICONV (0 ou 1 SICONV por convênio SIGCON)
+- **Fan-out**: sempre deduplicar a dimensão SICONV antes do join para evitar multiplicação de linhas
+- **Chave**: `nr_convenio` (campo `Código.SICONV` da Chaves_convenio.csv)
+
+### Roadmap de implementação
+
+| Etapa | O que faz |
+|---|---|
+| **R1** ✅ | Estrutura, de-paras, filtro UO, correções (este arquivo) |
+| **R2** | `montar_sigcon_chaves`: base + LEFT JOIN SIAFI2 → `SIAFI_UO_atual` |
+| **R3** | `aplicar_campos_g`: coalesce SICONV+SIGCON nos 21 campos `G_` |
+| **R4** | `aplicar_campos_a`: projeção `G_` → campos `A_` via `SIAFI_atual` |
+
+---
+
+## 10. Camada Gold — Implementação
 
 ### Módulos em `core/gold/`
 
