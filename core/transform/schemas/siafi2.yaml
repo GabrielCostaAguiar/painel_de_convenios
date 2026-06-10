@@ -1,0 +1,16 @@
+fonte: siafi2
+gerado_em: '2026-06-10'
+# De-para de números SIAFI: cada linha mapeia uma substituição SIAFI1→SIAFI2→SIAFIATUAL.
+# Colunas originais (CSV separado por ";", cabeçalho na linha 0):
+#   SIAFI1;UO1;SIAFI2;UO2;SIAFIATUAL;UOATUAL
+# Chave de join com chaves_convenio: (siafi2 + uo2) == SIAFI_UO da chave.
+# O resultado de interesse é (siafiatual + uoatual) = SIAFI_UO_ATUAL.
+colunas:
+  identificador:
+  - siafi1
+  - uo1
+  - siafi2
+  - uo2
+  - siafiatual
+  - uoatual
+duvidoso: []

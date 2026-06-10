@@ -138,6 +138,21 @@ FONTES: dict[str, FonteDados] = {
         opcoes_leitura={"header": 1},
     ),
 
+    # ---- Tabela de relacionamento SIGCON↔SICONV ----
+
+    "chaves_convenio": FonteDados(
+        nome="chaves_convenio",
+        arquivo="sigcon/Chaves_convenio.csv",
+        formato="csv",
+        descricao=(
+            "Ponte de relacionamento SIGCON↔SICONV. "
+            "Colunas-chave: convenio_numero_sequencial_siafi + unidade_orcamentaria_codigo → SIAFI_UO; "
+            "codigo_siconv → NR_CONVENIO (chave para SICONV); "
+            "plano_trabalho_tipo_siafi → tipo do instrumento (11=Acordo, 15=Transf. Especial)."
+        ),
+        opcoes_leitura={"sep": ";", "encoding": "latin-1"},
+    ),
+
     # ---- Pontes ETL (carimbo de chaves; usadas só no loader, não geram aba no painel) ----
 
     "dcgce_codigo_ta": FonteDados(

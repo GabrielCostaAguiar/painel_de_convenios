@@ -274,7 +274,7 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 
 ### Fase 6b — Relacionamento SIGCON↔SICONV (migração do QlikView) — em andamento
 - R1 ✅ estrutura, de-paras, filtro UO, correções
-- R2 montar_sigcon_chaves + join SIAFI2
+- R2 ✅ chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes
 - R3 campos G_ (coalesce)
 - R4 campos A_ (projeção UO atual)
 
@@ -349,8 +349,8 @@ Equivalente ao `Where not match(UO, '5131', '9801', ...)` do QlikView (11 UOs).
 
 | Etapa | O que faz |
 |---|---|
-| **R1** ✅ | Estrutura, de-paras, filtro UO, correções (este arquivo) |
-| **R2** | `montar_sigcon_chaves`: base + LEFT JOIN SIAFI2 → `SIAFI_UO_atual` |
+| **R1** ✅ | Estrutura, de-paras, filtro UO, correções |
+| **R2** ✅ | Chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes |
 | **R3** | `aplicar_campos_g`: coalesce SICONV+SIGCON nos 21 campos `G_` |
 | **R4** | `aplicar_campos_a`: projeção `G_` → campos `A_` via `SIAFI_atual` |
 
