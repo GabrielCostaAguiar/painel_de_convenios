@@ -94,12 +94,15 @@ def invalidar_cache() -> None:
 
 def enrich_convenios_page(page_items: list) -> dict:
     """
-    Enriquece uma página de objetos Convenio com campos de ConvenioIntegrado.
+    Enriquece uma página de objetos Convenio com campos de ConvenioIntegrado e ControleSEI.
 
-    Retorna dict[pk_convenio → {'codigo_siconv', 'proponente', 'fim_vigencia_inicial'}].
-    A join key é (convenio_numero_sequencial_siafi, unidade_orcamentaria_codigo).
+    Retorna dict[pk_convenio → {'codigo_siconv', 'proponente', 'fim_vigencia_inicial', 'no_sei'}].
+
+    Chaves de join:
+      ConvenioIntegrado: (convenio_numero_sequencial_siafi, unidade_orcamentaria_codigo)
+      ControleSEI:       convenio_numero_sequencial_siafi  (SIAFI puro — NÃO siafi_uo)
     """
-    from apps.convenios.models import ConvenioIntegrado
+    from apps.convenios.models import ControleSEI, ConvenioIntegrado
 
     if not page_items:
         return {}
@@ -123,6 +126,11 @@ def enrich_convenios_page(page_items: list) -> dict:
         for r in rows
     }
 
+    sei_rows = ControleSEI.objects.filter(
+        no_siafi_sigcon__in=siafis,
+    ).values("no_siafi_sigcon", "no_sei")
+    sei_map = {r["no_siafi_sigcon"]: r["no_sei"] for r in sei_rows}
+
     result = {}
     for conv in page_items:
         key = (conv.convenio_numero_sequencial_siafi, conv.unidade_orcamentaria_codigo)
@@ -131,6 +139,7 @@ def enrich_convenios_page(page_items: list) -> dict:
             "codigo_siconv": extra.get("codigo_siconv") or "—",
             "proponente": extra.get("g_proponente_pad") or "—",
             "fim_vigencia_inicial": extra.get("g_fim_vigencia_inicial"),
+            "no_sei": sei_map.get(conv.convenio_numero_sequencial_siafi) or "—",
         }
     return result
 
@@ -269,5 +278,22 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None):
     else:
         context["plano_trabalho_codigo"] = ""
         qs = TermoAditivo.objects.all()
+
+    return qs, context
+
+
+def get_unidades_executoras_qs(cod_sigcon: str | None = None):
+    """
+    Retorna (QuerySet[UnidadesExecutoras], context_dict).
+
+    Chave de ligação DIRETA: UnidadesExecutoras.convenio_codigo = convenio_codigo
+    """
+    from apps.convenios.models import UnidadesExecutoras
+
+    context = {"convenio_codigo": cod_sigcon or ""}
+    qs = UnidadesExecutoras.objects.all()
+
+    if cod_sigcon:
+        qs = qs.filter(convenio_codigo=cod_sigcon)
 
     return qs, context

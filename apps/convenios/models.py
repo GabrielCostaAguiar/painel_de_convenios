@@ -951,3 +951,84 @@ class ConvenioIntegrado(models.Model):
 
     def __str__(self) -> str:
         return f"{self.siafi_uo} → {self.siafi_uo_atual or '—'} ({self.g_situacao_convenio or '—'})"
+
+# ---------------------------------------------------------------------------
+# ControleSEI — planilha interna de controle do nº SEI por convênio
+# ---------------------------------------------------------------------------
+
+class ControleSEI(models.Model):
+    """
+    Fonte: data/silver/controle_sei.parquet
+    Carga: full refresh via carregar_controle_sei().
+
+    Chave de ligação principal:
+      no_siafi_sigcon → Convenio.convenio_numero_sequencial_siafi  (SIAFI puro, não siafi_uo)
+    Chave secundária (SICONV):
+      no_proposta_siconv → ConvenioIntegrado.codigo_siconv
+
+    Atenção: o Parquet Silver usa nomes no_siafi_(sigcon) e no_proposta_(siconv)
+    com parênteses — o loader mapeia para estes campos sem parênteses.
+    """
+
+    no_sei = models.CharField(
+        "Nº SEI", max_length=100, db_index=True, null=True, blank=True,
+    )
+    no_siafi_sigcon = models.CharField(
+        "Nº SIAFI (SIGCON)", max_length=50, db_index=True, null=True, blank=True,
+    )
+    no_proposta_siconv = models.CharField(
+        "Nº Proposta (SICONV)", max_length=50, null=True, blank=True,
+    )
+
+    # --- controle de carga ---
+    atualizado_em = models.DateTimeField("Atualizado em", auto_now=True)
+
+    class Meta:
+        verbose_name = "Controle SEI"
+        verbose_name_plural = "Controles SEI"
+        indexes = [
+            models.Index(fields=["no_siafi_sigcon"], name="sei_siafi_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.no_sei or '—'} → SIAFI {self.no_siafi_sigcon or '—'}"
+
+
+# ---------------------------------------------------------------------------
+# UnidadesExecutoras — dados das unidades executoras do SIGCON-MG (dcgce_unidades.executoras)
+# ---------------------------------------------------------------------------
+
+class UnidadesExecutoras(models.Model):
+    """
+    Fonte: data/silver/dcgce_unidades_executoras.parquet
+    Carga: full refresh via loader dedicado.
+    Ligação: convenio_codigo → Convenio.convenio_codigo
+    """
+
+    # --- identificação ---
+    unidade_orcamentaria_codigo = models.CharField(
+        "Cód. UO", max_length=50, db_index=True, null=True, blank=True,
+    )
+    convenio_numero_sequencial_siafi = models.CharField(
+        "Código SIAFI", max_length=50, null=True, blank=True,
+    )
+    unidade_executora = models.CharField(
+        "Unidade Executora", max_length=50, null=True, blank=True,
+    )
+    convenio_codigo = models.CharField(
+        "Código SIGCON", max_length=50, null=True, blank=True,
+    )
+
+    # --- controle de carga ---
+    atualizado_em = models.DateTimeField("Atualizado em", auto_now=True)
+
+    class Meta:
+        verbose_name = "Convênio — Unidade Executora"
+        verbose_name_plural = "Convênios — Unidades Executoras"
+        indexes = [
+            models.Index(fields=["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"],
+                name="unid_exec_chave_composta_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.convenio_codigo or '—'}"

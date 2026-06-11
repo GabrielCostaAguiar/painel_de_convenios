@@ -430,6 +430,22 @@ Isso torna os serviços testáveis independentemente do ciclo request/response.
 | `get_termos_aditivos_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `TermoAditivo` via `CodigoTermoAditivo` (ponte siafi+uo) |
 | `get_unidades_executoras_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `UnidadesExecutoras` diretamente por `convenio_codigo` |
 
+### Fonte Controle SEI
+
+| Item | Detalhe |
+|---|---|
+| Arquivo raw | `data/raw/Controle SEI.xlsx` (aba `Página1`, `header=0`) |
+| Silver | `data/silver/controle_sei.parquet` |
+| Model | `ControleSEI` — campos `no_sei`, `no_siafi_sigcon`, `no_proposta_siconv` |
+| Chave de join | `no_siafi_sigcon` = `Convenio.convenio_numero_sequencial_siafi` (SIAFI puro, não siafi_uo) |
+| Deduplicação | 8 SIAFIs tinham 2 SEIs; loader mantém 1º por SIAFI (log de aviso) |
+| Exposição | `enrich_convenios_page()` adiciona `no_sei` ao dict de enriquecimento; view anexa `conv.no_sei_ext`; template substitui marcador "— sem fonte —" |
+
+> **Atenção — chave errada silencia o SEI:** se o join fosse feito por `siafi_uo` (concatenação SIAFI+UO)
+> em vez do SIAFI puro, o LEFT JOIN retornaria NULL para todos os convênios: a planilha SEI não conhece
+> a UO, então nenhuma linha combinaria — mas o código não daria erro, apenas exibiria "—" em toda a
+> coluna. A chave correta é o número SIAFI isolado.
+
 ### Chaves de ligação mestre → detalhe
 
 | Aba | Chave URL | Lógica de join |

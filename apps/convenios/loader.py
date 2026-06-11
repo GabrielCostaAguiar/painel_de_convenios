@@ -30,6 +30,7 @@ from .models import (
     Convenio,
     ConvenioGeral,
     ConvenioIntegrado,
+    ControleSEI,
     CronogramaDesembolso,
     DeclaracaoContrapartida,
     Esfera,
@@ -38,6 +39,7 @@ from .models import (
     PlanoTrabalho,
     ProrrogacaoOficio,
     TermoAditivo,
+    UnidadesExecutoras,
 )
 
 logger = logging.getLogger(__name__)
@@ -760,3 +762,60 @@ def carregar_tabela_integrada(gold_path: Path | None = None) -> dict:
         ))
 
     return _bulk_refresh(ConvenioIntegrado, objetos)
+
+
+def carregar_unidades_executoras(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_unidades_executoras.parquet → model UnidadesExecutoras."""
+    caminho = silver_path or _silver_path("dcgce_unidades_executoras")
+    if not caminho.exists():
+        caminho = _silver_path("dcgce_Unidades_executoras")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        UnidadesExecutoras(
+            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
+            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
+            unidade_executora=_para_str(row["unidade_executora"]),
+            convenio_codigo=_para_str(row["convenio_codigo"]),
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(UnidadesExecutoras, objetos)
+
+
+def carregar_controle_sei(silver_path: Path | None = None) -> dict:
+    """
+    Full refresh do model ControleSEI a partir do Silver controle_sei.parquet.
+
+    Deduplicação: 8 SIAFIs possuem 2 SEIs na planilha original; mantemos o primeiro
+    encontrado por SIAFI para evitar fan-out na aba Convênios.
+
+    Mapeamento de colunas (Parquet → model):
+      no_siafi_(sigcon)   → no_siafi_sigcon   (parênteses removidos)
+      no_proposta_(siconv) → no_proposta_siconv (parênteses removidos)
+    """
+    caminho = silver_path or _silver_path("controle_sei")
+    df = _ler_parquet(caminho)
+
+    # Normaliza chave SIAFI (remove artefato ".0")
+    _normalizar_chave(df, ["no_siafi_(sigcon)"])
+
+    # Deduplicação por SIAFI: mantém 1 registro por número SIAFI
+    n_antes = len(df)
+    df = df.drop_duplicates(subset=["no_siafi_(sigcon)"], keep="first")
+    n_duplicatas = n_antes - len(df)
+    if n_duplicatas:
+        logger.warning(
+            "ControleSEI: %d registros removidos por SIAFI duplicado (mantido 1º por SIAFI)",
+            n_duplicatas,
+        )
+
+    objetos = [
+        ControleSEI(
+            no_sei=_para_str(row["no_sei"]),
+            no_siafi_sigcon=_para_str(row["no_siafi_(sigcon)"]),
+            no_proposta_siconv=_para_str(row["no_proposta_(siconv)"]),
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(ControleSEI, objetos)

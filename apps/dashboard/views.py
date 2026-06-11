@@ -10,6 +10,7 @@ from apps.dashboard.services import (
     get_cronograma_qs,
     get_prorrogacao_qs,
     get_termos_aditivos_qs,
+    get_unidades_executoras_qs,
 )
 
 
@@ -72,9 +73,10 @@ def sigcon(request):
     enrichment = enrich_convenios_page(page_items)
     for conv in page_items:
         extra = enrichment.get(conv.pk, {})
-        conv.codigo_siconv_ext       = extra.get("codigo_siconv", "—")
-        conv.proponente_ext          = extra.get("proponente", "—")
+        conv.codigo_siconv_ext        = extra.get("codigo_siconv", "—")
+        conv.proponente_ext           = extra.get("proponente", "—")
         conv.fim_vigencia_inicial_ext = extra.get("fim_vigencia_inicial")
+        conv.no_sei_ext               = extra.get("no_sei", "—")
 
     params = request.GET.copy()
     params.pop("page", None)
@@ -281,14 +283,27 @@ def termo_aditivo(request):
 
 
 # ---------------------------------------------------------------------------
-# Aba Unidades Executoras — sem model (pendência de fonte)
+# Aba Unidades Executoras
 # ---------------------------------------------------------------------------
 
 def unidades_executoras(request):
     cod_sigcon = request.GET.get("cod_sigcon", "")
+    qs, _ = get_unidades_executoras_qs(cod_sigcon or None)
+
+    paginator = Paginator(qs, 25)
+    page_obj  = paginator.get_page(request.GET.get("page", 1))
+
+    params = request.GET.copy()
+    params.pop("page", None)
+    querystring = params.urlencode()
+
     return render(request, "dashboard/unidades_executoras.html", {
+        "page_obj":       page_obj,
+        "total":          paginator.count,
         "cod_sigcon_sel": cod_sigcon,
-        "secao_ativa":   "sigcon",
+        "querystring":    querystring,
+        "visible_pages":  _visible_pages(page_obj),
+        "secao_ativa":    "sigcon",
     })
 
 

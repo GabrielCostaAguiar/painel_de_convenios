@@ -98,6 +98,31 @@
 
   <div class="scroll-x">
     <table>
+      <colgroup>
+        <col><!-- ação -->
+        <col style="width:50px"><!-- Unidade Orçamentária -->
+        <col style="width:90px"><!-- Código SIGCON -->
+        <col><!-- Código União -->
+        <col><!-- Código Plano de Trabalho -->
+        <col><!-- Código SIAFI -->
+        <col style="width:180px"><!-- SEI -->
+        <col><!-- Instrumento -->
+        <col><!-- Título -->
+        <col><!-- Proponente -->
+        <col><!-- Concedente -->
+        <col><!-- Esfera Concedente -->
+        <col style="width:320px"><!-- Objeto -->
+        <col><!-- Situação -->
+        <col><!-- Tipo de Contrapartida -->
+        <col><!-- Data de Assinatura -->
+        <col><!-- Data de Publicação -->
+        <col><!-- Início vigência -->
+        <col><!-- Término vigência -->
+        <col><!-- Valor proponente -->
+        <col><!-- Valor concedente -->
+        <col><!-- Valor total -->
+        <col><!-- Fim da vigência Inicial -->
+      </colgroup>
       <thead>
         <tr>
           <th></th><!-- ação -->
@@ -106,7 +131,7 @@
           <th>Código União</th>
           <th>Código Plano de Trabalho</th>
           <th>Código SIAFI</th>
-          <th title="Sem fonte disponível">SEI</th>
+          <th>SEI</th>
           <th>Instrumento</th>
           <th>Título</th>
           <th>Proponente</th>
@@ -137,7 +162,7 @@
           <td class="mono">{{ conv.codigo_siconv_ext }}</td>
           <td class="mono">{{ conv.plano_trabalho_codigo|default:"—" }}</td>
           <td class="mono">{{ conv.convenio_numero_sequencial_siafi|default:"—" }}</td>
-          <td class="sem-fonte" title="Sem fonte disponível">— sem fonte —</td>
+          <td class="mono">{{ conv.no_sei_ext }}</td>
           <td>{{ conv.instrumento|default:"—" }}</td>
           <td>{{ conv.titulo|default:"—" }}</td>
           <td>{{ conv.proponente_ext }}</td>

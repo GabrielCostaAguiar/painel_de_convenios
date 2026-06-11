@@ -1,0 +1,33 @@
+fonte: controle_sei
+gerado_em: '2026-06-11'
+colunas:
+  identificador:
+  - no_sei
+  - "no_siafi_(sigcon)"
+  - "no_proposta_(siconv)"
+  texto:
+  - obs
+  - instrumento
+  - instrumento_2
+  - instrumento_3
+  - ta_1
+  - ta_2
+  - ta_3
+  - ta_4
+  - ta_5
+  - ta_6
+  - ta_7
+  - ta_8
+  - ta_9
+  - ta_10
+  - ta_11
+  - ta_12
+  - ta_13
+  - ta_16
+  - ta_17
+  - ta_20
+  - ta_21
+  - ta_22
+  - prorrogacao_de_oficio
+  - "monitorar?"
+duvidoso:

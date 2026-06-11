@@ -224,6 +224,23 @@ FONTES: dict[str, FonteDados] = {
     ),
 
     # -----------------------------------------------------------------------
+    # Controle interno DCGCE — arquivo avulso em data/raw/
+    # -----------------------------------------------------------------------
+
+    "controle_sei": FonteDados(
+        nome="controle_sei",
+        arquivo="Controle SEI.xlsx",
+        formato="excel",
+        descricao=(
+            "Planilha de controle do nº SEI por convênio. "
+            "Chave: Nº_SEI + Nº SIAFI_(SIGCON). "
+            "usecols=range(27) exclui colunas duplicadas das posições 29-31 "
+            "e os separadores Unnamed:27/28."
+        ),
+        opcoes_leitura={"header": 0, "sheet_name": "Página1", "usecols": list(range(27))},
+    ),
+
+    # -----------------------------------------------------------------------
     # De-paras e tabelas de dimensão — arquivos avulsos em data/raw/
     # Usados na etapa de relacionamento R2+ (não geram aba no painel diretamente)
     # -----------------------------------------------------------------------
