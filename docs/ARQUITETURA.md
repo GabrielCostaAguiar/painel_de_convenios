@@ -314,11 +314,15 @@ A camada de relacionamento fica entre Silver e Gold. Equivale ao "miolo" do scri
 |---|---|---|
 | `situacoes_padronizadas.csv` | 19 mapeamentos situação original → padronizada | `Mapa2` |
 | `tipos_siafi.csv` | 2 tipos: `11 → Acordo/Ajuste`, `15 → Transferências Especiais` | `Map_Tipo_SIAFI` |
+| `tipos_receita.csv` | 4 tipos de receita: `13 → Rendimento`, `17 → Receita Corrente`, `19 → Restituição`, `24 → Receita de Capital` | `Mapareceita` |
+| `tipos_instrumento_entrada.csv` | 4 tipos contrato/convênio entrada: `4 → Contrato`, `5 → Convênio`, `8 → Portaria`, `11 → Acordo/Ajuste` | `Mapa1` |
 | `uo_nomes.csv` | ~120 entradas `código → "código - NOME"` | `MapaG_UO` |
 | `uo_siglas.csv` | ~90 entradas `nome → sigla` | `Mapa5` |
 | `uo_descricoes.csv` | ~90 entradas `nome → "nome - sigla"` | `Mapa4` |
 | `concedentes_padronizados.csv` | ~470 entradas normalização concedentes (**parcial** — completar)| `Mapa3` |
 | `correcoes.csv` | 14 correções hard-coded de dados incorretos no SIGCON | linhas 1601–1318 |
+
+> **Atenção — domínios separados:** `tipos_siafi.csv` e `tipos_instrumento_entrada.csv` compartilham o código `11` (ambos `"Acordo/Ajuste"`), mas pertencem a domínios distintos: SIAFI classifica o **instrumento jurídico** do convênio; instrumento_entrada classifica a **coluna tipo contrato/convênio** nas bases de receita/despesa. Mantê-los separados evita que uma atualização em um domínio corrompa o outro.
 
 ### Chave de relacionamento SIAFI_UO
 
@@ -410,7 +414,7 @@ carregam o mesmo `cod_sigcon` para manter o contexto ao navegar entre abas.
 | Cronograma de Desembolso | `/cronograma/` | `cronograma` | filtros cod_siafi + plano |
 | Prorrogação de Ofício | `/prorrogacao/` | `prorrogacao` | todos os registros |
 | Termo Aditivo | `/termo_aditivo/` | `termo_aditivo` | todos os registros |
-| Unidades Executoras | `/unidades_executoras/` | `unidades_executoras` | sem dados (sem fonte) |
+| Unidades Executoras | `/unidades_executoras/` | `unidades_executoras` | todos os registros |
 
 ### Camada de serviços (`apps/dashboard/services.py`)
 
@@ -424,6 +428,7 @@ Isso torna os serviços testáveis independentemente do ciclo request/response.
 | `get_cronograma_qs(cod_sigcon, ...)` | `(QuerySet, ctx)` | Filtra `CronogramaDesembolso` por `siafi + uo` |
 | `get_prorrogacao_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `ProrrogacaoOficio` diretamente por `convenio_codigo` |
 | `get_termos_aditivos_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `TermoAditivo` via `CodigoTermoAditivo` (ponte siafi+uo) |
+| `get_unidades_executoras_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `UnidadesExecutoras` diretamente por `convenio_codigo` |
 
 ### Chaves de ligação mestre → detalhe
 
@@ -456,7 +461,7 @@ marcador `— sem fonte —` no template:
 | **SEI** (aba Convênios) | Nenhum model atual possui campo SEI |
 | **Tipo de Contrapartida** (aba Convênios) | Não encontrado em nenhum model |
 | **Fonte nova** (aba Plano de Aplicação) | `PlanoAplicacao` tem apenas `fonte_recurso_codigo`; de-para `fontes_2023` não foi carregado |
-| **Aba Unidades Executoras inteira** | `dcgce_unidades.executoras` tem erro de geração de schema (header não detectado); model não criado — ver comentário em `models.py:803` |
+| **SEI** (aba Unidades Executoras) | Coluna SEI não está presente no parquet `dcgce_unidades_executoras` |
 
 ### Testes
 
