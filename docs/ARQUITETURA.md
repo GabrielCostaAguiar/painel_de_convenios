@@ -275,8 +275,8 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 ### Fase 6b — Relacionamento SIGCON↔SICONV (migração do QlikView) — em andamento
 - R1 ✅ estrutura, de-paras, filtro UO, correções
 - R2 ✅ chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes
-- R3 campos G_ (coalesce)
-- R4 campos A_ (projeção UO atual)
+- R3 ✅ G_ (coalesce SICONV→SIGCON), A_ (projeção siafi_atual), tabela integrada Gold, 31 testes
+- R4 Django model + loader idempotente
 
 ### Fase 6c — Demais fontes (Transferegov, SIAFI, SIAD, SEI)
 - Módulos de ingestão e transformação por fonte
@@ -351,8 +351,8 @@ Equivalente ao `Where not match(UO, '5131', '9801', ...)` do QlikView (11 UOs).
 |---|---|
 | **R1** ✅ | Estrutura, de-paras, filtro UO, correções |
 | **R2** ✅ | Chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes |
-| **R3** | `aplicar_campos_g`: coalesce SICONV+SIGCON nos 21 campos `G_` |
-| **R4** | `aplicar_campos_a`: projeção `G_` → campos `A_` via `SIAFI_atual` |
+| **R3** ✅ | `aplicar_campos_g` (21 coalesces) + `aplicar_campos_a` + `construir_tabela_integrada` + `gravar_tabela_integrada` + `deduplicar_por_siafi_atual`, 31 testes |
+| **R4** | Conectar tabela integrada ao Django (model + loader idempotente) |
 
 ---
 
