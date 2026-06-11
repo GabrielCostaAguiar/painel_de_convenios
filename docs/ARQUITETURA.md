@@ -390,7 +390,86 @@ Em produção, configure Redis no `settings.py` para cache que sobreviva reinici
 
 ---
 
-## 10. Referências
+## 11. Consultas SIGCON — Abas de Detalhe
+
+### Visão geral
+
+A seção **Consultas SIGCON** do painel expõe 6 abas navegáveis. A aba **Convênios** é a lista
+mestre; as demais são abas de detalhe que mostram registros de um único convênio selecionado.
+
+A seleção é feita clicando no botão `›` de qualquer linha da lista — ele abre a aba
+**Plano de Aplicação** com o parâmetro `?cod_sigcon=<código_SIGCON>`. Os demais links de subtab
+carregam o mesmo `cod_sigcon` para manter o contexto ao navegar entre abas.
+
+### URLs e views
+
+| Aba | URL | View | Modo standalone |
+|---|---|---|---|
+| Convênios | `/` | `sigcon` | lista com filtros |
+| Plano de Aplicação | `/plano_aplicacao/` | `plano_aplicacao` | todos os registros |
+| Cronograma de Desembolso | `/cronograma/` | `cronograma` | filtros cod_siafi + plano |
+| Prorrogação de Ofício | `/prorrogacao/` | `prorrogacao` | todos os registros |
+| Termo Aditivo | `/termo_aditivo/` | `termo_aditivo` | todos os registros |
+| Unidades Executoras | `/unidades_executoras/` | `unidades_executoras` | sem dados (sem fonte) |
+
+### Camada de serviços (`apps/dashboard/services.py`)
+
+Toda a lógica de query/join vive nos serviços. As views são roteadores finos.
+Isso torna os serviços testáveis independentemente do ciclo request/response.
+
+| Função | Retorno | Descrição |
+|---|---|---|
+| `enrich_convenios_page(page_items)` | `dict[pk → extra]` | Enriquece página de `Convenio` com campos de `ConvenioIntegrado` |
+| `get_plano_aplicacao_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `PlanoAplicacao` por `plano_trabalho_codigo` |
+| `get_cronograma_qs(cod_sigcon, ...)` | `(QuerySet, ctx)` | Filtra `CronogramaDesembolso` por `siafi + uo` |
+| `get_prorrogacao_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `ProrrogacaoOficio` diretamente por `convenio_codigo` |
+| `get_termos_aditivos_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `TermoAditivo` via `CodigoTermoAditivo` (ponte siafi+uo) |
+
+### Chaves de ligação mestre → detalhe
+
+| Aba | Chave URL | Lógica de join |
+|---|---|---|
+| Plano de Aplicação | `cod_sigcon` | `Convenio.plano_trabalho_codigo` → `PlanoAplicacao.codigo_plano_trabalho` |
+| Cronograma | `cod_sigcon` | `Convenio.(siafi, uo)` → `CronogramaDesembolso.(siafi, uo)` |
+| Prorrogação | `cod_sigcon` | `Convenio.convenio_codigo` = `ProrrogacaoOficio.prorrogacao_oficio_codigo_convenio` (direto) |
+| Termo Aditivo | `cod_sigcon` | `Convenio.(siafi, uo)` → `CodigoTermoAditivo.(siafi, uo)` → `TermoAditivo.termo_aditivo_codigo_sequencial` |
+
+### Enriquecimento da aba Convênios
+
+O model `Convenio` já contém a maioria dos campos (consolidado pelo `loader.py` a partir de
+`dcgce_convenio + dcgce_geral + dcgce_plano_trabalho + dcgce_esfera`). Dois campos extras
+são preenchidos via Python com dados de `ConvenioIntegrado` (join por `siafi + uo`):
+
+| Campo | Fonte |
+|---|---|
+| Código União | `ConvenioIntegrado.codigo_siconv` |
+| Proponente | `ConvenioIntegrado.g_proponente_pad` |
+| Fim Vigência Inicial | `ConvenioIntegrado.g_fim_vigencia_inicial` |
+
+### Lacunas de fonte (pendências)
+
+Os campos abaixo não têm fonte disponível no estado atual do projeto e são exibidos com o
+marcador `— sem fonte —` no template:
+
+| Campo / Aba | Motivo |
+|---|---|
+| **SEI** (aba Convênios) | Nenhum model atual possui campo SEI |
+| **Tipo de Contrapartida** (aba Convênios) | Não encontrado em nenhum model |
+| **Fonte nova** (aba Plano de Aplicação) | `PlanoAplicacao` tem apenas `fonte_recurso_codigo`; de-para `fontes_2023` não foi carregado |
+| **Aba Unidades Executoras inteira** | `dcgce_unidades.executoras` tem erro de geração de schema (header não detectado); model não criado — ver comentário em `models.py:803` |
+
+### Testes
+
+`apps/dashboard/tests/test_sigcon_services.py` — 11 testes cobrindo todas as abas com fonte:
+- `EnrichConveniosPageTest` (2) — enriquecimento com `ConvenioIntegrado`
+- `PlanoAplicacaoQsTest` (3) — filtragem por `plano_trabalho_codigo`
+- `CronogramaQsTest` (2) — filtragem por `siafi + uo`
+- `ProrrogacaoQsTest` (2) — join direto por `convenio_codigo`
+- `TermoAditivoQsTest` (2) — bridge `CodigoTermoAditivo`
+
+---
+
+## 12. Referências
 
 - [Transferegov — Portal de Dados Abertos](https://portaldatransparencia.gov.br/download-de-dados/convenios)
 - [Documentação Django](https://docs.djangoproject.com/)

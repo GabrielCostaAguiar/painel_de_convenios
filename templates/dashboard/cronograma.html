@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static painel_filters %}
+
+{% block title %}Cronograma de Desembolso{% endblock %}
+
+{% block content %}
+<div class="crumbs">Consultas SIGCON <span>›</span> <b>Cronograma de Desembolso</b></div>
+<div class="page-h"><h1>Consultas SIGCON</h1></div>
+
+<!-- sub-tabs -->
+<div class="subtabs">
+  <a href="{% url 'dashboard:sigcon' %}" class="subtab">Convênios</a>
+  <a href="{% url 'dashboard:plano_aplicacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Plano de aplicação</a>
+  <a href="{% url 'dashboard:cronograma' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab active">Cronograma de desembolso</a>
+  <a href="{% url 'dashboard:prorrogacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Prorrogação de ofício</a>
+  <a href="{% url 'dashboard:termo_aditivo' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Termo aditivo</a>
+  <a href="{% url 'dashboard:unidades_executoras' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Unidades executoras</a>
+</div>
+
+{% if cod_sigcon_sel %}
+<div class="panel" style="padding:10px 16px;font-size:.85rem;border-left:3px solid var(--accent)">
+  Exibindo cronograma do convênio <strong>{{ cod_sigcon_sel }}</strong>
+  {% if cod_siafi_sel %} · SIAFI: <strong>{{ cod_siafi_sel }}</strong>{% endif %}
+  <a href="{% url 'dashboard:cronograma' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
+</div>
+{% endif %}
+
+<!-- Filtros (modo standalone) -->
+{% if not cod_sigcon_sel %}
+<form method="get" action="{% url 'dashboard:cronograma' %}">
+<div class="panel filters">
+  <div class="filters-top">
+    <div class="ttl">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      Filtros da consulta
+    </div>
+    <div class="filters-actions">
+      <a href="{% url 'dashboard:cronograma' %}" class="btn ghost-danger">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Limpar filtros
+      </a>
+      <button type="submit" class="btn primary">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Aplicar
+      </button>
+    </div>
+  </div>
+  <div class="filter-grid">
+    <div class="field">
+      <label for="f-siafi">Código SIAFI</label>
+      <input id="f-siafi" name="cod_siafi" type="text" placeholder="ex.: 9032193" value="{{ cod_siafi_sel }}">
+    </div>
+    <div class="field">
+      <label for="f-plano">Código do Plano de Trabalho</label>
+      <input id="f-plano" name="plano" type="text" placeholder="ex.: 12345" value="{{ plano_sel }}">
+    </div>
+  </div>
+</div>
+</form>
+{% endif %}
+
+<!-- Tabela -->
+<div class="panel table-wrap">
+  <div class="table-head">
+    <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+    <div class="table-tools">
+      <div class="export-wrap">
+        <button class="btn" id="exportBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+          Exportar
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="export-pop" id="exportPop">
+          <button type="button">📊 Excel (.xlsx)<span class="soon">em breve</span></button>
+          <button type="button">📄 CSV (.csv)<span class="soon">em breve</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-x">
+    <table>
+      <thead>
+        <tr>
+          <th>Código SIAFI</th>
+          <th>Código SIGCON</th>
+          <th>Código Plano de Trabalho</th>
+          <th>Mês</th>
+          <th>Ano</th>
+          <th class="num">Valor Concedente R$</th>
+          <th class="num">Valor Proponente R$</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in page_obj %}
+        <tr>
+          <td class="mono">{{ item.convenio_numero_sequencial_siafi|default:"—" }}</td>
+          <td class="mono">{{ cod_sigcon_sel|default:"—" }}</td>
+          <td class="mono">{{ item.plano_trabalho_codigo|default:"—" }}</td>
+          <td class="mono">{{ item.mes_cronograma_desembolso|default:"—" }}</td>
+          <td class="mono">{{ item.ano_cronograma_desembolso|default:"—" }}</td>
+          <td class="val num">{% if item.valor_concedente_cronograma_desembolso %}{{ item.valor_concedente_cronograma_desembolso|brl }}{% else %}—{% endif %}</td>
+          <td class="val num">{% if item.valor_proponente_cronograma_desembolso %}{{ item.valor_proponente_cronograma_desembolso|brl }}{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center;padding:40px;color:var(--ink-3);">
+            {% if cod_sigcon_sel %}
+              Nenhum cronograma encontrado para o convênio <strong>{{ cod_sigcon_sel }}</strong>.
+            {% else %}
+              Nenhum registro encontrado para os filtros aplicados.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <div class="info">
+      {% if total %}
+        Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
+      {% else %}
+        <b>0</b> resultados
+      {% endif %}
+    </div>
+    <div class="pages">
+      {% if page_obj.has_previous %}
+        <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}" class="nav">
+          <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        </a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+      {% endif %}
+      {% for p in visible_pages %}
+        {% if p == page_obj.number %}
+          <button class="cur" disabled>{{ p }}</button>
+        {% elif p %}
+          <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ p }}">{{ p }}</a>
+        {% else %}
+          <button disabled style="cursor:default;border:none;background:none;color:var(--ink-3)">…</button>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}" class="nav">
+          <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

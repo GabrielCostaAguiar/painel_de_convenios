@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Unidades Executoras{% endblock %}
+
+{% block content %}
+<div class="crumbs">Consultas SIGCON <span>›</span> <b>Unidades Executoras</b></div>
+<div class="page-h"><h1>Consultas SIGCON</h1></div>
+
+<!-- sub-tabs -->
+<div class="subtabs">
+  <a href="{% url 'dashboard:sigcon' %}" class="subtab">Convênios</a>
+  <a href="{% url 'dashboard:plano_aplicacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Plano de aplicação</a>
+  <a href="{% url 'dashboard:cronograma' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Cronograma de desembolso</a>
+  <a href="{% url 'dashboard:prorrogacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Prorrogação de ofício</a>
+  <a href="{% url 'dashboard:termo_aditivo' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Termo aditivo</a>
+  <a href="{% url 'dashboard:unidades_executoras' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab active">Unidades executoras</a>
+</div>
+
+<div class="panel" style="padding:32px;text-align:center;color:var(--ink-3)">
+  <svg viewBox="0 0 24 24" style="width:48px;height:48px;opacity:.3;display:block;margin:0 auto 16px">
+    <path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2zm0 9v4m0-7v.5"/>
+  </svg>
+  <h2 style="color:var(--ink-2);margin-bottom:8px">Aba pendente de fonte de dados</h2>
+  <p style="max-width:500px;margin:0 auto">
+    O arquivo <code>dcgce_unidades.executoras</code> apresentou erro de geração de schema
+    (header não detectado corretamente). O model será criado após reinspecionar o arquivo raw.<br>
+    Todos os campos desta aba — Código SIGCON, Código SIAFI, Código União,
+    Código Plano de Trabalho, Unidades Executoras e SEI — estão listados como
+    <strong>pendência de fonte</strong>.
+  </p>
+</div>
+
+<!-- Tabela vazia como referência visual -->
+<div class="panel table-wrap">
+  <div class="table-head">
+    <div class="count"><b>0</b> resultados</div>
+  </div>
+  <div class="scroll-x">
+    <table>
+      <thead>
+        <tr>
+          <th title="Sem fonte disponível">Código SIGCON</th>
+          <th title="Sem fonte disponível">Código SIAFI</th>
+          <th title="Sem fonte disponível">Código União</th>
+          <th title="Sem fonte disponível">Código Plano de Trabalho</th>
+          <th title="Sem fonte disponível">Unidades Executoras</th>
+          <th title="Sem fonte disponível">SEI</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td colspan="6" class="sem-fonte" style="text-align:center;padding:32px">
+            — sem fonte — (dcgce_unidades.executoras ainda sem model)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

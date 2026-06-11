@@ -1,166 +1,208 @@
 {% extends "base.html" %}
 {% load static painel_filters %}
 
-{% block title %}Painel{% endblock %}
+{% block title %}Consultas SIGCON{% endblock %}
 
 {% block content %}
+<div class="crumbs">Consultas SIGCON <span>›</span> <b>Convênios</b></div>
+<div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">
-      Convênios
-      {% if ano_selecionado %}
-        <span>— {{ ano_selecionado }}</span>
-      {% else %}
-        <span>— Todos os anos</span>
-      {% endif %}
-    </h1>
-  </div>
-
-  <form class="filter-bar" method="get">
-    <label for="sel-ano">Filtrar por ano:</label>
-    <select id="sel-ano" name="ano" class="filter-select" onchange="this.form.submit()">
-      <option value="">Todos</option>
-      {% for ano in anos %}
-        <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>{{ ano }}</option>
-      {% endfor %}
-    </select>
-  </form>
+<!-- sub-tabs -->
+<div class="subtabs">
+  <a href="{% url 'dashboard:sigcon' %}" class="subtab active">Convênios</a>
+  <a href="{% url 'dashboard:plano_aplicacao' %}" class="subtab">Plano de aplicação</a>
+  <a href="{% url 'dashboard:cronograma' %}" class="subtab">Cronograma de desembolso</a>
+  <a href="{% url 'dashboard:prorrogacao' %}" class="subtab">Prorrogação de ofício</a>
+  <a href="{% url 'dashboard:termo_aditivo' %}" class="subtab">Termo aditivo</a>
+  <a href="{% url 'dashboard:unidades_executoras' %}" class="subtab">Unidades executoras</a>
 </div>
 
-{% if vazio %}
-
-  <div class="empty-state">
-    <h2>Nenhum dado disponivel</h2>
-    <p>Execute a pipeline de dados para carregar os convênios:</p>
-    <pre style="margin-top:1rem; color: var(--text-muted); font-size:12px;">
-python manage.py rodar_ingestao convenios
-python manage.py rodar_transformacao convenios
-python manage.py carregar_silver</pre>
-  </div>
-
-{% else %}
-
-  {# ── KPI Cards ─────────────────────────────────────────────────────────── #}
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-label">Total de Convenios</div>
-      <div class="kpi-value">{{ resumo.total_convenios }}</div>
-      <div class="kpi-subtext">registros no periodo</div>
+<!-- Filtros -->
+<form method="get" action="{% url 'dashboard:sigcon' %}">
+<div class="panel filters">
+  <div class="filters-top">
+    <div class="ttl">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      Filtros da consulta
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-label">Valor Total</div>
-      <div class="kpi-value" style="font-size:20px;">{{ resumo.valor_total|brl:"0" }}</div>
-      <div class="kpi-subtext">soma dos valores globais</div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-label">Situacoes</div>
-      <div class="kpi-value">{{ resumo.total_situacoes }}</div>
-      <div class="kpi-subtext">status distintos</div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-label">Concedentes</div>
-      <div class="kpi-value">{{ resumo.total_concedentes }}</div>
-      <div class="kpi-subtext">orgaos federais</div>
+    <div class="filters-actions">
+      <a href="{% url 'dashboard:sigcon' %}" class="btn ghost-danger">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Limpar filtros
+      </a>
+      <button type="submit" class="btn primary">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Aplicar
+      </button>
     </div>
   </div>
 
-  {# ── Graficos ──────────────────────────────────────────────────────────── #}
-  <div class="charts-grid">
+  <div class="filter-grid">
+    <div class="field">
+      <label for="f-ano">Ano do instrumento</label>
+      <select id="f-ano" name="ano">
+        <option value="">Todos</option>
+        {% for ano in anos %}
+          <option value="{{ ano }}"{% if ano_sel == ano|stringformat:"s" %} selected{% endif %}>{{ ano }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-sigcon">Código SIGCON</label>
+      <input id="f-sigcon" name="cod_sigcon" type="text" placeholder="ex.: 811906/2014" value="{{ cod_sigcon_sel }}">
+    </div>
+    <div class="field">
+      <label for="f-siafi">Código SIAFI</label>
+      <input id="f-siafi" name="cod_siafi" type="text" placeholder="ex.: 9032193" value="{{ cod_siafi_sel }}">
+    </div>
+    <div class="field">
+      <label for="f-uo">Unidade Orçamentária</label>
+      <select id="f-uo" name="uo">
+        <option value="">Todas</option>
+        {% for u in uos %}
+          <option value="{{ u }}"{% if uo_sel == u %} selected{% endif %}>{{ u }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-sit">Situação</label>
+      <select id="f-sit" name="situacao">
+        <option value="">Todas</option>
+        {% for s in situacoes %}
+          <option value="{{ s }}"{% if situacao_sel == s %} selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+</form>
 
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Convenios por Ano</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-container">
-          <canvas id="grafico-por-ano"></canvas>
+<!-- Tabela -->
+<div class="panel table-wrap">
+  <div class="table-head">
+    <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+    <div class="table-tools">
+      <div class="export-wrap">
+        <button class="btn" id="exportBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+          Exportar
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="export-pop" id="exportPop">
+          <button type="button">📊 Excel (.xlsx)<span class="soon">em breve</span></button>
+          <button type="button">📄 CSV (.csv)<span class="soon">em breve</span></button>
         </div>
       </div>
     </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Distribuicao por Situacao</span>
-      </div>
-      <div class="card-body">
-        <div class="chart-container">
-          <canvas id="grafico-por-situacao"></canvas>
-        </div>
-      </div>
-    </div>
-
   </div>
 
-  {# ── Tabelas ───────────────────────────────────────────────────────────── #}
-  <div class="tables-grid">
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Por Situacao</span>
-      </div>
-      <div class="card-body" style="padding: 0;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Situacao</th>
-              <th class="text-right">Qtd.</th>
-              <th class="text-right">Valor Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in por_situacao %}
-            <tr>
-              <td>{{ row.situacao }}</td>
-              <td class="text-right text-mono">{{ row.quantidade }}</td>
-              <td class="text-right text-mono">{{ row.valor_total|brl }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Por Concedente</span>
-      </div>
-      <div class="card-body" style="padding: 0;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Concedente</th>
-              <th class="text-right">Qtd.</th>
-              <th class="text-right">Valor Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in por_concedente %}
-            <tr>
-              <td>{{ row.concedente }}</td>
-              <td class="text-right text-mono">{{ row.quantidade }}</td>
-              <td class="text-right text-mono">{{ row.valor_total|brl }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
+  <div class="scroll-x">
+    <table>
+      <thead>
+        <tr>
+          <th></th><!-- ação -->
+          <th>Unidade Orçamentária</th>
+          <th>Código SIGCON</th>
+          <th>Código União</th>
+          <th>Código Plano de Trabalho</th>
+          <th>Código SIAFI</th>
+          <th title="Sem fonte disponível">SEI</th>
+          <th>Instrumento</th>
+          <th>Título</th>
+          <th>Proponente</th>
+          <th>Concedente</th>
+          <th>Esfera Concedente</th>
+          <th>Objeto</th>
+          <th>Situação</th>
+          <th title="Sem fonte disponível">Tipo de Contrapartida</th>
+          <th>Data de Assinatura</th>
+          <th>Data de Publicação</th>
+          <th>Início vigência</th>
+          <th>Término vigência</th>
+          <th class="num">Valor proponente R$</th>
+          <th class="num">Valor concedente R$</th>
+          <th class="num">Valor total do Convênio R$</th>
+          <th>Fim da vigência Inicial</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for conv in page_obj %}
+        <tr>
+          <td style="white-space:nowrap">
+            <a href="{% url 'dashboard:plano_aplicacao' %}?cod_sigcon={{ conv.convenio_codigo }}"
+               class="btn" style="padding:2px 8px;font-size:.75rem" title="Ver abas de detalhe">›</a>
+          </td>
+          <td class="mono">{{ conv.unidade_orcamentaria_codigo|default:"—" }}</td>
+          <td class="mono">{{ conv.convenio_codigo }}</td>
+          <td class="mono">{{ conv.codigo_siconv_ext }}</td>
+          <td class="mono">{{ conv.plano_trabalho_codigo|default:"—" }}</td>
+          <td class="mono">{{ conv.convenio_numero_sequencial_siafi|default:"—" }}</td>
+          <td class="sem-fonte" title="Sem fonte disponível">— sem fonte —</td>
+          <td>{{ conv.instrumento|default:"—" }}</td>
+          <td>{{ conv.titulo|default:"—" }}</td>
+          <td>{{ conv.proponente_ext }}</td>
+          <td>{{ conv.concedente|default:"—" }}</td>
+          <td>{{ conv.esfera|default:"—" }}</td>
+          <td>{{ conv.objeto|default:"—" }}</td>
+          <td>
+            <span class="badge {{ conv.situacao|badge_class }}">{{ conv.situacao|default:"—" }}</span>
+          </td>
+          <td class="sem-fonte" title="Sem fonte disponível">— sem fonte —</td>
+          <td class="mono">{{ conv.data_assinatura|date:"d/m/Y"|default:"—" }}</td>
+          <td class="mono">{{ conv.data_publicacao|date:"d/m/Y"|default:"—" }}</td>
+          <td class="mono">{{ conv.data_inicio_vigencia|date:"d/m/Y"|default:"—" }}</td>
+          <td class="mono">{{ conv.data_termino_vigencia|date:"d/m/Y"|default:"—" }}</td>
+          <td class="val num">{% if conv.valor_proponente %}{{ conv.valor_proponente|brl }}{% else %}—{% endif %}</td>
+          <td class="val num">{% if conv.valor_concedente %}{{ conv.valor_concedente|brl }}{% else %}—{% endif %}</td>
+          <td class="val num">{% if conv.valor_total_convenio %}{{ conv.valor_total_convenio|brl }}{% else %}—{% endif %}</td>
+          <td class="mono">{{ conv.fim_vigencia_inicial_ext|date:"d/m/Y"|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="24" style="text-align:center;padding:40px;color:var(--ink-3);">
+            Nenhum registro encontrado para os filtros aplicados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
-  {# Dados JSON para os gráficos — embutidos de forma segura pelo json_script #}
-  {{ por_ano|json_script:"data-por-ano" }}
-  {{ por_situacao|json_script:"data-por-situacao" }}
+  <div class="pager">
+    <div class="info">
+      {% if total %}
+        Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
+      {% else %}
+        <b>0</b> resultados
+      {% endif %}
+    </div>
+    <div class="pages">
+      {% if page_obj.has_previous %}
+        <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}" class="nav">
+          <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        </a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+      {% endif %}
 
-{% endif %}
+      {% for p in visible_pages %}
+        {% if p == page_obj.number %}
+          <button class="cur" disabled>{{ p }}</button>
+        {% elif p %}
+          <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ p }}">{{ p }}</a>
+        {% else %}
+          <button disabled style="cursor:default;border:none;background:none;color:var(--ink-3)">…</button>
+        {% endif %}
+      {% endfor %}
 
-{% endblock %}
-
-{% block extra_js %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="{% static 'js/graficos.js' %}"></script>
+      {% if page_obj.has_next %}
+        <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}" class="nav">
+          <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}
