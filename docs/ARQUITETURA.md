@@ -430,6 +430,27 @@ Isso torna os serviços testáveis independentemente do ciclo request/response.
 | `get_termos_aditivos_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `TermoAditivo` via `CodigoTermoAditivo` (ponte siafi+uo) |
 | `get_unidades_executoras_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `UnidadesExecutoras` diretamente por `convenio_codigo` |
 
+### Gold complementar: tipo de contrapartida
+
+| Item | Detalhe |
+|---|---|
+| Módulo | `core/gold/contrapartida.py` |
+| Equivalente QlikView | `Conv_Caract_Contrapartida` |
+| Origem | `PlanoTrabalho.plano_trabalho_caracteristica` |
+| Ponte | `CodigoPlanoTrabalho.conveno_codigo_plano_trabalho` → `(siafi, uo)` → `siafi_uo` |
+| Lógica | flags binárias (fin / nao_fin / sem) → max() por siafi_uo → tabela-verdade de 5 saídas |
+| Exposição | `enrich_convenios_page()` adiciona `tipo_contrapartida`; view: `conv.tipo_contrapartida_ext` |
+
+**Tabela-verdade de classificação** (`_TABELA` + `_SEM` em `contrapartida.py`):
+
+| financeira | nao_financeira | sem | Resultado |
+|:-:|:-:|:-:|---|
+| 1 | 1 | * | Contrapartida financeira e não financeira |
+| 1 | 0 | * | Contrapartida financeira |
+| 0 | 1 | * | Contrapartida não financeira |
+| 0 | 0 | 1 | Sem contrapartida |
+| 0 | 0 | 0 | Sem informação |
+
 ### Fonte Controle SEI
 
 | Item | Detalhe |

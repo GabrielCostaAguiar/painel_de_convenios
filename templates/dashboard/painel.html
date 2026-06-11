@@ -139,7 +139,7 @@
           <th>Esfera Concedente</th>
           <th>Objeto</th>
           <th>Situação</th>
-          <th title="Sem fonte disponível">Tipo de Contrapartida</th>
+          <th>Tipo de Contrapartida</th>
           <th>Data de Assinatura</th>
           <th>Data de Publicação</th>
           <th>Início vigência</th>
@@ -172,7 +172,7 @@
           <td>
             <span class="badge {{ conv.situacao|badge_class }}">{{ conv.situacao|default:"—" }}</span>
           </td>
-          <td class="sem-fonte" title="Sem fonte disponível">— sem fonte —</td>
+          <td>{{ conv.tipo_contrapartida_ext }}</td>
           <td class="mono">{{ conv.data_assinatura|date:"d/m/Y"|default:"—" }}</td>
           <td class="mono">{{ conv.data_publicacao|date:"d/m/Y"|default:"—" }}</td>
           <td class="mono">{{ conv.data_inicio_vigencia|date:"d/m/Y"|default:"—" }}</td>

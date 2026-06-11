@@ -77,6 +77,7 @@ def sigcon(request):
         conv.proponente_ext           = extra.get("proponente", "—")
         conv.fim_vigencia_inicial_ext = extra.get("fim_vigencia_inicial")
         conv.no_sei_ext               = extra.get("no_sei", "—")
+        conv.tipo_contrapartida_ext   = extra.get("tipo_contrapartida", "—")
 
     params = request.GET.copy()
     params.pop("page", None)

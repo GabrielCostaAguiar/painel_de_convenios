@@ -94,15 +94,21 @@ def invalidar_cache() -> None:
 
 def enrich_convenios_page(page_items: list) -> dict:
     """
-    Enriquece uma página de objetos Convenio com campos de ConvenioIntegrado e ControleSEI.
+    Enriquece uma página de objetos Convenio com campos de ConvenioIntegrado,
+    ControleSEI e tipo de contrapartida (Gold).
 
-    Retorna dict[pk_convenio → {'codigo_siconv', 'proponente', 'fim_vigencia_inicial', 'no_sei'}].
+    Retorna dict[pk_convenio → {
+        'codigo_siconv', 'proponente', 'fim_vigencia_inicial',
+        'no_sei', 'tipo_contrapartida'
+    }].
 
     Chaves de join:
-      ConvenioIntegrado: (convenio_numero_sequencial_siafi, unidade_orcamentaria_codigo)
-      ControleSEI:       convenio_numero_sequencial_siafi  (SIAFI puro — NÃO siafi_uo)
+      ConvenioIntegrado:  (siafi, uo)  — chave composta
+      ControleSEI:        siafi puro   — NÃO siafi_uo
+      tipo_contrapartida: siafi_uo     — siafi + uo concatenados (sem separador)
     """
     from apps.convenios.models import ControleSEI, ConvenioIntegrado
+    from core.gold.contrapartida import tipo_por_siafi_uo
 
     if not page_items:
         return {}
@@ -120,7 +126,6 @@ def enrich_convenios_page(page_items: list) -> dict:
         "g_proponente_pad",
         "g_fim_vigencia_inicial",
     )
-
     integ_map = {
         (r["convenio_numero_sequencial_siafi"], r["unidade_orcamentaria_codigo"]): r
         for r in rows
@@ -131,15 +136,24 @@ def enrich_convenios_page(page_items: list) -> dict:
     ).values("no_siafi_sigcon", "no_sei")
     sei_map = {r["no_siafi_sigcon"]: r["no_sei"] for r in sei_rows}
 
+    siafi_uos = [
+        (c.convenio_numero_sequencial_siafi or "") + (c.unidade_orcamentaria_codigo or "")
+        for c in page_items
+        if c.convenio_numero_sequencial_siafi
+    ]
+    contra_map = tipo_por_siafi_uo(siafi_uos)
+
     result = {}
     for conv in page_items:
         key = (conv.convenio_numero_sequencial_siafi, conv.unidade_orcamentaria_codigo)
         extra = integ_map.get(key, {})
+        siafi_uo = (conv.convenio_numero_sequencial_siafi or "") + (conv.unidade_orcamentaria_codigo or "")
         result[conv.pk] = {
-            "codigo_siconv": extra.get("codigo_siconv") or "—",
-            "proponente": extra.get("g_proponente_pad") or "—",
+            "codigo_siconv":      extra.get("codigo_siconv") or "—",
+            "proponente":         extra.get("g_proponente_pad") or "—",
             "fim_vigencia_inicial": extra.get("g_fim_vigencia_inicial"),
-            "no_sei": sei_map.get(conv.convenio_numero_sequencial_siafi) or "—",
+            "no_sei":             sei_map.get(conv.convenio_numero_sequencial_siafi) or "—",
+            "tipo_contrapartida": contra_map.get(siafi_uo) or "—",
         }
     return result
 
