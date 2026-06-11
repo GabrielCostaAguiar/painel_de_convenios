@@ -276,7 +276,7 @@ O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
 - R1 ✅ estrutura, de-paras, filtro UO, correções
 - R2 ✅ chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes
 - R3 ✅ G_ (coalesce SICONV→SIGCON), A_ (projeção siafi_atual), tabela integrada Gold, 31 testes
-- R4 Django model + loader idempotente
+- R4 ✅ model `ConvenioIntegrado` + loader + command + admin + 2 testes
 
 ### Fase 6c — Demais fontes (Transferegov, SIAFI, SIAD, SEI)
 - Módulos de ingestão e transformação por fonte
@@ -352,7 +352,7 @@ Equivalente ao `Where not match(UO, '5131', '9801', ...)` do QlikView (11 UOs).
 | **R1** ✅ | Estrutura, de-paras, filtro UO, correções |
 | **R2** ✅ | Chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes |
 | **R3** ✅ | `aplicar_campos_g` (21 coalesces) + `aplicar_campos_a` + `construir_tabela_integrada` + `gravar_tabela_integrada` + `deduplicar_por_siafi_atual`, 31 testes |
-| **R4** | Conectar tabela integrada ao Django (model + loader idempotente) |
+| **R4** ✅ | `ConvenioIntegrado` (model + migration), `carregar_tabela_integrada()`, command `carregar_relacionamento`, admin com fieldsets G_/A_, 2 testes Django |
 
 ---
 
