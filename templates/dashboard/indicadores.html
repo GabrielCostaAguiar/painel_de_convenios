@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static painel_filters %}
+
+{% block title %}Indicadores{% endblock %}
+
+{% block content %}
+<div class="crumbs">Painel <span>›</span> <b>Indicadores</b></div>
+<div class="page-h">
+  <h1>Indicadores</h1>
+  <form method="get" style="display:inline-flex;align-items:center;gap:8px;margin-left:16px;">
+    <label for="sel-ano" style="font-size:13px;color:var(--ink-2);font-weight:500;">Ano:</label>
+    <select id="sel-ano" name="ano" onchange="this.form.submit()"
+      style="height:34px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:0 28px 0 11px;font-family:inherit;font-size:13px;color:var(--ink);">
+      <option value="">Todos</option>
+      {% for a in anos %}
+        <option value="{{ a }}"{% if ano_selecionado == a %} selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if vazio %}
+  <div class="panel construcao-wrap">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <h2>Sem dados disponíveis</h2>
+    <p>Execute a pipeline para carregar os convênios.</p>
+  </div>
+
+{% else %}
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi accent">
+      <div class="k-label">Total de Convênios</div>
+      <div class="k-val">{{ resumo.total_convenios }}</div>
+    </div>
+    <div class="kpi accent">
+      <div class="k-label">Valor Total</div>
+      <div class="k-val" style="font-size:17px;">{{ resumo.valor_total_convenio|brl:"0" }}</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Valor Concedente</div>
+      <div class="k-val" style="font-size:17px;">{{ resumo.valor_concedente|brl:"0" }}</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Valor Proponente</div>
+      <div class="k-val" style="font-size:17px;">{{ resumo.valor_proponente|brl:"0" }}</div>
+    </div>
+  </div>
+
+  <!-- Tabela por situação -->
+  <div class="panel table-wrap">
+    <div class="table-head">
+      <div class="count">Distribuição por situação</div>
+    </div>
+    <div class="scroll-x">
+      <table style="min-width:0">
+        <thead>
+          <tr>
+            <th>Situação</th>
+            <th class="num">Quantidade</th>
+            <th class="num">Valor Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in por_situacao %}
+          <tr>
+            <td>
+              <span class="badge {{ row.situacao|badge_class }}">{{ row.situacao }}</span>
+            </td>
+            <td class="val num">{{ row.quantidade }}</td>
+            <td class="val num">{{ row.valor_total|brl }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endif %}
+{% endblock %}

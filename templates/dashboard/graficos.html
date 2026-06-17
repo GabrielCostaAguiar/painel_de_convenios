@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gráficos{% endblock %}
+
+{% block content %}
+<div class="crumbs">Painel <span>›</span> <b>Gráficos</b></div>
+<div class="page-h"><h1>Gráficos</h1></div>
+
+{% if vazio %}
+  <div class="panel construcao-wrap">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <h2>Sem dados disponíveis</h2>
+    <p>Execute a pipeline para carregar os convênios.</p>
+  </div>
+
+{% else %}
+
+  <div class="panel" style="padding:16px 16px 20px;margin-bottom:16px;">
+    <div class="table-head" style="padding:0 0 12px;border-bottom:1px solid var(--line);margin-bottom:16px;">
+      <div class="count" style="font-size:14px;font-weight:600;color:var(--ink);">Convênios por Ano</div>
+    </div>
+    <div style="height:300px;position:relative;">
+      <canvas id="grafico-por-ano"></canvas>
+    </div>
+  </div>
+
+  <div class="panel" style="padding:16px 16px 20px;">
+    <div class="table-head" style="padding:0 0 12px;border-bottom:1px solid var(--line);margin-bottom:16px;">
+      <div class="count" style="font-size:14px;font-weight:600;color:var(--ink);">Distribuição por Situação</div>
+    </div>
+    <div style="height:300px;position:relative;">
+      <canvas id="grafico-por-situacao"></canvas>
+    </div>
+  </div>
+
+  {{ por_ano|json_script:"data-por-ano" }}
+  {{ por_situacao|json_script:"data-por-situacao" }}
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not vazio %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/graficos.js' %}"></script>
+{% endif %}
+{% endblock %}

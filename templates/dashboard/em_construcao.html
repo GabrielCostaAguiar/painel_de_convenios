@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}{{ secao_nome }}{% endblock %}
+
+{% block content %}
+<div class="crumbs">Painel <span>›</span> <b>{{ secao_nome }}</b></div>
+<div class="page-h">
+  <h1>{{ secao_nome }}</h1>
+</div>
+
+<div class="panel construcao-wrap">
+  <svg viewBox="0 0 24 24">
+    <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+    <path d="M12 8v4"/>
+    <path d="M12 16h.01"/>
+  </svg>
+  <h2>Em construção</h2>
+  <p>Esta seção está sendo desenvolvida e estará disponível em breve.</p>
+</div>
+{% endblock %}
