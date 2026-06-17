@@ -2,7 +2,29 @@
   "permissions": {
     "allow": [
       "Bash(New-Item -ItemType Directory -Force -Path config, apps\\\\dashboard, core\\\\ingestion, core\\\\transform, core\\\\gold, data\\\\bronze, data\\\\silver, data\\\\gold, static, templates, tests, docs)",
-      "Bash(Out-Null)"
+      "Bash(Out-Null)",
+      "Bash(dir \"c:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\" /b)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(python --version)",
+      "PowerShell(pip --version)",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\"; .\\\\.venv\\\\Scripts\\\\pip freeze | Where-Object { $_ -match \"^\\(Django|django-environ|pandas|asgiref|sqlparse|tzdata|numpy|python-dateutil|six\\)==\" } | Sort-Object)",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\"; .\\\\.venv\\\\Scripts\\\\pip freeze | Where-Object { $_ -match \"^\\(black|pytest|pytest-django|click|colorama|iniconfig|mypy-extensions|packaging|pathspec|platformdirs|pluggy|pygments|pytokens\\)==\" } | Sort-Object)",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\"; Start-Process -FilePath \".\\\\.venv\\\\Scripts\\\\python.exe\" -ArgumentList \"manage.py runserver --noreload\" -WindowStyle Hidden; Start-Sleep -Seconds 3; try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:8000\" -TimeoutSec 5; \"HTTP $\\($r.StatusCode\\)\" } catch { $_.Exception.Message })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\\\\data\\\\bronze\\\\convenios\\\\\" | Select-Object -First 1 | ForEach-Object { Get-ChildItem \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\\\\data\\\\bronze\\\\convenios\\\\\" })",
+      "PowerShell(Get-Process -Name python -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(netstat -ano)",
+      "Bash(.venv/Scripts/python manage.py check --settings=config.settings.dev)",
+      "Bash(.venv/Scripts/pytest tests/ -q)",
+      "Bash(.venv/Scripts/python manage.py runserver --settings=config.settings.dev 8000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/)",
+      "PowerShell($proc = Start-Process -FilePath \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\\\\.venv\\\\Scripts\\\\python.exe\" -ArgumentList \"manage.py runserver --settings=config.settings.dev 8000\" -WorkingDirectory \"C:\\\\Users\\\\M1578465\\\\Projetos\\\\painel_de_convenios\" -PassThru -WindowStyle Hidden; Start-Sleep -Seconds 3; try { $resp = Invoke-WebRequest -Uri \"http://127.0.0.1:8000/\" -TimeoutSec 5 -UseBasicParsing; \"HTTP $\\($resp.StatusCode\\) - Content length: $\\($resp.Content.Length\\)\" } catch { \"Error: $_\" }; $proc.Id)",
+      "PowerShell($resp = Invoke-WebRequest -Uri \"http://127.0.0.1:8000/\" -TimeoutSec 5 -UseBasicParsing; $resp.Content | Select-String -Pattern \"kpi-value|Nenhum dado|vazio|Total de\")",
+      "PowerShell($resp = Invoke-WebRequest -Uri \"http://127.0.0.1:8000/?ano=2024\" -TimeoutSec 5 -UseBasicParsing; $resp.Content | Select-String -Pattern \"kpi-value\" -AllMatches | Select-Object -First 5)",
+      "PowerShell(Get-Process -Name python -ErrorAction SilentlyContinue | Where-Object { $_.Id -eq 9684 } | Stop-Process -Force; \"Servidor encerrado\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python -)"
     ]
   }
 }

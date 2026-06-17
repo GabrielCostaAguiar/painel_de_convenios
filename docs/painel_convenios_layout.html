@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Convênios DCGCE — Consultas SIGCON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --vinho:#7a1722;
+    --vinho-700:#671019;
+    --vinho-900:#46080f;
+    --vinho-050:#f5e7e8;
+    --ouro:#c08a2e;
+    --bg:#f4f3f0;
+    --surface:#ffffff;
+    --ink:#211c1d;
+    --ink-2:#6f6862;
+    --ink-3:#9a938d;
+    --line:#e6e2dc;
+    --line-2:#efece7;
+    --verde:#2e7d52;
+    --verde-bg:#e6f1ea;
+    --ambar:#a86412;
+    --ambar-bg:#f7ecd9;
+    --vermelho:#a1303a;
+    --vermelho-bg:#f6e4e5;
+    --sidebar-w:248px;
+    --sidebar-w-collapsed:66px;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(33,28,29,.05),0 4px 16px rgba(33,28,29,.04);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer}
+  ::selection{background:var(--vinho-050)}
+
+  /* ---------- Layout shell ---------- */
+  .app{
+    display:grid;
+    grid-template-columns:var(--sidebar-w) 1fr;
+    height:100vh;
+    transition:grid-template-columns .22s ease;
+  }
+  .app.collapsed{grid-template-columns:var(--sidebar-w-collapsed) 1fr}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    background:var(--vinho-900);
+    color:#f3e9e8;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    border-right:1px solid var(--vinho-900);
+  }
+  .brand{
+    display:flex;align-items:center;gap:11px;
+    padding:18px 16px 16px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    white-space:nowrap;
+  }
+  .brand-mark{
+    flex:0 0 34px;height:34px;border-radius:8px;
+    background:linear-gradient(150deg,var(--vinho) 0%,var(--vinho-700) 100%);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Serif',serif;font-weight:600;font-size:15px;color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+  }
+  .brand-text{display:flex;flex-direction:column;line-height:1.2}
+  .brand-text strong{font-size:14px;font-weight:600;letter-spacing:.2px}
+  .brand-text span{font-size:11px;color:#cfa9ac;letter-spacing:.3px}
+  .collapsed .brand-text{opacity:0;width:0}
+
+  .nav{padding:10px 10px;flex:1;overflow-y:auto}
+  .nav-label{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;
+    color:#b98d90;padding:14px 10px 7px;font-weight:600;
+  }
+  .collapsed .nav-label{opacity:0;height:8px;padding:0}
+  .nav-item{
+    display:flex;align-items:center;gap:12px;
+    padding:9px 11px;border-radius:8px;
+    color:#e7d6d6;text-decoration:none;font-size:13.5px;font-weight:500;
+    white-space:nowrap;position:relative;margin-bottom:2px;
+    transition:background .15s,color .15s;
+  }
+  .nav-item svg{flex:0 0 18px;width:18px;height:18px;stroke:#d8bdbe;stroke-width:1.7;fill:none}
+  .nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav-item.active{background:var(--vinho);color:#fff}
+  .nav-item.active svg{stroke:var(--ouro)}
+  .nav-item.active::before{
+    content:"";position:absolute;left:-10px;top:7px;bottom:7px;width:3px;
+    background:var(--ouro);border-radius:0 3px 3px 0;
+  }
+  .nav-item .lbl{transition:opacity .15s}
+  .collapsed .nav-item{justify-content:center;padding:9px}
+  .collapsed .nav-item .lbl{opacity:0;width:0;overflow:hidden}
+
+  .sidebar-foot{
+    padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);
+    font-size:11px;color:#b98d90;white-space:nowrap;
+  }
+  .collapsed .sidebar-foot{text-align:center;font-size:0}
+  .collapsed .sidebar-foot::after{content:"v0.1";font-size:10px}
+
+  /* ---------- Main ---------- */
+  .main{display:flex;flex-direction:column;overflow:hidden}
+
+  .topbar{
+    height:62px;background:var(--surface);
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;
+    padding:0 22px;flex:0 0 auto;
+  }
+  .icon-btn{
+    width:36px;height:36px;border-radius:8px;border:1px solid var(--line);
+    background:var(--surface);display:flex;align-items:center;justify-content:center;
+    color:var(--ink-2);transition:background .15s,border-color .15s;
+  }
+  .icon-btn:hover{background:var(--bg);border-color:var(--ink-3)}
+  .icon-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
+
+  .topbar-title{font-family:'IBM Plex Serif',serif;font-size:19px;font-weight:600;letter-spacing:.2px}
+  .topbar-title span{color:var(--ink-3);font-weight:500}
+
+  .search{
+    margin-left:auto;position:relative;width:300px;max-width:34vw;
+  }
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;stroke:var(--ink-3);stroke-width:1.8;fill:none}
+  .search input{
+    width:100%;height:38px;border:1px solid var(--line);border-radius:9px;
+    padding:0 12px 0 36px;font-family:inherit;font-size:13.5px;color:var(--ink);
+    background:var(--bg);transition:border-color .15s,background .15s;
+  }
+  .search input:focus{outline:none;border-color:var(--vinho);background:var(--surface)}
+  .search input::placeholder{color:var(--ink-3)}
+
+  .load-wrap{position:relative}
+  .load-btn{
+    display:flex;align-items:center;gap:9px;height:38px;padding:0 13px;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);
+    color:var(--ink-2);font-size:13px;font-weight:500;
+  }
+  .load-btn:hover{border-color:var(--ink-3)}
+  .load-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--verde);box-shadow:0 0 0 3px var(--verde-bg)}
+  .load-btn svg{width:14px;height:14px;stroke:var(--ink-3);stroke-width:2;fill:none}
+  .load-pop{
+    position:absolute;right:0;top:46px;width:248px;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+    padding:8px;z-index:40;display:none;
+  }
+  .load-pop.open{display:block}
+  .load-pop h4{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);padding:6px 8px 9px}
+  .load-row{display:flex;justify-content:space-between;padding:6px 8px;border-radius:6px;font-size:12.5px}
+  .load-row:hover{background:var(--bg)}
+  .load-row b{font-weight:500}
+  .load-row span{font-family:'IBM Plex Mono',monospace;color:var(--ink-2);font-size:12px}
+
+  /* ---------- Content scroll area ---------- */
+  .content{flex:1;overflow-y:auto;padding:22px 26px 40px}
+
+  .crumbs{display:flex;align-items:center;gap:7px;color:var(--ink-3);font-size:12.5px;margin-bottom:4px}
+  .crumbs b{color:var(--ink-2);font-weight:500}
+  .page-h{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+  .page-h h1{font-family:'IBM Plex Serif',serif;font-size:24px;font-weight:600}
+
+  /* sub-tabs */
+  .subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
+  .subtab{
+    padding:9px 14px;font-size:13.5px;font-weight:500;color:var(--ink-2);
+    border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0;
+  }
+  .subtab:hover{background:var(--line-2)}
+  .subtab.active{color:var(--vinho);border-bottom-color:var(--vinho);font-weight:600}
+
+  /* kpi chips */
+  .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:13px 16px;min-width:150px;flex:1;box-shadow:var(--shadow);
+  }
+  .kpi .k-label{font-size:11.5px;color:var(--ink-2);letter-spacing:.02em;margin-bottom:5px}
+  .kpi .k-val{font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-.5px}
+  .kpi .k-val small{font-size:12px;color:var(--ink-3);font-weight:500;margin-left:3px}
+  .kpi.accent{border-top:2px solid var(--ouro)}
+
+  /* filter bar */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .filters{padding:15px 16px 16px;margin-bottom:16px}
+  .filters-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+  .filters-top .ttl{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .filters-top .ttl svg{width:16px;height:16px;stroke:var(--vinho);stroke-width:1.8;fill:none}
+  .filters-actions{display:flex;gap:9px}
+  .btn{
+    height:36px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:600;
+    display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  }
+  .btn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+  .btn:hover{background:var(--bg)}
+  .btn.ghost-danger{color:var(--vermelho);border-color:#e8cfd1}
+  .btn.ghost-danger:hover{background:var(--vermelho-bg)}
+  .btn.primary{background:var(--vinho);border-color:var(--vinho);color:#fff}
+  .btn.primary:hover{background:var(--vinho-700)}
+  .btn.primary svg{stroke:#fff}
+
+  .filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11.5px;font-weight:500;color:var(--ink-2)}
+  .field select,.field input{
+    height:38px;border:1px solid var(--line);border-radius:8px;background:var(--bg);
+    padding:0 11px;font-family:inherit;font-size:13.5px;color:var(--ink);
+  }
+  .field input{font-family:'IBM Plex Mono',monospace;font-size:13px}
+  .field select:focus,.field input:focus{outline:none;border-color:var(--vinho);background:var(--surface)}
+  .more-link{margin-top:12px;font-size:13px;color:var(--vinho);font-weight:600;background:none;border:none;display:inline-flex;align-items:center;gap:6px}
+  .more-link svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
+
+  /* table */
+  .table-wrap{overflow:hidden}
+  .table-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .table-head .count{font-size:13px;color:var(--ink-2)}
+  .table-head .count b{color:var(--ink);font-family:'IBM Plex Mono',monospace}
+  .table-tools{display:flex;gap:9px}
+  .export-wrap{position:relative}
+  .export-pop{
+    position:absolute;right:0;top:44px;background:var(--surface);border:1px solid var(--line);
+    border-radius:10px;box-shadow:var(--shadow);padding:6px;width:170px;z-index:30;display:none;
+  }
+  .export-pop.open{display:block}
+  .export-pop button{
+    width:100%;text-align:left;padding:9px 11px;border:none;background:none;border-radius:7px;
+    font-size:13px;color:var(--ink);display:flex;align-items:center;gap:9px;
+  }
+  .export-pop button:hover{background:var(--bg)}
+  .export-pop .soon{margin-left:auto;font-size:10px;color:var(--ink-3);background:var(--line-2);padding:2px 6px;border-radius:20px}
+
+  .scroll-x{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:1180px;font-size:13px}
+  thead th{
+    position:sticky;top:0;background:#faf8f6;text-align:left;
+    font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);font-weight:600;
+    padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1;
+  }
+  th.num,td.num{text-align:right}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  tbody tr:hover{background:#fbf9f7}
+  td.mono{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+  td.val{font-family:'IBM Plex Mono',monospace;font-size:12.5px;white-space:nowrap}
+  td.title{min-width:230px;color:var(--ink)}
+  td.obj{min-width:260px;color:var(--ink-2);font-size:12.5px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .badge::before{content:"";width:6px;height:6px;border-radius:50%}
+  .b-vig{background:var(--verde-bg);color:var(--verde)} .b-vig::before{background:var(--verde)}
+  .b-venc{background:var(--ambar-bg);color:var(--ambar)} .b-venc::before{background:var(--ambar)}
+  .b-bloq{background:var(--vermelho-bg);color:var(--vermelho)} .b-bloq::before{background:var(--vermelho)}
+  .esf{font-size:11.5px;color:var(--ink-2)}
+
+  /* pagination */
+  .pager{display:flex;align-items:center;justify-content:space-between;padding:14px 16px}
+  .pager .info{font-size:12.5px;color:var(--ink-2)}
+  .pager .info b{font-family:'IBM Plex Mono',monospace;color:var(--ink)}
+  .pages{display:flex;gap:5px}
+  .pages button{width:33px;height:33px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:13px;color:var(--ink-2)}
+  .pages button:hover{background:var(--bg)}
+  .pages button.cur{background:var(--vinho);border-color:var(--vinho);color:#fff;font-weight:600}
+  .pages button.nav svg{width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none;vertical-align:middle}
+
+  /* responsive */
+  @media(max-width:880px){
+    .app{grid-template-columns:var(--sidebar-w-collapsed) 1fr}
+    .app .brand-text,.app .nav-item .lbl,.app .nav-label{opacity:0;width:0;height:8px;overflow:hidden}
+    .app .nav-item{justify-content:center}
+    .search{width:160px}
+    .topbar-title span{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CC</div>
+      <div class="brand-text">
+        <strong>DCGCE</strong>
+        <span>Casa Civil · MG</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Painel</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M13 16V9M18 16v-8"/></svg>
+        <span class="lbl">Indicadores</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 3"/></svg>
+        <span class="lbl">Gráficos</span>
+      </a>
+
+      <div class="nav-label">Consultas</div>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg>
+        <span class="lbl">Consultas SIGCON</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13M4 21h16M9 21v-6h6v6"/></svg>
+        <span class="lbl">Consultas União</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16M4 5v14h16V5M9 9v6M15 9v6M12 9v6"/></svg>
+        <span class="lbl">Execução Estadual</span>
+      </a>
+
+      <div class="nav-label">Acompanhamento</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        <span class="lbl">Monitoramento</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M7 3h10v18l-5-3-5 3z"/></svg>
+        <span class="lbl">Relatório Individual</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM10 20a2 2 0 0 0 4 0"/></svg>
+        <span class="lbl">Alertas</span>
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h3.5a1.5 1.5 0 0 1 0 3H10a1.5 1.5 0 0 0 0 3h3.5"/></svg>
+        <span class="lbl">Painel de Emendas</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">Painel de Convênios · DCGCE</div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn" id="toggle" title="Recolher menu" aria-label="Recolher menu">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="topbar-title">Painel de Convênios <span>· DCGCE</span></div>
+
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="text" placeholder="Buscar por título, proponente, objeto…">
+      </div>
+
+      <div class="load-wrap">
+        <button class="load-btn" id="loadBtn">
+          <span class="dot"></span>
+          Dados de carga
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="load-pop" id="loadPop">
+          <h4>Última carga por fonte</h4>
+          <div class="load-row"><b>SIGCON</b><span>09/06/2026</span></div>
+          <div class="load-row"><b>União (Transferegov)</b><span>08/06/2026</span></div>
+          <div class="load-row"><b>SIAFI</b><span>09/06/2026</span></div>
+          <div class="load-row"><b>SIAD</b><span>09/06/2026</span></div>
+          <div class="load-row"><b>Crédito / Cota</b><span>08/06/2026</span></div>
+          <div class="load-row"><b>SIGA-Brasil</b><span>02/06/2026</span></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="crumbs">Consultas SIGCON <span>›</span> <b>Convênios</b></div>
+      <div class="page-h"><h1>Consultas SIGCON</h1></div>
+
+      <!-- sub-tabs (espelham as abas do SIGCON) -->
+      <div class="subtabs">
+        <button class="subtab active">Convênios</button>
+        <button class="subtab">Plano de aplicação</button>
+        <button class="subtab">Cronograma de desembolso</button>
+        <button class="subtab">Prorrogação de ofício</button>
+        <button class="subtab">Termo aditivo</button>
+        <button class="subtab">Unidades executoras</button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="panel filters">
+        <div class="filters-top">
+          <div class="ttl">
+            <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+            Filtros da consulta
+          </div>
+          <div class="filters-actions">
+            <button class="btn ghost-danger">
+              <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+              Limpar filtros
+            </button>
+            <button class="btn primary">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              Aplicar
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-grid">
+          <div class="field">
+            <label for="f-ano">Ano do instrumento</label>
+            <select id="f-ano"><option>Todos</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select>
+          </div>
+          <div class="field">
+            <label for="f-sigcon">Código SIGCON</label>
+            <input id="f-sigcon" type="text" placeholder="ex.: 811906/2014">
+          </div>
+          <div class="field">
+            <label for="f-siafi">Código SIAFI</label>
+            <input id="f-siafi" type="text" placeholder="ex.: 9032193">
+          </div>
+          <div class="field">
+            <label for="f-prop">Proponente</label>
+            <select id="f-prop"><option>Todos</option><option>PMMG</option><option>SEINFRA</option><option>FES</option><option>UEMG</option></select>
+          </div>
+          <div class="field">
+            <label for="f-esfera">Esfera concedente</label>
+            <select id="f-esfera"><option>Todas</option><option>Federal</option><option>Estadual</option><option>Municipal</option></select>
+          </div>
+          <div class="field">
+            <label for="f-sit">Situação</label>
+            <select id="f-sit"><option>Todas</option><option>Vigente</option><option>Vencido</option><option>Bloqueado</option></select>
+          </div>
+        </div>
+        <button class="more-link">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Mais filtros (UO, fonte, dotação, SEI, instrumento)
+        </button>
+      </div>
+
+      <!-- Tabela -->
+      <div class="panel table-wrap">
+        <div class="table-head">
+          <div class="count"><b>5.228</b> resultados · ordenado por data do instrumento</div>
+          <div class="table-tools">
+            <div class="export-wrap">
+              <button class="btn" id="exportBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+                Exportar
+                <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div class="export-pop" id="exportPop">
+                <button>📊 Excel (.xlsx)<span class="soon">em breve</span></button>
+                <button>📄 CSV (.csv)<span class="soon">em breve</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>UO</th>
+                <th>Cód. SIGCON</th>
+                <th>Cód. União</th>
+                <th>Cód. SIAFI</th>
+                <th>SEI</th>
+                <th>Instrumento</th>
+                <th>Título</th>
+                <th>Proponente</th>
+                <th>Concedente</th>
+                <th>Esfera</th>
+                <th>Situação</th>
+                <th class="num">Valor total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">1011</td><td class="mono">811906/2014</td><td class="mono">811906</td><td class="mono">9032193</td><td class="mono">1500.01.0001</td>
+                <td>Convênio de entrada</td><td class="title">Revitalização da Bacia Hidrográfica do Rio São Francisco</td>
+                <td>Assembleia Legislativa MG</td><td>Min. Meio Ambiente</td><td class="esf">Federal</td>
+                <td><span class="badge b-vig">Vigente</span></td><td class="val num">1.635.036,80</td>
+              </tr>
+              <tr>
+                <td class="mono">1071</td><td class="mono">TE-2026439</td><td class="mono">18919</td><td class="mono">9512481</td><td class="mono">1570.01.0003</td>
+                <td>Transferência especial</td><td class="title">Aparelhamento do Gabinete Militar do Governador</td>
+                <td>GMG</td><td>Min. Gestão e Inovação</td><td class="esf">Federal</td>
+                <td><span class="badge b-vig">Vigente</span></td><td class="val num">4.134.096,00</td>
+              </tr>
+              <tr>
+                <td class="mono">1251</td><td class="mono">PR-3703/2024</td><td class="mono">17254</td><td class="mono">9447103</td><td class="mono">1070.01.0004</td>
+                <td>Portaria</td><td class="title">Execução de ações de Defesa Civil — repasse de recursos</td>
+                <td>SEINFRA</td><td>Min. Integração e Desenv. Reg.</td><td class="esf">Federal</td>
+                <td><span class="badge b-venc">Vencido</span></td><td class="val num">1.683.086,66</td>
+              </tr>
+              <tr>
+                <td class="mono">1481</td><td class="mono">CV-0098/2023</td><td class="mono">700024</td><td class="mono">9270256</td><td class="mono">1500.01.0013</td>
+                <td>Convênio de entrada</td><td class="title">Modernização da rede hospitalar estadual — fase II</td>
+                <td>FES</td><td>Min. Saúde</td><td class="esf">Federal</td>
+                <td><span class="badge b-vig">Vigente</span></td><td class="val num">158.127.756,70</td>
+              </tr>
+              <tr>
+                <td class="mono">1371</td><td class="mono">AC-5114/2024</td><td class="mono">700010</td><td class="mono">9345638</td><td class="mono">1070.01.0028</td>
+                <td>Acordo / ajuste</td><td class="title">Cooperação técnica para gestão de transferências</td>
+                <td>SEDE</td><td>Min. da Fazenda</td><td class="esf">Federal</td>
+                <td><span class="badge b-bloq">Bloqueado</span></td><td class="val num">9.000.000,00</td>
+              </tr>
+              <tr>
+                <td class="mono">1221</td><td class="mono">PR-1569/2020</td><td class="mono">12179</td><td class="mono">9252008</td><td class="mono">1070.01.0017</td>
+                <td>Portaria</td><td class="title">Ações de resposta em municípios afetados por estiagem</td>
+                <td>SEINFRA</td><td>Min. Integração e Desenv. Reg.</td><td class="esf">Federal</td>
+                <td><span class="badge b-venc">Vencido</span></td><td class="val num">903.366,00</td>
+              </tr>
+              <tr>
+                <td class="mono">1191</td><td class="mono">CV-2210/2022</td><td class="mono">711906</td><td class="mono">9415540</td><td class="mono">1500.01.0009</td>
+                <td>Convênio de entrada</td><td class="title">Ampliação da Universidade Estadual de Montes Claros</td>
+                <td>UEMG</td><td>Min. Educação</td><td class="esf">Federal</td>
+                <td><span class="badge b-vig">Vigente</span></td><td class="val num">417.297.522,29</td>
+              </tr>
+              <tr>
+                <td class="mono">1301</td><td class="mono">CE-0044/2021</td><td class="mono">700023</td><td class="mono">9447092</td><td class="mono">1500.01.0021</td>
+                <td>Convênio estadual</td><td class="title">Estruturação da rede de assistência social</td>
+                <td>SEDESE</td><td>Sec. de Desenv. Social</td><td class="esf">Estadual</td>
+                <td><span class="badge b-vig">Vigente</span></td><td class="val num">1.465.772.198,37</td>
+              </tr>
+              <tr>
+                <td class="mono">1451</td><td class="mono">CM-0771/2023</td><td class="mono">711124</td><td class="mono">9481207</td><td class="mono">1070.01.0041</td>
+                <td>Convênio municipal</td><td class="title">Pavimentação de vias urbanas — Montes Claros</td>
+                <td>Pref. Montes Claros</td><td>Sec. de Infraestrutura</td><td class="esf">Municipal</td>
+                <td><span class="badge b-bloq">Bloqueado</span></td><td class="val num">196.070.235,50</td>
+              </tr>
+              <tr>
+                <td class="mono">1081</td><td class="mono">PR-0080/2023</td><td class="mono">700039</td><td class="mono">9424308</td><td class="mono">1070.01.0013</td>
+                <td>Portaria</td><td class="title">Aquisição de equipamentos para a Polícia Civil</td>
+                <td>PCMG</td><td>Min. Justiça e Seg. Pública</td><td class="esf">Federal</td>
+                <td><span class="badge b-vig">Vigente</span></td><td class="val num">613.642.057,17</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <div class="info">Mostrando <b>1–10</b> de <b>5.228</b></div>
+          <div class="pages">
+            <button class="nav" title="Anterior"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+            <button class="cur">1</button>
+            <button>2</button>
+            <button>3</button>
+            <button>…</button>
+            <button>523</button>
+            <button class="nav" title="Próxima"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // recolher / expandir menu lateral
+  document.getElementById('toggle').addEventListener('click', function(){
+    document.getElementById('app').classList.toggle('collapsed');
+  });
+
+  // popover de datas de carga
+  const loadBtn = document.getElementById('loadBtn');
+  const loadPop = document.getElementById('loadPop');
+  loadBtn.addEventListener('click', function(e){ e.stopPropagation(); loadPop.classList.toggle('open'); });
+
+  // popover de exportação
+  const exportBtn = document.getElementById('exportBtn');
+  const exportPop = document.getElementById('exportPop');
+  exportBtn.addEventListener('click', function(e){ e.stopPropagation(); exportPop.classList.toggle('open'); });
+
+  // fecha popovers ao clicar fora
+  document.addEventListener('click', function(){
+    loadPop.classList.remove('open');
+    exportPop.classList.remove('open');
+  });
+
+  // troca visual das sub-abas (mockup)
+  document.querySelectorAll('.subtab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelector('.subtab.active').classList.remove('active');
+      t.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
