@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.core.paginator import Paginator
 
-from apps.convenios.models import Convenio, CronogramaDesembolso
+from apps.convenios.models import Convenio, CronogramaDesembolso, TermoAditivo
 from apps.dashboard.services import (
     get_anos_disponiveis,
     get_indicadores,
@@ -38,6 +38,8 @@ def sigcon(request):
     uo         = request.GET.get("uo", "")
     cod_sigcon = request.GET.get("cod_sigcon", "")
     cod_siafi  = request.GET.get("cod_siafi", "")
+    instrumento = request.GET.get("instrumento", "")
+    termo_aditivo = request.GET.get("termo_aditivo", "")
 
     qs = Convenio.objects.all()
     if ano_str.isdigit():
@@ -47,9 +49,13 @@ def sigcon(request):
     if uo:
         qs = qs.filter(unidade_orcamentaria_codigo=uo)
     if cod_sigcon:
-        qs = qs.filter(convenio_codigo__icontains=cod_sigcon)
+        qs = qs.filter(convenio_codigo=cod_sigcon)
     if cod_siafi:
-        qs = qs.filter(convenio_numero_sequencial_siafi__icontains=cod_siafi)
+        qs = qs.filter(convenio_numero_sequencial_siafi=cod_siafi)
+    if instrumento:
+        qs = qs.filter(instrumento=instrumento)
+    if termo_aditivo:
+        qs = qs.filter(tipo_termo_aditivo=termo_aditivo)
 
     anos = get_anos_disponiveis()
     situacoes = (
@@ -64,6 +70,31 @@ def sigcon(request):
         .values_list("unidade_orcamentaria_codigo", flat=True)
         .distinct().order_by("unidade_orcamentaria_codigo")
     )
+    lista_siafi = (
+        Convenio.objects
+        .values_list("convenio_numero_sequencial_siafi", flat=True)
+        .distinct()
+        .order_by("convenio_numero_sequencial_siafi")
+    )
+    lista_sigcon = (
+        Convenio.objects
+        .values_list("convenio_codigo", flat=True)
+        .distinct()
+        .order_by("convenio_codigo")
+    )
+    lista_instrumentos = (
+        Convenio.objects
+        .values_list("instrumento", flat=True)
+        .distinct()
+        .order_by("instrumento")
+    )
+    lista_termos_aditivo = (
+        TermoAditivo.objects
+        .values_list("tipo_termo_aditivo", flat=True)
+        .distinct()
+        .order_by("tipo_termo_aditivo")
+    )
+
 
     paginator = Paginator(qs, 25)
     page_obj  = paginator.get_page(request.GET.get("page", 1))
@@ -95,6 +126,10 @@ def sigcon(request):
         "cod_sigcon_sel": cod_sigcon,
         "cod_siafi_sel":  cod_siafi,
         "querystring":    querystring,
+        "siafis":         lista_siafi,
+        "sigcons":        lista_sigcon,
+        "instrumentos":   lista_instrumentos,
+        "termos_aditivo": lista_termos_aditivo,
         "visible_pages":  _visible_pages(page_obj),
         "secao_ativa":    "sigcon",
     })

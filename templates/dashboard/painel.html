@@ -49,18 +49,61 @@
     </div>
     <div class="field">
       <label for="f-sigcon">Código SIGCON</label>
-      <input id="f-sigcon" name="cod_sigcon" type="text" placeholder="ex.: 811906/2014" value="{{ cod_sigcon_sel }}">
+      <input 
+      id="f-sigcon" 
+      name="cod_sigcon" 
+      type="text" 
+      placeholder="Digite o SIGCON" 
+      value="{{ cod_sigcon_sel }}"
+      autocomplete="off"
+      list="lista-sigcon"
+      >
+
+      <datalist id="lista-sigcon">
+        {% for sigcon in sigcons %}
+          {% if sigcon %}
+            <option value="{{ sigcon }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
     </div>
+
     <div class="field">
       <label for="f-siafi">Código SIAFI</label>
-      <input id="f-siafi" name="cod_siafi" type="text" placeholder="ex.: 9032193" value="{{ cod_siafi_sel }}">
+
+      <input
+        id="f-siafi"
+        name="convenio_numero_sequencial_siafi"
+        type="text"
+        placeholder="Digite o SIAFI"
+        list="lista-siafi"
+        value="{{ cod_siafi_sel }}"
+        autocomplete="off"
+      >
+
+      <datalist id="lista-siafi">
+        {% for siafi in siafis %}
+          {% if siafi %}
+            <option value="{{ siafi }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class ="field">
+      <label for="f-proponente">Proponente</label>
+      <input id="f-proponente" name="proponente" type="text" placeholder="ex.: Secretaria de Estado de Educação" value="{{ proponente_sel }}">
+    </div>
+    <div class = "field">
+      <label for="f-concedente">Concedente</label>
+      <input id="f-concedente" name="concedente" type="text" placeholder="ex.: Ministério da Saúde" value="{{ concedente_sel }}">
     </div>
     <div class="field">
-      <label for="f-uo">Unidade Orçamentária</label>
-      <select id="f-uo" name="uo">
+      <Label for="f-contrapartida">Tipo de contrapartida</Label>
+      <select id="f-contrapartida" name="tipo_contrapartida">
         <option value="">Todas</option>
-        {% for u in uos %}
-          <option value="{{ u }}"{% if uo_sel == u %} selected{% endif %}>{{ u }}</option>
+        {% for tc in tipos_contrapartida %}
+          <option value="{{ tc }}"{% if tipo_contrapartida_sel == tc %} selected{% endif %}>{{ tc }}</option>
         {% endfor %}
       </select>
     </div>
@@ -72,6 +115,39 @@
           <option value="{{ s }}"{% if situacao_sel == s %} selected{% endif %}>{{ s }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div class="field">
+      <label for="f-termo_aditivo">Tipo de termo aditivo</label>
+
+      <select id="f-termo_aditivo" name="termo_aditivo">
+        <option value="">Todos</option>
+
+        {% for termo in termos_aditivo %}
+          {% if termo %}
+            <option value="{{ termo }}" {% if termo_aditivo_sel == termo %}selected{% endif %}>
+              {{ termo }}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="f-instrumento">Instrumento</label>
+      <input id="f-instrumento" 
+        name="instrumento" 
+        type="text" 
+        placeholder="ex.: Convênio" 
+        value="{{ instrumento_sel }}"
+        list="lista-instrumento"
+        autocomplete="off">
+      <datalist id="lista-instrumento">
+        {% for instrumento in instrumentos %}
+          {% if instrumento %}
+            <option value="{{ instrumento }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
     </div>
   </div>
 </div>
@@ -99,55 +175,55 @@
   <div class="scroll-x">
     <table>
       <colgroup>
-        <col><!-- ação -->
-        <col style="width:50px"><!-- Unidade Orçamentária -->
-        <col style="width:90px"><!-- Código SIGCON -->
-        <col><!-- Código União -->
-        <col><!-- Código Plano de Trabalho -->
-        <col><!-- Código SIAFI -->
-        <col style="width:180px"><!-- SEI -->
-        <col><!-- Instrumento -->
-        <col><!-- Título -->
-        <col><!-- Proponente -->
-        <col><!-- Concedente -->
-        <col><!-- Esfera Concedente -->
+        <col style="width:40px"><!-- ação -->
+        <col style="width:130px"><!-- Unidade Orçamentária -->
+        <col style="width:250px"><!-- Código SIGCON -->
+        <col style="width:200px"><!-- Código União -->
+        <col style="width:130px"><!-- Código Plano de Trabalho -->
+        <col style="width:100px"><!-- Código SIAFI -->
+        <col style="width:200px"><!-- SEI -->
+        <col style="width:120px"><!-- Instrumento -->
+        <col style="width:160px"><!-- Título -->
+        <col style="width:200px"><!-- Proponente -->
+        <col style="width:200px"><!-- Concedente -->
+        <col style="width:120px"><!-- Esfera Concedente -->
         <col style="width:320px"><!-- Objeto -->
-        <col><!-- Situação -->
-        <col><!-- Tipo de Contrapartida -->
-        <col><!-- Data de Assinatura -->
-        <col><!-- Data de Publicação -->
-        <col><!-- Início vigência -->
-        <col><!-- Término vigência -->
-        <col><!-- Valor proponente -->
-        <col><!-- Valor concedente -->
-        <col><!-- Valor total -->
-        <col><!-- Fim da vigência Inicial -->
+        <col style="width:110px"><!-- Situação -->
+        <col style="width:130px"><!-- Tipo de Contrapartida -->
+        <col style="width:130px"><!-- Data de Assinatura -->
+        <col style="width:130px"><!-- Data de Publicação -->
+        <col style="width:130px"><!-- Início vigência -->
+        <col style="width:130px"><!-- Término vigência -->
+        <col style="width:140px"><!-- Valor proponente -->
+        <col style="width:130px"><!-- Valor concedente -->
+        <col style="width:140px"><!-- Valor total -->
+        <col style="width:150px"><!-- Fim da vigência Inicial -->
       </colgroup>
       <thead>
         <tr>
           <th></th><!-- ação -->
-          <th>Unidade Orçamentária</th>
+          <th>Unidade<br>Orçamentária</th>
           <th>Código SIGCON</th>
           <th>Código União</th>
-          <th>Código Plano de Trabalho</th>
-          <th>Código SIAFI</th>
+          <th>Código Plano<br>de Trabalho</th>
+          <th>Código<br>SIAFI</th>
           <th>SEI</th>
           <th>Instrumento</th>
           <th>Título</th>
           <th>Proponente</th>
           <th>Concedente</th>
-          <th>Esfera Concedente</th>
+          <th>Esfera<br>Concedente</th>
           <th>Objeto</th>
           <th>Situação</th>
-          <th>Tipo de Contrapartida</th>
-          <th>Data de Assinatura</th>
-          <th>Data de Publicação</th>
-          <th>Início vigência</th>
-          <th>Término vigência</th>
-          <th class="num">Valor proponente R$</th>
-          <th class="num">Valor concedente R$</th>
-          <th class="num">Valor total do Convênio R$</th>
-          <th>Fim da vigência Inicial</th>
+          <th>Tipo de<br>Contrapartida</th>
+          <th>Data de<br>Assinatura</th>
+          <th>Data de<br>Publicação</th>
+          <th>Início<br>vigência</th>
+          <th>Término<br>vigência</th>
+          <th class="num">Valor<br>proponente (R$)</th>
+          <th class="num">Valor<br>concedente (R$)</th>
+          <th class="num">Valor total<br>do Convênio (R$)</th>
+          <th>Fim da<br>vigência Inicial</th>
         </tr>
       </thead>
       <tbody>
