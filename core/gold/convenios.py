@@ -1,98 +1,125 @@
 """
-Camada Gold: indicadores prontos para exibição no painel.
+Camada Gold: indicadores calculados via ORM Django.
 
-Filosofia desta camada:
-  - Recebe um DataFrame (de qualquer origem: banco, CSV Silver, testes).
-  - Devolve um DataFrame ou dict pronto para a view renderizar.
-  - ZERO side effects: não grava, não lê do banco, não acessa Django.
-  - Funções puras → testáveis isoladamente, sem banco e sem servidor.
-
-Por que calcular aqui e não na hora de renderizar a tela?
-  Se o cálculo fosse feito dentro da view, CADA requisição de CADA usuário
-  repetiria o mesmo groupby/somatório sobre toda a tabela.
-  Com a Gold, o dado pesado é calculado uma vez (ou cacheado no services.py)
-  e a view apenas formata o resultado pronto.
-  Em escala: 1 groupby cacheado vs N groupbys por segundo.
+Cada função faz uma consulta agregada ao banco e retorna estruturas
+simples (dict / list[dict]) com valores JSON-safe (float, int, str, None).
+Sem DataFrames, sem Decimal, sem objetos date — prontos para template e json_script.
 """
 
-import pandas as pd
+import logging
+
+from django.db.models import Count, Sum
+from django.db.models.functions import ExtractYear
+
+from apps.convenios.models import Convenio
+
+logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# Preparação interna — garante que os tipos estejam corretos
-# independentemente de o DataFrame vir do banco ou de um CSV de teste.
-# =============================================================================
+def _qs(ano: int | None = None):
+    """QuerySet base, opcionalmente filtrado pelo ano de data_inicio_vigencia."""
+    qs = Convenio.objects.all()
+    if ano is not None:
+        qs = qs.filter(data_inicio_vigencia__year=ano)
+    return qs
 
-def _preparar(df: pd.DataFrame) -> pd.DataFrame:
+
+def kpis(ano: int | None = None) -> dict:
     """
-    Normaliza tipos antes de qualquer agregação:
-      - valor_global: Decimal do ORM ou string "500000.00" → float
-      - data_inicio : date do ORM ou string "2024-01-01" → Timestamp
-      - ano         : coluna derivada para agrupamentos temporais
-    """
-    df = df.copy()
-    df["valor_global"] = pd.to_numeric(df["valor_global"], errors="coerce").fillna(0.0)
-    df["data_inicio"] = pd.to_datetime(df["data_inicio"], errors="coerce")
-    df["ano"] = df["data_inicio"].dt.year.astype("Int64")  # Int64 aceita NaN
-    return df
+    KPIs de alto nível.
 
-
-# =============================================================================
-# Indicadores
-# =============================================================================
-
-def resumo_geral(df: pd.DataFrame) -> dict:
+    Retorna: total_convenios (int), valor_total_convenio, valor_concedente,
+             valor_proponente (float em reais).
     """
-    Painel de controle: números totais de alto nível.
-    Retorna dict para facilitar interpolação direta no template.
-    """
-    df = _preparar(df)
+    agg = _qs(ano).aggregate(
+        total_convenios=Count("id"),
+        valor_total_convenio=Sum("valor_total_convenio"),
+        valor_concedente=Sum("valor_concedente"),
+        valor_proponente=Sum("valor_proponente"),
+    )
     return {
-        "total_convenios": int(len(df)),
-        "valor_total": float(df["valor_global"].sum()),
-        "total_situacoes": int(df["situacao"].nunique()),
-        "total_concedentes": int(df["concedente"].nunique()),
+        "total_convenios": agg["total_convenios"] or 0,
+        "valor_total_convenio": float(agg["valor_total_convenio"] or 0),
+        "valor_concedente": float(agg["valor_concedente"] or 0),
+        "valor_proponente": float(agg["valor_proponente"] or 0),
     }
 
 
-def total_por_situacao(df: pd.DataFrame) -> pd.DataFrame:
+def por_situacao(ano: int | None = None) -> list[dict]:
     """
-    Quantidade e valor total por situação/status do convênio.
-    Ordenado por valor_total decrescente (mais relevante primeiro).
+    Contagem e valor total por situação, ordenados por valor_total decrescente.
+    Chaves: situacao, quantidade, valor_total — compatível com graficos.js.
     """
-    df = _preparar(df)
-    return (
-        df.groupby("situacao", as_index=False)
-        .agg(quantidade=("nr_convenio", "count"), valor_total=("valor_global", "sum"))
-        .sort_values("valor_total", ascending=False)
-        .reset_index(drop=True)
+    rows = (
+        _qs(ano)
+        .values("situacao")
+        .annotate(
+            quantidade=Count("id"),
+            valor_total=Sum("valor_total_convenio"),
+        )
+        .order_by("-valor_total")
     )
+    return [
+        {
+            "situacao": row["situacao"] or "—",
+            "quantidade": row["quantidade"],
+            "valor_total": float(row["valor_total"] or 0),
+        }
+        for row in rows
+    ]
 
 
-def total_por_ano(df: pd.DataFrame) -> pd.DataFrame:
+def por_ano() -> list[dict]:
     """
-    Quantidade e valor total por ano de início do convênio.
-    Ordenado cronologicamente (série temporal).
+    Contagem e valor total por ano de início de vigência — série histórica completa.
+    Não filtra por ano: destina-se ao gráfico de linha temporal.
+    Chaves: ano, quantidade, valor_total — compatível com graficos.js.
     """
-    df = _preparar(df)
-    return (
-        df.dropna(subset=["ano"])
-        .groupby("ano", as_index=False)
-        .agg(quantidade=("nr_convenio", "count"), valor_total=("valor_global", "sum"))
-        .sort_values("ano")
-        .reset_index(drop=True)
+    rows = (
+        Convenio.objects
+        .exclude(data_inicio_vigencia=None)
+        .annotate(ano=ExtractYear("data_inicio_vigencia"))
+        .values("ano")
+        .annotate(
+            quantidade=Count("id"),
+            valor_total=Sum("valor_total_convenio"),
+        )
+        .order_by("ano")
     )
+    return [
+        {
+            "ano": row["ano"],
+            "quantidade": row["quantidade"],
+            "valor_total": float(row["valor_total"] or 0),
+        }
+        for row in rows
+    ]
 
 
-def total_por_concedente(df: pd.DataFrame) -> pd.DataFrame:
+def recentes(limite: int = 50, ano: int | None = None) -> list[dict]:
     """
-    Quantidade e valor total por órgão concedente federal.
-    Ordenado por valor_total decrescente (top concedentes primeiro).
+    Os N convênios mais recentes por data_inicio_vigencia.
+    Datas retornadas como string ISO 8601; valores como float.
     """
-    df = _preparar(df)
-    return (
-        df.groupby("concedente", as_index=False)
-        .agg(quantidade=("nr_convenio", "count"), valor_total=("valor_global", "sum"))
-        .sort_values("valor_total", ascending=False)
-        .reset_index(drop=True)
+    rows = (
+        _qs(ano)
+        .exclude(data_inicio_vigencia=None)
+        .order_by("-data_inicio_vigencia")
+        .values(
+            "convenio_codigo",
+            "situacao",
+            "data_inicio_vigencia",
+            "data_termino_vigencia",
+            "valor_total_convenio",
+        )[:limite]
     )
+    return [
+        {
+            "convenio_codigo": row["convenio_codigo"],
+            "situacao": row["situacao"] or "—",
+            "data_inicio": row["data_inicio_vigencia"].isoformat(),
+            "data_termino": row["data_termino_vigencia"].isoformat() if row["data_termino_vigencia"] else None,
+            "valor_total": float(row["valor_total_convenio"]) if row["valor_total_convenio"] is not None else None,
+        }
+        for row in rows
+    ]
