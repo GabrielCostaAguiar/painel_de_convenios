@@ -1,0 +1,26 @@
+fonte: dcgce_declaracao_contrapartida
+gerado_em: '2026-06-09'
+colunas:
+  data:
+  - declaracao_contrapartida_data_completa_emissao
+  - declaracao_contrapartida_data_emissao
+  - declaracao_contrapartida_data_completa_parecer_aprovacao
+  - declaracao_contrapartida_data_parecer_aprovacao
+  identificador:
+  - declaracao_contrapartida_codigo
+  - declaracao_contrapartida_codigo_nota_tecnica
+  - declaracao_contrapartida_codigo_parecer_aprovacao
+  texto:
+  - declaracao_contrapartida_ano
+  - declaracao_contrapartida_status
+  - declaracao_contrapartida_observacao
+  - declaracao_contrapartida_observacao_aprovacao
+  - declaracao_contrapartida_matricula_aprovacao
+  - declaracao_contrapartida_momento
+duvidoso:
+- declaracao_contrapartida_ano
+- declaracao_contrapartida_status
+- declaracao_contrapartida_observacao
+- declaracao_contrapartida_observacao_aprovacao
+- declaracao_contrapartida_matricula_aprovacao
+- declaracao_contrapartida_momento

@@ -1,0 +1,28 @@
+fonte: dcgce_plano_trabalho
+gerado_em: '2026-06-10'
+colunas:
+  data:
+  - plano_trabalho_data_cancelamento_sccg
+  - plano_trabalho_data_cadastro
+  - plano_trabalho_data_envio_sccg
+  identificador:
+  - plano_trabalho_codigo
+  - plano_trabalho_codigo_execucao_no_exercicio
+  - plano_trabalho_tipo_siafi
+  - plano_trabalho_cnpj_concedente
+  - plano_trabalho_cnpj_proponente
+  texto:
+  - plano_trabalho_titulo
+  - plano_trabalho_objeto
+  - plano_trabalho_justificativa
+  - plano_trabalho_status
+  - plano_trabalho_caracteristica
+  - plano_trabalho_tipo
+  - plano_trabalho_migrado_ou_novo
+  - plano_trabalho_matricula_sccg_cancelamento
+  - plano_trabalho_justificativa_sccg_cancelamento
+  - plano_trabalho_cancelamento_sccg
+  - plano_trabalho_ano
+  - plano_trabalho_altera_termo_aditivo
+  - plano_trabalho_razao_social_concedente
+duvidoso: []

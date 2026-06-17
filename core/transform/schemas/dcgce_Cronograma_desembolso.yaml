@@ -1,0 +1,12 @@
+fonte: dcgce_cronograma_desembolso
+gerado_em: '2026-06-10'
+colunas:
+  valor:
+  - valor_concedente_cronograma_desembolso
+  - valor_proponente_cronograma_desembolso
+  identificador:
+  - plano_trabalho_codigo
+  texto:
+  - mes_cronograma_desembolso
+  - ano_cronograma_desembolso
+duvidoso: []

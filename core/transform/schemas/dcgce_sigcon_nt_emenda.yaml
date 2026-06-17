@@ -1,0 +1,14 @@
+fonte: dcgce_sigcon_nt_emenda
+gerado_em: '2026-06-09'
+colunas:
+  identificador:
+  - unidade_orcamentaria_codigo
+  - plano_trabalho_codigo
+  texto:
+  - nt_emenda_no
+  - nt_emenda_nome
+  - nota_tecnica_emenda_parlamentar_federal_situacao
+duvidoso:
+- nt_emenda_no
+- nt_emenda_nome
+- nota_tecnica_emenda_parlamentar_federal_situacao

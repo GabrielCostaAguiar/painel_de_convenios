@@ -1,0 +1,9 @@
+fonte: dcgce_codigo_ta
+gerado_em: '2026-06-10'
+colunas:
+  identificador:
+  - convenio_numero_sequencial_siafi
+  - termo_aditivo_codigo_sequencial
+  - unidade_orcamentaria_codigo
+  - plano_trabalho_codigo
+duvidoso: []

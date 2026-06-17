@@ -1,0 +1,13 @@
+fonte: dcgce_prorrogacao_oficio
+gerado_em: '2026-06-09'
+colunas:
+  data:
+  - prorrogacao_oficio_data_inicio_vigencia
+  - prorrogacao_oficio_data_termino_vigencia
+  - prorrogacao_oficio_data_envio
+  - prorrogacao_oficio_data_parecer
+  - prorrogacao_oficio_data_publicacao
+  identificador:
+  - prorrogacao_oficio_codigo
+  - prorrogacao_oficio_codigo_convenio
+duvidoso: []

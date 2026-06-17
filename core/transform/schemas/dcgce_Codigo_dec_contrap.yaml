@@ -1,0 +1,8 @@
+fonte: dcgce_codigo_dec_contrap
+gerado_em: '2026-06-10'
+colunas:
+  identificador:
+  - declaracao_contrapartida_codigo
+  - convenio_numero_sequencial_siafi
+  - unidade_orcamentaria_codigo
+duvidoso: []

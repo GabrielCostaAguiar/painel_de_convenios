@@ -1,0 +1,19 @@
+fonte: dcgce_chave
+gerado_em: '2026-06-10'
+colunas:
+  data:
+  - convenio_data_de_cadastramento
+  identificador:
+  - plano_trabalho_tipo_siafi
+  - unidade_orcamentaria_codigo
+  - convenio_numero_sequencial_siafi
+  - no_convenio
+  - plano_trabalho_codigo
+  texto:
+  - situacao
+  - plano_trabalho_razao_social_concedente
+  - plano_trabalho_objeto
+duvidoso:
+- situacao
+- plano_trabalho_razao_social_concedente
+- plano_trabalho_objeto

@@ -1,0 +1,11 @@
+fonte: dcgce_unidades_executoras
+gerado_em: '2026-06-11'
+colunas:
+  identificador:
+  - unidade_orcamentaria_codigo
+  - convenio_numero_sequencial_siafi
+  - unidade_executora
+  texto:
+  - convenio_codigo 
+duvidoso:
+

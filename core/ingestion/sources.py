@@ -155,6 +155,16 @@ FONTES: dict[str, FonteDados] = {
 
     # ---- Pontes ETL (carimbo de chaves; usadas só no loader, não geram aba no painel) ----
 
+    "dcgce_Codigo_plano_de_trabalho": FonteDados(
+        nome="dcgce_Codigo_plano_de_trabalho",
+        arquivo="sigcon/dcgce_Codigo_plano_de_trabalho.xlsx",
+        formato="excel",
+        descricao=(
+            "Ponte ETL: mapeia conveno_codigo_plano_trabalho → SIAFI+UO. "
+            "Usada para derivar tipo de contrapartida por SIAFI_UO."
+        ),
+        opcoes_leitura={"header": 1},
+    ),
     "dcgce_codigo_ta": FonteDados(
         nome="dcgce_codigo_ta",
         arquivo="sigcon/dcgce_Codigo_ta.xlsx",

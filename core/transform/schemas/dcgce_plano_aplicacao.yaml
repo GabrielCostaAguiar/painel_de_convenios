@@ -1,0 +1,27 @@
+fonte: dcgce_plano_aplicacao
+gerado_em: '2026-06-09'
+colunas:
+  valor:
+  - valor_concedente
+  - valor_proponente
+  identificador:
+  - codigo_plano_trabalho
+  - codigo_unidade_orcamentaria
+  - funcao_codigo
+  - subfuncao_codigo
+  - programa_codigo
+  - identificador_projeto_atividade_codigo
+  - projeto_atividade_codigo
+  - subprojeto_subatividade_codigo
+  - categoria_economica_despesa_codigo
+  - grupo_despesa_codigo
+  - modalidade_aplicacao_codigo
+  - elemento_despesa_codigo
+  - identificador_orcamento_codigo
+  - fonte_recurso_codigo
+  - procedencia_codigo
+  - funcional_programatica_formatado
+  texto:
+  - ano_exercicio_programa_trabalho
+duvidoso:
+- ano_exercicio_programa_trabalho

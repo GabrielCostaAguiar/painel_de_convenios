@@ -1,5 +1,5 @@
 """
-Leitor genérico de CSVs para a camada Bronze.
+Leitor genérico de arquivos (CSV e Excel) para a camada Bronze.
 
 Regra de ouro do Bronze: NÃO interprete os dados — leia tudo como texto (dtype=str).
 Tipos, datas e valores só serão convertidos na camada Silver.
@@ -14,38 +14,49 @@ from .sources import FonteDados
 
 logger = logging.getLogger(__name__)
 
+# Opções fixas do Bronze: preserva dado bruto sem coerção de tipos
+_OPCOES_BRONZE = {"dtype": str, "keep_default_na": False}
+
+_FORMATOS_VALIDOS = {"csv", "excel"}
+
 
 def ler_fonte(fonte: FonteDados, arquivo: Path | None = None) -> pd.DataFrame:
     """
-    Lê o CSV de uma fonte e retorna um DataFrame com todas as colunas como string.
+    Lê o arquivo de uma fonte (CSV ou Excel) e retorna um DataFrame com todas as colunas como string.
 
     Parâmetros
     ----------
-    fonte   : definição da fonte (encoding, separador etc.)
+    fonte   : definição da fonte (formato, opcoes_leitura etc.)
     arquivo : caminho explícito para o arquivo; se None, busca em DATA_DIR/raw/
               (útil para apontar para fixtures em testes sem depender do ambiente)
 
     Raises
     ------
+    ValueError        : se fonte.formato não for "csv" ou "excel"
     FileNotFoundError : se o arquivo não existir no caminho esperado
-    RuntimeError      : se o pandas falhar na leitura (encoding errado, arquivo corrompido etc.)
+    RuntimeError      : se o pandas falhar na leitura (arquivo corrompido, opções inválidas etc.)
     """
+    if fonte.formato not in _FORMATOS_VALIDOS:
+        raise ValueError(
+            f"Formato inválido '{fonte.formato}' para a fonte '{fonte.nome}'. "
+            f"Valores aceitos: {sorted(_FORMATOS_VALIDOS)}"
+        )
+
     caminho = _resolver_caminho(fonte, arquivo)
 
     if not caminho.exists():
         raise FileNotFoundError(
             f"Arquivo não encontrado: {caminho}\n"
-            f"Copie o CSV da fonte '{fonte.nome}' para esse caminho antes de rodar a ingestão."
+            f"Copie o arquivo da fonte '{fonte.nome}' para esse caminho antes de rodar a ingestão."
         )
 
+    opcoes = {**_OPCOES_BRONZE, **fonte.opcoes_leitura}
+
     try:
-        df = pd.read_csv(
-            caminho,
-            sep=fonte.separador,
-            encoding=fonte.encoding,
-            dtype=str,              # Bronze: sem conversão de tipos — preserva o dado bruto
-            keep_default_na=False,  # "" vira "" em vez de NaN — evita perda silenciosa de dados
-        )
+        if fonte.formato == "csv":
+            df = pd.read_csv(caminho, **opcoes)
+        else:  # "excel"
+            df = pd.read_excel(caminho, **opcoes)
     except Exception as exc:
         raise RuntimeError(
             f"Falha ao ler '{fonte.nome}' ({caminho}): {exc}"

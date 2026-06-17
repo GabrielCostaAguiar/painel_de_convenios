@@ -1,0 +1,22 @@
+fonte: dcgce_convenio
+gerado_em: '2026-06-10'
+colunas:
+  data:
+  - data_inicio_vigencia
+  - data_termino_vigencia
+  - data_real_convenio
+  valor:
+  - valor_inicial_concedente_contratado
+  - valor_total_aditado_concedente_contratado
+  - valor_concedente
+  - valor_inicial_proponente_contratado
+  - valor_total_aditado_proponente_contratado
+  - valor_proponente
+  - valor_total_convenio
+  identificador:
+  - convenio_codigo
+  - convenio_numero_sequencial_siafi
+  - unidade_orcamentaria_codigo
+  texto:
+  - situacao
+duvidoso: []

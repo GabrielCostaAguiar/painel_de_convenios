@@ -1,0 +1,27 @@
+fonte: dcgce_geral
+gerado_em: '2026-06-09'
+colunas:
+  data:
+  - convenio_data_de_publicacao
+  - convenio_data_alteracao_sccg
+  - convenio_data_controle_sccg_convenio
+  - convenio_data_assinatura_convenio
+  - convenio_data_de_cadastramento
+  identificador:
+  - convenio_codigo
+  - convenio_codigo_sequencial
+  - convenio_codigo_declaracao
+  - conveno_codigo_plano_trabalho
+  - convenio_numero_sequencial_siafi
+  texto:
+  - convenio_ano
+  - convenio_alteracao
+  - convenio_matricula_tecnico_sccg
+  - convenio_justificativa_da_alteracao
+  - convenio_matricula_gestor
+duvidoso:
+- convenio_ano
+- convenio_alteracao
+- convenio_matricula_tecnico_sccg
+- convenio_justificativa_da_alteracao
+- convenio_matricula_gestor

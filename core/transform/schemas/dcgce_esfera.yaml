@@ -1,0 +1,9 @@
+fonte: dcgce_esfera
+gerado_em: '2026-06-09'
+colunas:
+  identificador:
+  - concedente_cnpj
+  texto:
+  - concedente_esfera
+duvidoso:
+- concedente_esfera
