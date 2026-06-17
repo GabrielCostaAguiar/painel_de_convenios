@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static painel_filters %}
 
 {% block title %}Unidades Executoras{% endblock %}
 
@@ -17,45 +17,85 @@
   <a href="{% url 'dashboard:unidades_executoras' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab active">Unidades executoras</a>
 </div>
 
-<div class="panel" style="padding:32px;text-align:center;color:var(--ink-3)">
-  <svg viewBox="0 0 24 24" style="width:48px;height:48px;opacity:.3;display:block;margin:0 auto 16px">
-    <path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2zm0 9v4m0-7v.5"/>
-  </svg>
-  <h2 style="color:var(--ink-2);margin-bottom:8px">Aba pendente de fonte de dados</h2>
-  <p style="max-width:500px;margin:0 auto">
-    O arquivo <code>dcgce_unidades.executoras</code> apresentou erro de geração de schema
-    (header não detectado corretamente). O model será criado após reinspecionar o arquivo raw.<br>
-    Todos os campos desta aba — Código SIGCON, Código SIAFI, Código União,
-    Código Plano de Trabalho, Unidades Executoras e SEI — estão listados como
-    <strong>pendência de fonte</strong>.
-  </p>
+{% if cod_sigcon_sel %}
+<div class="panel" style="padding:10px 16px;font-size:.85rem;border-left:3px solid var(--accent)">
+  Exibindo unidades executoras do convênio <strong>{{ cod_sigcon_sel }}</strong>
+  <a href="{% url 'dashboard:unidades_executoras' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
 </div>
+{% endif %}
 
-<!-- Tabela vazia como referência visual -->
+<!-- Tabela -->
 <div class="panel table-wrap">
   <div class="table-head">
-    <div class="count"><b>0</b> resultados</div>
+    <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
   </div>
+
   <div class="scroll-x">
     <table>
       <thead>
         <tr>
-          <th title="Sem fonte disponível">Código SIGCON</th>
-          <th title="Sem fonte disponível">Código SIAFI</th>
-          <th title="Sem fonte disponível">Código União</th>
-          <th title="Sem fonte disponível">Código Plano de Trabalho</th>
-          <th title="Sem fonte disponível">Unidades Executoras</th>
-          <th title="Sem fonte disponível">SEI</th>
+          <th>Código SIGCON</th>
+          <th>Código SIAFI</th>
+          <th>Cód. UO</th>
+          <th>Unidade Executora</th>
         </tr>
       </thead>
       <tbody>
+        {% for ue in page_obj %}
         <tr>
-          <td colspan="6" class="sem-fonte" style="text-align:center;padding:32px">
-            — sem fonte — (dcgce_unidades.executoras ainda sem model)
+          <td class="mono">{{ ue.convenio_codigo|default:"—" }}</td>
+          <td class="mono">{{ ue.convenio_numero_sequencial_siafi|default:"—" }}</td>
+          <td class="mono">{{ ue.unidade_orcamentaria_codigo|default:"—" }}</td>
+          <td>{{ ue.unidade_executora|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" style="text-align:center;padding:40px;color:var(--ink-3);">
+            {% if cod_sigcon_sel %}
+              Nenhuma unidade executora encontrada para o convênio <strong>{{ cod_sigcon_sel }}</strong>.
+            {% else %}
+              Use o botão <strong>›</strong> na aba Convênios para ver as unidades executoras de um convênio específico.
+            {% endif %}
           </td>
         </tr>
+        {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <div class="pager">
+    <div class="info">
+      {% if total %}
+        Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
+      {% else %}
+        <b>0</b> resultados
+      {% endif %}
+    </div>
+    <div class="pages">
+      {% if page_obj.has_previous %}
+        <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}" class="nav">
+          <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        </a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+      {% endif %}
+      {% for p in visible_pages %}
+        {% if p == page_obj.number %}
+          <button class="cur" disabled>{{ p }}</button>
+        {% elif p %}
+          <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ p }}">{{ p }}</a>
+        {% else %}
+          <button disabled style="cursor:default;border:none;background:none;color:var(--ink-3)">…</button>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}" class="nav">
+          <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+        </a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}
