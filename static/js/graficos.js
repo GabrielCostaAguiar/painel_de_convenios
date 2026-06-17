@@ -11,15 +11,15 @@
 
   // ── Paleta do tema escuro ──────────────────────────────────────────────────
   const CORES_DOUGHNUT = [
-    "#1a6fd4", "#2a9d5c", "#e6a817", "#c94040",
-    "#7b5ea7", "#1ab0b0", "#d46a1a", "#6b8aad",
+    "#7a1722", "#2e7d52", "#a86412", "#a1303a",
+    "#5c4a8a", "#1a8a8a", "#7a4a1a", "#4a6a8a",
   ];
 
-  const GRID_COLOR  = "rgba(30, 48, 80, 0.6)";
-  const TICK_COLOR  = "#6b8aad";
-  const TEXT_COLOR  = "#d4e0ec";
-  const BAR_COLOR   = "#1a6fd4";
-  const LINE_COLOR  = "#2a9d5c";
+  const GRID_COLOR  = "rgba(230, 226, 220, 0.9)";
+  const TICK_COLOR  = "#9a938d";
+  const TEXT_COLOR  = "#6f6862";
+  const BAR_COLOR   = "#7a1722";
+  const LINE_COLOR  = "#2e7d52";
 
   Chart.defaults.color = TEXT_COLOR;
   Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
@@ -142,7 +142,7 @@
         datasets: [{
           data: vals,
           backgroundColor: CORES_DOUGHNUT.slice(0, labels.length),
-          borderColor: "#131e2e",
+          borderColor: "#ffffff",
           borderWidth: 3,
           hoverOffset: 8,
         }],

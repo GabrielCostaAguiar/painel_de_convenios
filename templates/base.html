@@ -4,33 +4,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Painel de Convênios{% endblock %} — DCGCE/SEPLAG-MG</title>
+  <title>{% block title %}Painel de Convênios{% endblock %} — DCGCE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/painel.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+<div class="app" id="app">
 
-  <nav class="navbar">
-    <div class="navbar-brand">
-      <span class="sigla">SEPLAG</span>
-      <div>
-        Painel de Convênios
-        <div class="navbar-subtitle">DCGCE — Diretoria Central de Gestão e Controle de Execução</div>
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CC</div>
+      <div class="brand-text">
+        <strong>DCGCE</strong>
+        <span>Casa Civil · MG</span>
       </div>
     </div>
-    <div style="color: var(--text-muted); font-size: 12px;">
-      Governo de Minas Gerais
+
+    <nav class="nav">
+      <div class="nav-label">Painel</div>
+
+      <a class="nav-item{% if secao_ativa == 'indicadores' %} active{% endif %}"
+         href="{% url 'dashboard:indicadores' %}">
+        <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M13 16V9M18 16v-8"/></svg>
+        <span class="lbl">Indicadores</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'graficos' %} active{% endif %}"
+         href="{% url 'dashboard:graficos' %}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 3"/></svg>
+        <span class="lbl">Gráficos</span>
+      </a>
+
+      <div class="nav-label">Consultas</div>
+
+      <a class="nav-item{% if secao_ativa == 'sigcon' %} active{% endif %}"
+         href="{% url 'dashboard:sigcon' %}">
+        <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg>
+        <span class="lbl">Consultas SIGCON</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'uniao' %} active{% endif %}"
+         href="{% url 'dashboard:uniao' %}">
+        <svg viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13M4 21h16M9 21v-6h6v6"/></svg>
+        <span class="lbl">Consultas União</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'execucao' %} active{% endif %}"
+         href="{% url 'dashboard:execucao' %}">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16M4 5v14h16V5M9 9v6M15 9v6M12 9v6"/></svg>
+        <span class="lbl">Execução Estadual</span>
+      </a>
+
+      <div class="nav-label">Acompanhamento</div>
+
+      <a class="nav-item{% if secao_ativa == 'monitoramento' %} active{% endif %}"
+         href="{% url 'dashboard:monitoramento' %}">
+        <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
+        <span class="lbl">Monitoramento</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'relatorio' %} active{% endif %}"
+         href="{% url 'dashboard:relatorio' %}">
+        <svg viewBox="0 0 24 24"><path d="M7 3h10v18l-5-3-5 3z"/></svg>
+        <span class="lbl">Relatório Individual</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'alertas' %} active{% endif %}"
+         href="{% url 'dashboard:alertas' %}">
+        <svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM10 20a2 2 0 0 0 4 0"/></svg>
+        <span class="lbl">Alertas</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'emendas' %} active{% endif %}"
+         href="{% url 'dashboard:emendas' %}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h3.5a1.5 1.5 0 0 1 0 3H10a1.5 1.5 0 0 0 0 3h3.5"/></svg>
+        <span class="lbl">Painel de Emendas</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">Painel de Convênios · DCGCE</div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+
+    <header class="topbar">
+      <button class="icon-btn" id="toggle" title="Recolher menu" aria-label="Recolher menu">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+
+      <div class="topbar-title">Painel de Convênios <span>· DCGCE</span></div>
+
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="text" placeholder="Buscar por título, proponente, objeto…">
+      </div>
+
+      <div class="load-wrap">
+        <button class="load-btn" id="loadBtn" type="button">
+          <span class="dot"></span>
+          Dados de carga
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="load-pop" id="loadPop">
+          <h4>Última carga por fonte</h4>
+          <div class="load-row"><b>SIGCON</b><span>09/06/2026</span></div>
+          <div class="load-row"><b>União (Transferegov)</b><span>08/06/2026</span></div>
+          <div class="load-row"><b>SIAFI</b><span>09/06/2026</span></div>
+          <div class="load-row"><b>SIAD</b><span>09/06/2026</span></div>
+          <div class="load-row"><b>Crédito / Cota</b><span>08/06/2026</span></div>
+          <div class="load-row"><b>SIGA-Brasil</b><span>02/06/2026</span></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      {% block content %}{% endblock %}
     </div>
-  </nav>
 
-  <main class="main-container">
-    {% block content %}{% endblock %}
-  </main>
+  </div>{# /main #}
 
-  <footer>
-    Painel de Convênios · DCGCE/SEPLAG-MG · Dados: SIGCON-MG
-  </footer>
+</div>{# /app #}
 
-  {% block extra_js %}{% endblock %}
+<script src="{% static 'js/painel.js' %}"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>
