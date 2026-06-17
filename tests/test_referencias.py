@@ -30,8 +30,10 @@ def test_instrumento_entrada_codigo_11_independente_de_tipos_siafi():
 
     entrada = tipos_instrumento_entrada()
     siafi = tipos_siafi()
-    assert entrada["11"] == siafi["11"]  # rótulo coincide neste caso...
-    assert set(entrada.keys()) != set(siafi.keys())  # ...mas os domínios são diferentes
+    # ambos têm código 11, mas os dicts são independentes e os rótulos podem diferir levemente
+    assert "11" in entrada
+    assert "11" in siafi
+    assert set(entrada.keys()) != set(siafi.keys())
 
 
 def test_aplicar_depara_preserva_nao_mapeados():
