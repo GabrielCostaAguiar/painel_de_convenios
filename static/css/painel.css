@@ -234,15 +234,19 @@ button{font-family:inherit;cursor:pointer}
   border-radius:10px;box-shadow:var(--shadow);padding:6px;width:170px;z-index:30;display:none;
 }
 .export-pop.open{display:block}
-.export-pop button{
+.export-pop button,.export-pop a{
   width:100%;text-align:left;padding:9px 11px;border:none;background:none;border-radius:7px;
   font-size:13px;color:var(--ink);display:flex;align-items:center;gap:9px;
+  text-decoration:none;box-sizing:border-box;
 }
-.export-pop button:hover{background:var(--bg)}
+.export-pop button:hover,.export-pop a:hover{background:var(--bg)}
 .export-pop .soon{margin-left:auto;font-size:10px;color:var(--ink-3);background:var(--line-2);padding:2px 6px;border-radius:20px}
 
 .scroll-x{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:3300px;font-size:13px;table-layout:fixed}
+/* width:max-content (não 100%) — table-layout:fixed soma exatamente as larguras
+   do colgroup; min-width é só uma garantia para o caso de algum navegador
+   ignorar max-content. As duas precisam bater com a soma real do colgroup. */
+table{border-collapse:collapse;width:max-content;font-size:13px;table-layout:fixed}
 thead th{
   position: sticky;top: 0;background: #faf8f6;text-align: left;font-size: 11px;text-transform: uppercase;
   letter-spacing: .04em;color: var(--ink-2);font-weight: 600;padding: 11px 14px;border-bottom: 1px solid var(--line);
@@ -256,8 +260,8 @@ tbody td{padding:11px 14px;border-bottom:1px solid var(--line-2);vertical-align:
 tbody tr:hover{background:#fbf9f7}
 td.mono{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
 td.val{font-family:'IBM Plex Mono',monospace;font-size:12.5px;white-space:nowrap}
-td.title{min-width:230px;color:var(--ink)}
-td.obj{min-width:260px;color:var(--ink-2);font-size:12.5px;white-space:normal}
+td.title{color:var(--ink)}
+td.obj{color:var(--ink-2);font-size:12.5px;white-space:normal}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
 .badge::before{content:"";width:6px;height:6px;border-radius:50%}
 .b-vig{background:var(--verde-bg);color:var(--verde)} .b-vig::before{background:var(--verde)}

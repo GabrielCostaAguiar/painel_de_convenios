@@ -158,13 +158,17 @@ def enrich_convenios_page(page_items: list) -> dict:
     return result
 
 
-def get_plano_aplicacao_qs(cod_sigcon: str | None = None):
+def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
     """
     Retorna (QuerySet[PlanoAplicacao], context_dict) para a aba Plano de Aplicação.
 
     Chave de ligação: Convenio.plano_trabalho_codigo → PlanoAplicacao.codigo_plano_trabalho
     context_dict fornece convenio_codigo, siafi e uo ao template (campos não presentes
     diretamente em PlanoAplicacao).
+
+    cod_sigcon tem prioridade; cod_siafi (filtro global) é usado quando cod_sigcon
+    não foi informado — resolve plano_trabalho_codigo via Convenio, pois
+    PlanoAplicacao não tem SIAFI diretamente.
     """
     from apps.convenios.models import Convenio, PlanoAplicacao
 
@@ -181,6 +185,14 @@ def get_plano_aplicacao_qs(cod_sigcon: str | None = None):
             qs = PlanoAplicacao.objects.filter(codigo_plano_trabalho=conv.plano_trabalho_codigo)
         else:
             qs = PlanoAplicacao.objects.none()
+    elif cod_siafi:
+        context.update({"siafi": cod_siafi, "uo": "", "plano_trabalho_codigo": ""})
+        planos = set(
+            Convenio.objects.filter(convenio_numero_sequencial_siafi=cod_siafi)
+            .exclude(plano_trabalho_codigo=None).exclude(plano_trabalho_codigo="")
+            .values_list("plano_trabalho_codigo", flat=True)
+        )
+        qs = PlanoAplicacao.objects.filter(codigo_plano_trabalho__in=planos) if planos else PlanoAplicacao.objects.none()
     else:
         context.update({"siafi": "", "uo": "", "plano_trabalho_codigo": ""})
         qs = PlanoAplicacao.objects.all()
@@ -231,12 +243,15 @@ def get_cronograma_qs(
     return qs, context
 
 
-def get_prorrogacao_qs(cod_sigcon: str | None = None):
+def get_prorrogacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
     """
     Retorna (QuerySet[ProrrogacaoOficio], context_dict).
 
     Chave de ligação DIRETA: ProrrogacaoOficio.prorrogacao_oficio_codigo_convenio = convenio_codigo
-    Não há plano_trabalho_codigo em ProrrogacaoOficio; exibe-o via Convenio quando em modo detalhe.
+    Não há plano_trabalho_codigo nem SIAFI em ProrrogacaoOficio; exibe-os via Convenio.
+
+    cod_sigcon tem prioridade; cod_siafi (filtro global) resolve os convenio_codigo
+    correspondentes via Convenio quando cod_sigcon não foi informado.
     """
     from apps.convenios.models import Convenio, ProrrogacaoOficio
 
@@ -247,13 +262,20 @@ def get_prorrogacao_qs(cod_sigcon: str | None = None):
         qs = qs.filter(prorrogacao_oficio_codigo_convenio=cod_sigcon)
         conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
         context["plano_trabalho_codigo"] = (conv.plano_trabalho_codigo or "—") if conv else "—"
+    elif cod_siafi:
+        codigos = set(
+            Convenio.objects.filter(convenio_numero_sequencial_siafi=cod_siafi)
+            .values_list("convenio_codigo", flat=True)
+        )
+        qs = qs.filter(prorrogacao_oficio_codigo_convenio__in=codigos) if codigos else qs.none()
+        context["plano_trabalho_codigo"] = ""
     else:
         context["plano_trabalho_codigo"] = ""
 
     return qs, context
 
 
-def get_termos_aditivos_qs(cod_sigcon: str | None = None):
+def get_termos_aditivos_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
     """
     Retorna (QuerySet[TermoAditivo], context_dict).
 
@@ -262,6 +284,9 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None):
         → TermoAditivo.termo_aditivo_codigo_sequencial
     CodigoTermoAditivo também fornece plano_trabalho_codigo por termo.
     context_dict inclui 'ta_pt_map': {ta_codigo_seq → plano_trabalho_codigo}.
+
+    cod_sigcon tem prioridade (resolve siafi+uo via Convenio); cod_siafi (filtro
+    global) consulta a ponte CodigoTermoAditivo direto pelo SIAFI, sem exigir UO.
     """
     from apps.convenios.models import Convenio, CodigoTermoAditivo, TermoAditivo
 
@@ -273,13 +298,10 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None):
             return TermoAditivo.objects.none(), context
 
         context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
-        siafi = conv.convenio_numero_sequencial_siafi
-        uo = conv.unidade_orcamentaria_codigo
-
         ta_rows = list(
             CodigoTermoAditivo.objects.filter(
-                convenio_numero_sequencial_siafi=siafi,
-                unidade_orcamentaria_codigo=uo,
+                convenio_numero_sequencial_siafi=conv.convenio_numero_sequencial_siafi,
+                unidade_orcamentaria_codigo=conv.unidade_orcamentaria_codigo,
             ).values("termo_aditivo_codigo_sequencial", "plano_trabalho_codigo")
         )
         ta_codes = [r["termo_aditivo_codigo_sequencial"] for r in ta_rows if r["termo_aditivo_codigo_sequencial"]]
@@ -289,6 +311,20 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None):
             if r["termo_aditivo_codigo_sequencial"]
         }
         qs = TermoAditivo.objects.filter(termo_aditivo_codigo_sequencial__in=ta_codes)
+    elif cod_siafi:
+        context["plano_trabalho_codigo"] = ""
+        ta_rows = list(
+            CodigoTermoAditivo.objects.filter(
+                convenio_numero_sequencial_siafi=cod_siafi,
+            ).values("termo_aditivo_codigo_sequencial", "plano_trabalho_codigo")
+        )
+        ta_codes = [r["termo_aditivo_codigo_sequencial"] for r in ta_rows if r["termo_aditivo_codigo_sequencial"]]
+        context["ta_pt_map"] = {
+            r["termo_aditivo_codigo_sequencial"]: r["plano_trabalho_codigo"] or "—"
+            for r in ta_rows
+            if r["termo_aditivo_codigo_sequencial"]
+        }
+        qs = TermoAditivo.objects.filter(termo_aditivo_codigo_sequencial__in=ta_codes) if ta_codes else TermoAditivo.objects.none()
     else:
         context["plano_trabalho_codigo"] = ""
         qs = TermoAditivo.objects.all()
@@ -296,11 +332,13 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None):
     return qs, context
 
 
-def get_unidades_executoras_qs(cod_sigcon: str | None = None):
+def get_unidades_executoras_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
     """
     Retorna (QuerySet[UnidadesExecutoras], context_dict).
 
-    Chave de ligação DIRETA: UnidadesExecutoras.convenio_codigo = convenio_codigo
+    Chave de ligação DIRETA: UnidadesExecutoras.convenio_codigo = convenio_codigo.
+    cod_siafi (filtro global) usa convenio_numero_sequencial_siafi, presente
+    diretamente no model — sem precisar passar por Convenio.
     """
     from apps.convenios.models import UnidadesExecutoras
 
@@ -309,5 +347,83 @@ def get_unidades_executoras_qs(cod_sigcon: str | None = None):
 
     if cod_sigcon:
         qs = qs.filter(convenio_codigo=cod_sigcon)
+    elif cod_siafi:
+        qs = qs.filter(convenio_numero_sequencial_siafi=cod_siafi)
 
     return qs, context
+
+
+def _filtrar_por_siafi_uo_pares(qs, pares):
+    """Restringe qs aos Convenio cujo (siafi, uo) está no conjunto de pares dado."""
+    from django.db.models import Q
+
+    if not pares:
+        return qs.none()
+    condicao = Q()
+    for siafi, uo in pares:
+        condicao |= Q(convenio_numero_sequencial_siafi=siafi, unidade_orcamentaria_codigo=uo)
+    return qs.filter(condicao)
+
+
+def get_sigcon_qs(filtros: dict):
+    """
+    Retorna QuerySet[Convenio] filtrado para a aba Convênios (tela mestre).
+
+    `filtros` é um dict com as chaves: ano, situacao, cod_sigcon, cod_siafi,
+    instrumento, termo_aditivo, concedente, proponente, tipo_contrapartida
+    (todas strings; "" significa "sem filtro").
+
+    termo_aditivo, proponente e tipo_contrapartida não são campos diretos do
+    model Convenio — resolvidos via (siafi, uo) a partir das tabelas-ponte e
+    da Gold, no mesmo padrão usado em enrich_convenios_page.
+    """
+    from apps.convenios.models import Convenio, TermoAditivo, CodigoTermoAditivo, ConvenioIntegrado
+    from core.gold.contrapartida import tipo_por_siafi_uo
+
+    qs = Convenio.objects.all()
+
+    if filtros.get("ano", "").isdigit():
+        qs = qs.filter(data_inicio_vigencia__year=int(filtros["ano"]))
+    if filtros.get("situacao"):
+        qs = qs.filter(situacao=filtros["situacao"])
+    if filtros.get("cod_sigcon"):
+        qs = qs.filter(convenio_codigo=filtros["cod_sigcon"])
+    if filtros.get("cod_siafi"):
+        qs = qs.filter(convenio_numero_sequencial_siafi=filtros["cod_siafi"])
+    if filtros.get("instrumento"):
+        qs = qs.filter(instrumento=filtros["instrumento"])
+    if filtros.get("concedente"):
+        qs = qs.filter(concedente__icontains=filtros["concedente"])
+
+    if filtros.get("termo_aditivo"):
+        ta_codes = TermoAditivo.objects.filter(
+            tipo_termo_aditivo=filtros["termo_aditivo"],
+        ).values_list("termo_aditivo_codigo_sequencial", flat=True)
+        pares = set(
+            CodigoTermoAditivo.objects.filter(
+                termo_aditivo_codigo_sequencial__in=ta_codes,
+            ).values_list("convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo")
+        )
+        qs = _filtrar_por_siafi_uo_pares(qs, pares)
+
+    if filtros.get("proponente"):
+        pares = set(
+            ConvenioIntegrado.objects.filter(
+                g_proponente_pad__icontains=filtros["proponente"],
+            ).values_list("convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo")
+        )
+        qs = _filtrar_por_siafi_uo_pares(qs, pares)
+
+    if filtros.get("tipo_contrapartida"):
+        contra_map = tipo_por_siafi_uo()
+        ids_validos = [
+            c.pk for c in qs.only(
+                "pk", "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo",
+            )
+            if contra_map.get(
+                (c.convenio_numero_sequencial_siafi or "") + (c.unidade_orcamentaria_codigo or "")
+            ) == filtros["tipo_contrapartida"]
+        ]
+        qs = qs.filter(pk__in=ids_validos)
+
+    return qs

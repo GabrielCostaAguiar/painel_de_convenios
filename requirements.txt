@@ -5,6 +5,7 @@ PyYAML==6.0.2
 Django==6.0.6
 django-environ==0.13.0
 numpy==2.4.6
+whitenoise==6.11.0
 pandas==3.0.3
 python-dateutil==2.9.0.post0
 six==1.17.0

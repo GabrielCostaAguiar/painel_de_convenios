@@ -7,18 +7,10 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Convênios</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-<!-- sub-tabs -->
-<div class="subtabs">
-  <a href="{% url 'dashboard:sigcon' %}" class="subtab active">Convênios</a>
-  <a href="{% url 'dashboard:plano_aplicacao' %}" class="subtab">Plano de aplicação</a>
-  <a href="{% url 'dashboard:cronograma' %}" class="subtab">Cronograma de desembolso</a>
-  <a href="{% url 'dashboard:prorrogacao' %}" class="subtab">Prorrogação de ofício</a>
-  <a href="{% url 'dashboard:termo_aditivo' %}" class="subtab">Termo aditivo</a>
-  <a href="{% url 'dashboard:unidades_executoras' %}" class="subtab">Unidades executoras</a>
-</div>
-
+{% include "dashboard/_subtabs.html" %}
+{% include "dashboard/_filtro_global.html" %}
 <!-- Filtros -->
-<form method="get" action="{% url 'dashboard:sigcon' %}">
+<!-- <form method="get" action="{% url 'dashboard:sigcon' %}">
 <div class="panel filters">
   <div class="filters-top">
     <div class="ttl">
@@ -73,7 +65,7 @@
 
       <input
         id="f-siafi"
-        name="convenio_numero_sequencial_siafi"
+        name="cod_siafi"
         type="text"
         placeholder="Digite o SIAFI"
         list="lista-siafi"
@@ -151,7 +143,7 @@
     </div>
   </div>
 </div>
-</form>
+</form> -->
 
 <!-- Tabela -->
 <div class="panel table-wrap">
@@ -165,8 +157,8 @@
           <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="export-pop" id="exportPop">
-          <button type="button">📊 Excel (.xlsx)<span class="soon">em breve</span></button>
-          <button type="button">📄 CSV (.csv)<span class="soon">em breve</span></button>
+          <a href="{% url 'dashboard:sigcon_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'dashboard:sigcon_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
         </div>
       </div>
     </div>
@@ -260,7 +252,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="24" style="text-align:center;padding:40px;color:var(--ink-3);">
+          <td colspan="23" style="text-align:center;padding:40px;color:var(--ink-3);">
             Nenhum registro encontrado para os filtros aplicados.
           </td>
         </tr>

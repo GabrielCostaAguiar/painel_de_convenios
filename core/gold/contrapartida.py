@@ -41,6 +41,10 @@ _SEM: dict[int, str] = {
     0: "Sem informação",
 }
 
+# As 5 categorias possíveis da tabela-verdade — para popular filtros/dropdowns
+# sem precisar calcular o mapa completo só para listar as opções.
+CATEGORIAS: list[str] = [*_TABELA.values(), *_SEM.values()]
+
 
 def _classificar(fin: int, nao_fin: int, sem: int) -> str:
     """

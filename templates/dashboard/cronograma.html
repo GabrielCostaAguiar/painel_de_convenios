@@ -7,26 +7,19 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Cronograma de Desembolso</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-<!-- sub-tabs -->
-<div class="subtabs">
-  <a href="{% url 'dashboard:sigcon' %}" class="subtab">Convênios</a>
-  <a href="{% url 'dashboard:plano_aplicacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Plano de aplicação</a>
-  <a href="{% url 'dashboard:cronograma' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab active">Cronograma de desembolso</a>
-  <a href="{% url 'dashboard:prorrogacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Prorrogação de ofício</a>
-  <a href="{% url 'dashboard:termo_aditivo' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Termo aditivo</a>
-  <a href="{% url 'dashboard:unidades_executoras' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Unidades executoras</a>
-</div>
+{% include "dashboard/_subtabs.html" %}
 
-{% if cod_sigcon_sel %}
+{% include "dashboard/_filtro_global.html" %}
+
+{% if cod_sigcon_sel or cod_siafi_sel %}
 <div class="panel" style="padding:10px 16px;font-size:.85rem;border-left:3px solid var(--accent)">
-  Exibindo cronograma do convênio <strong>{{ cod_sigcon_sel }}</strong>
+  Exibindo cronograma do convênio <strong>{{ cod_sigcon_sel|default:"—" }}</strong>
   {% if cod_siafi_sel %} · SIAFI: <strong>{{ cod_siafi_sel }}</strong>{% endif %}
   <a href="{% url 'dashboard:cronograma' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
 </div>
 {% endif %}
 
-<!-- Filtros (modo standalone) -->
-{% if not cod_sigcon_sel %}
+<!-- Filtros
 <form method="get" action="{% url 'dashboard:cronograma' %}">
 <div class="panel filters">
   <div class="filters-top">
@@ -47,6 +40,10 @@
   </div>
   <div class="filter-grid">
     <div class="field">
+      <label for="f-sigcon">Código SIGCON</label>
+      <input id="f-sigcon" name="cod_sigcon" type="text" placeholder="ex.: 811906/2014" value="{{ cod_sigcon_sel }}">
+    </div>
+    <div class="field">
       <label for="f-siafi">Código SIAFI</label>
       <input id="f-siafi" name="cod_siafi" type="text" placeholder="ex.: 9032193" value="{{ cod_siafi_sel }}">
     </div>
@@ -56,8 +53,7 @@
     </div>
   </div>
 </div>
-</form>
-{% endif %}
+</form> -->
 
 <!-- Tabela -->
 <div class="panel table-wrap">
@@ -71,20 +67,29 @@
           <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="export-pop" id="exportPop">
-          <button type="button">📊 Excel (.xlsx)<span class="soon">em breve</span></button>
-          <button type="button">📄 CSV (.csv)<span class="soon">em breve</span></button>
+          <a href="{% url 'dashboard:cronograma_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'dashboard:cronograma_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
         </div>
       </div>
     </div>
   </div>
 
   <div class="scroll-x">
-    <table>
+    <table style="min-width:970px">
+      <colgroup>
+        <col style="width:150px"><!-- Código SIAFI -->
+        <col style="width:150px"><!-- Código SIGCON -->
+        <col style="width:150px"><!-- Código Plano de Trabalho -->
+        <col style="width:80px"> <!-- Mês -->
+        <col style="width:90px"> <!-- Ano -->
+        <col style="width:200px"><!-- Valor Concedente R$ -->
+        <col style="width:200px"><!-- Valor Proponente R$ -->
+      </colgroup>
       <thead>
         <tr>
           <th>Código SIAFI</th>
           <th>Código SIGCON</th>
-          <th>Código Plano de Trabalho</th>
+          <th>Código<br>Plano de Trabalho</th>
           <th>Mês</th>
           <th>Ano</th>
           <th class="num">Valor Concedente R$</th>

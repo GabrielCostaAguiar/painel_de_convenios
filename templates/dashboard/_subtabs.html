@@ -1,0 +1,10 @@
+{% load painel_filters %}
+{% querystring_global as qs_global %}
+<div class="subtabs">
+  <a href="{% url 'dashboard:sigcon' %}{% if qs_global %}?{{ qs_global }}{% endif %}" class="subtab{% if secao_sub == 'sigcon' %} active{% endif %}">Convênios</a>
+  <a href="{% url 'dashboard:plano_aplicacao' %}{% if qs_global %}?{{ qs_global }}{% endif %}" class="subtab{% if secao_sub == 'plano_aplicacao' %} active{% endif %}">Plano de aplicação</a>
+  <a href="{% url 'dashboard:cronograma' %}{% if qs_global %}?{{ qs_global }}{% endif %}" class="subtab{% if secao_sub == 'cronograma' %} active{% endif %}">Cronograma de desembolso</a>
+  <a href="{% url 'dashboard:prorrogacao' %}{% if qs_global %}?{{ qs_global }}{% endif %}" class="subtab{% if secao_sub == 'prorrogacao' %} active{% endif %}">Prorrogação de ofício</a>
+  <a href="{% url 'dashboard:termo_aditivo' %}{% if qs_global %}?{{ qs_global }}{% endif %}" class="subtab{% if secao_sub == 'termo_aditivo' %} active{% endif %}">Termo aditivo</a>
+  <a href="{% url 'dashboard:unidades_executoras' %}{% if qs_global %}?{{ qs_global }}{% endif %}" class="subtab{% if secao_sub == 'unidades_executoras' %} active{% endif %}">Unidades executoras</a>
+</div>

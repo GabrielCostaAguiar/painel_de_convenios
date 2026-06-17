@@ -7,19 +7,13 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Plano de Aplicação</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-<!-- sub-tabs -->
-<div class="subtabs">
-  <a href="{% url 'dashboard:sigcon' %}" class="subtab">Convênios</a>
-  <a href="{% url 'dashboard:plano_aplicacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab active">Plano de aplicação</a>
-  <a href="{% url 'dashboard:cronograma' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Cronograma de desembolso</a>
-  <a href="{% url 'dashboard:prorrogacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Prorrogação de ofício</a>
-  <a href="{% url 'dashboard:termo_aditivo' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Termo aditivo</a>
-  <a href="{% url 'dashboard:unidades_executoras' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Unidades executoras</a>
-</div>
+{% include "dashboard/_subtabs.html" %}
 
-{% if cod_sigcon_sel %}
+{% include "dashboard/_filtro_global.html" %}
+
+{% if cod_sigcon_sel or cod_siafi_sel %}
 <div class="panel" style="padding:10px 16px;font-size:.85rem;border-left:3px solid var(--accent)">
-  Exibindo registros do convênio <strong>{{ cod_sigcon_sel }}</strong>
+  Exibindo registros do convênio <strong>{{ cod_sigcon_sel|default:"—" }}</strong>
   {% if siafi_sel %} · SIAFI: <strong>{{ siafi_sel }}</strong>{% endif %}
   {% if plano_sel %} · Plano de Trabalho: <strong>{{ plano_sel }}</strong>{% endif %}
   <a href="{% url 'dashboard:plano_aplicacao' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
@@ -30,28 +24,61 @@
 <div class="panel table-wrap">
   <div class="table-head">
     <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+    <div class="table-tools">
+    <div class="export-wrap">
+        <button class="btn" id="exportBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+          Exportar
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="export-pop" id="exportPop">
+          <a href="{% url 'dashboard:plano_aplicacao_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'dashboard:plano_aplicacao_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="scroll-x">
-    <table>
+    <table style="min-width:1200px;">
+      <colgroup>
+        <col style="width:50px"><!-- Código SIAFI -->
+        <col style="width:50px"><!-- Código SIGCON -->
+        <col style="width:60px"><!-- Código Plano de Trabalho -->
+        <col style="width:50px"> <!-- Ano Exercício -->
+        <col style="width:70px"> <!-- Dotação Orçamentária -->
+        <col style="width:30px"><!-- UO -->
+        <col style="width:50px"><!-- Identificador Orçamento -->
+        <col style="width:30px"> <!-- Função -->
+        <col style="width:30px"> <!-- Ação -->
+        <col style="width:50px"><!-- Categ. Econôm. Despesa -->
+        <col style="width:30px"><!-- Grupo -->
+        <col style="width:30px"><!-- Modalidade Aplicação -->
+        <col style="width:30px"><!-- Fonte -->
+        <col style="width:70px"><!-- Fonte nova -->
+        <col style="width:30px"><!-- Procedência -->
+        <col style="width:30px"><!-- Elemento Despesa -->
+        <col style="width:200px"><!-- Valor Concedente R$ -->
+        <col style="width:200px"><!-- Valor Proponente R$ -->
+      </colgroup>
       <thead>
         <tr>
           <th>Código SIAFI</th>
           <th>Código SIGCON</th>
-          <th>Código Plano de Trabalho</th>
+          <th>Código<br>Plano de Trabalho</th>
           <th>Ano Exercício</th>
           <th>Dotação Orçamentária</th>
           <th>UO</th>
-          <th>Identificador Orçamento</th>
+          <th>Identificador<br>Orçamento</th>
           <th>Função</th>
           <th>Ação</th>
-          <th>Categ. Econôm. Despesa</th>
+          <th>Categ.<br>Econôm. Despesa</th>
           <th>Grupo</th>
-          <th>Modalidade Aplicação</th>
+          <th>Modalidade<br>Aplicação</th>
           <th title="Sem distinção old/new na fonte">Fonte</th>
-          <th title="Sem fonte disponível — de-para fontes_2023 não carregado">Fonte nova</th>
+          <th title="Sem fonte disponível — de-para fontes_2023 não carregado">Fonte<br>nova</th>
           <th>Procedência</th>
-          <th>Elemento Despesa</th>
+          <th>Elemento<br>Despesa</th>
           <th class="num">Valor Concedente R$</th>
           <th class="num">Valor Proponente R$</th>
         </tr>

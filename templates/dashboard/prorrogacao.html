@@ -7,19 +7,13 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Prorrogação de Ofício</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-<!-- sub-tabs -->
-<div class="subtabs">
-  <a href="{% url 'dashboard:sigcon' %}" class="subtab">Convênios</a>
-  <a href="{% url 'dashboard:plano_aplicacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Plano de aplicação</a>
-  <a href="{% url 'dashboard:cronograma' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Cronograma de desembolso</a>
-  <a href="{% url 'dashboard:prorrogacao' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab active">Prorrogação de ofício</a>
-  <a href="{% url 'dashboard:termo_aditivo' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Termo aditivo</a>
-  <a href="{% url 'dashboard:unidades_executoras' %}{% if cod_sigcon_sel %}?cod_sigcon={{ cod_sigcon_sel }}{% endif %}" class="subtab">Unidades executoras</a>
-</div>
+{% include "dashboard/_subtabs.html" %}
 
-{% if cod_sigcon_sel %}
+{% include "dashboard/_filtro_global.html" %}
+
+{% if cod_sigcon_sel or cod_siafi_sel %}
 <div class="panel" style="padding:10px 16px;font-size:.85rem;border-left:3px solid var(--accent)">
-  Exibindo prorrogações do convênio <strong>{{ cod_sigcon_sel }}</strong>
+  Exibindo prorrogações do convênio <strong>{{ cod_sigcon_sel|default:"—" }}</strong>
   {% if plano_sel %} · Plano de Trabalho: <strong>{{ plano_sel }}</strong>{% endif %}
   <a href="{% url 'dashboard:prorrogacao' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
 </div>
@@ -29,10 +23,30 @@
 <div class="panel table-wrap">
   <div class="table-head">
     <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+    <div class="table-tools">
+     <div class="export-wrap">
+        <button class="btn" id="exportBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+          Exportar
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="export-pop" id="exportPop">
+          <a href="{% url 'dashboard:prorrogacao_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'dashboard:prorrogacao_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="scroll-x">
-    <table>
+    <table style="min-width:750px">
+      <colgroup>
+        <col style="width:150px"><!-- Código SIGCON -->
+        <col style="width:150px"><!-- Código Plano de Trabalho -->
+        <col style="width:150px"> <!-- Código Prorrogação de Ofício -->
+        <col style="width:150px"> <!-- Data de Publicação -->
+        <col style="width:150px"><!-- Data Vigência Prorrogada -->
+      </colgroup>
       <thead>
         <tr>
           <th>Código SIGCON</th>

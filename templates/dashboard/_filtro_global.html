@@ -1,0 +1,165 @@
+{# Barra de filtros globais (cod_sigcon, cod_siafi) — reusada nas abas sem filtro próprio. #}
+<!-- <form method="get" action="">
+<div class="panel filters">
+  <div class="filters-top">
+    <div class="ttl">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      Filtros da consulta
+    </div>
+    <div class="filters-actions">
+      <a href="?" class="btn ghost-danger">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Limpar filtros
+      </a>
+      <button type="submit" class="btn primary">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Aplicar
+      </button>
+    </div>
+  </div>
+  <div class="filter-grid">
+    <div class="field">
+      <label for="f-sigcon-global">Código SIGCON</label>
+      <input id="f-sigcon-global" name="cod_sigcon" type="text" placeholder="ex.: 811906/2014" value="{{ cod_sigcon_sel }}">
+    </div>
+    <div class="field">
+      <label for="f-siafi-global">Código SIAFI</label>
+      <input id="f-siafi-global" name="cod_siafi" type="text" placeholder="ex.: 9032193" value="{{ cod_siafi_sel }}">
+    </div>
+  </div>
+</div>
+</form> -->
+<form method="get" action="{% url 'dashboard:sigcon' %}">
+<div class="panel filters">
+  <div class="filters-top">
+    <div class="ttl">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      Filtros da consulta
+    </div>
+    <div class="filters-actions">
+      <a href="{% url 'dashboard:sigcon' %}" class="btn ghost-danger">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Limpar filtros
+      </a>
+      <button type="submit" class="btn primary">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Aplicar
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-grid">
+    <div class="field">
+      <label for="f-ano">Ano do instrumento</label>
+      <select id="f-ano" name="ano">
+        <option value="">Todos</option>
+        {% for ano in anos %}
+          <option value="{{ ano }}"{% if ano_sel == ano|stringformat:"s" %} selected{% endif %}>{{ ano }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-sigcon">Código SIGCON</label>
+      <input 
+      id="f-sigcon" 
+      name="cod_sigcon" 
+      type="text" 
+      placeholder="Digite o SIGCON" 
+      value="{{ cod_sigcon_sel }}"
+      autocomplete="off"
+      list="lista-sigcon"
+      >
+
+      <datalist id="lista-sigcon">
+        {% for sigcon in sigcons %}
+          {% if sigcon %}
+            <option value="{{ sigcon }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class="field">
+      <label for="f-siafi">Código SIAFI</label>
+
+      <input
+        id="f-siafi"
+        name="cod_siafi"
+        type="text"
+        placeholder="Digite o SIAFI"
+        list="lista-siafi"
+        value="{{ cod_siafi_sel }}"
+        autocomplete="off"
+      >
+
+      <datalist id="lista-siafi">
+        {% for siafi in siafis %}
+          {% if siafi %}
+            <option value="{{ siafi }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class ="field">
+      <label for="f-proponente">Proponente</label>
+      <input id="f-proponente" name="proponente" type="text" placeholder="ex.: Secretaria de Estado de Educação" value="{{ proponente_sel }}">
+    </div>
+    <div class = "field">
+      <label for="f-concedente">Concedente</label>
+      <input id="f-concedente" name="concedente" type="text" placeholder="ex.: Ministério da Saúde" value="{{ concedente_sel }}">
+    </div>
+    <div class="field">
+      <Label for="f-contrapartida">Tipo de contrapartida</Label>
+      <select id="f-contrapartida" name="tipo_contrapartida">
+        <option value="">Todas</option>
+        {% for tc in tipos_contrapartida %}
+          <option value="{{ tc }}"{% if tipo_contrapartida_sel == tc %} selected{% endif %}>{{ tc }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-sit">Situação</label>
+      <select id="f-sit" name="situacao">
+        <option value="">Todas</option>
+        {% for s in situacoes %}
+          <option value="{{ s }}"{% if situacao_sel == s %} selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-termo_aditivo">Tipo de termo aditivo</label>
+
+      <select id="f-termo_aditivo" name="termo_aditivo">
+        <option value="">Todos</option>
+
+        {% for termo in termos_aditivo %}
+          {% if termo %}
+            <option value="{{ termo }}" {% if termo_aditivo_sel == termo %}selected{% endif %}>
+              {{ termo }}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="f-instrumento">Instrumento</label>
+      <input id="f-instrumento" 
+        name="instrumento" 
+        type="text" 
+        placeholder="ex.: Convênio" 
+        value="{{ instrumento_sel }}"
+        list="lista-instrumento"
+        autocomplete="off">
+      <datalist id="lista-instrumento">
+        {% for instrumento in instrumentos %}
+          {% if instrumento %}
+            <option value="{{ instrumento }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
+    </div>
+  </div>
+</div>
+</form>
