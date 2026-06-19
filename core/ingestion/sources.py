@@ -38,6 +38,9 @@ FONTES: dict[str, FonteDados] = {
     # Arquivos em: data/raw/sigcon/
     # Todos usam header=1 (linha 0 é vazia; cabeçalho real está na linha 1)
     # exceto dcgce_unidades_executoras que usa header=0.
+    # engine=openpyxl é explícito (não apenas inferido da extensão .xlsx)
+    # porque estas 15 fontes também podem chegar via core/extract/gmail.py +
+    # core/ingestion/ponte_extracao.py, cujo anexo pousa sem extensão.
     # -----------------------------------------------------------------------
 
     # ---- Tabelas a manter (alimentam o painel Consultas SIGCON) ----
@@ -47,7 +50,7 @@ FONTES: dict[str, FonteDados] = {
         arquivo="sigcon/dcgce_convenio.xlsx",
         formato="excel",
         descricao="Convênios do SIGCON-MG — chave SIAFI+UO, valores e datas de vigência",
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_geral": FonteDados(
         nome="dcgce_geral",
@@ -57,7 +60,7 @@ FONTES: dict[str, FonteDados] = {
             "Dados gerais do SIGCON-MG — traz data de publicação, assinatura e "
             "código do plano de trabalho. Fundido em Convenio no ETL."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_plano_trabalho": FonteDados(
         nome="dcgce_plano_trabalho",
@@ -67,7 +70,7 @@ FONTES: dict[str, FonteDados] = {
             "Planos de trabalho — PK: plano_trabalho_codigo. Traz título, objeto, "
             "razão social e CNPJ do concedente, CNPJ do proponente."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_cronograma_desembolso": FonteDados(
         nome="dcgce_cronograma_desembolso",
@@ -77,14 +80,14 @@ FONTES: dict[str, FonteDados] = {
             "Cronograma de desembolsos — liga-se ao convênio via plano_trabalho_codigo. "
             "SIAFI+UO são carimbados no ETL via Geral+CodigoConvenio."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_plano_aplicacao": FonteDados(
         nome="dcgce_plano_aplicacao",
         arquivo="sigcon/dcgce_plano_aplicacao.xlsx",
         formato="excel",
         descricao="Planos de aplicação — liga-se ao convênio via codigo_plano_trabalho",
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_termo_aditivo": FonteDados(
         nome="dcgce_termo_aditivo",
@@ -94,7 +97,7 @@ FONTES: dict[str, FonteDados] = {
             "Termos aditivos — PK: termo_aditivo_codigo_sequencial. "
             "SIAFI+UO carimbados via ponte dcgce_codigo_ta."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_prorrogacao_oficio": FonteDados(
         nome="dcgce_prorrogacao_oficio",
@@ -104,7 +107,7 @@ FONTES: dict[str, FonteDados] = {
             "Prorrogações de ofício — prorrogacao_oficio_codigo_convenio equivale a "
             "convenio_codigo_sequencial (não é SIAFI)."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_declaracao_contrapartida": FonteDados(
         nome="dcgce_declaracao_contrapartida",
@@ -114,28 +117,28 @@ FONTES: dict[str, FonteDados] = {
             "Declarações de contrapartida — PK: declaracao_contrapartida_codigo. "
             "SIAFI+UO carimbados via ponte dcgce_codigo_dec_contrap."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_unidades_executoras": FonteDados(
         nome="dcgce_unidades_executoras",
         arquivo="sigcon/dcgce_unidades.executoras.xlsx",
         formato="excel",
         descricao="Unidades executoras — chave composta SIAFI+UO direta",
-        opcoes_leitura={"header": 0},
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
     ),
     "dcgce_sigcon_nt_emenda": FonteDados(
         nome="dcgce_sigcon_nt_emenda",
         arquivo="sigcon/dcgce_sigcon_nt_emenda.xlsx",
         formato="excel",
         descricao="Notas técnicas de emendas parlamentares — liga via plano_trabalho_codigo+UO",
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_esfera": FonteDados(
         nome="dcgce_esfera",
         arquivo="sigcon/dcgce_esfera.xlsx",
         formato="excel",
         descricao="Dimensão de esferas — chave: concedente_cnpj → concedente_esfera",
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
 
     # ---- Tabela de relacionamento SIGCON↔SICONV ----
@@ -163,7 +166,7 @@ FONTES: dict[str, FonteDados] = {
             "Ponte ETL: mapeia conveno_codigo_plano_trabalho → SIAFI+UO. "
             "Usada para derivar tipo de contrapartida por SIAFI_UO."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_codigo_ta": FonteDados(
         nome="dcgce_codigo_ta",
@@ -172,7 +175,7 @@ FONTES: dict[str, FonteDados] = {
         descricao=(
             "Ponte ETL: mapeia termo_aditivo_codigo_sequencial → SIAFI+UO+plano_trabalho_codigo"
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_codigo_dec_contrap": FonteDados(
         nome="dcgce_codigo_dec_contrap",
@@ -181,7 +184,7 @@ FONTES: dict[str, FonteDados] = {
         descricao=(
             "Ponte ETL: mapeia declaracao_contrapartida_codigo → SIAFI+UO"
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
     "dcgce_codigo_convenio": FonteDados(
         nome="dcgce_codigo_convenio",
@@ -191,7 +194,7 @@ FONTES: dict[str, FonteDados] = {
             "Ponte ETL: mapeia convenio_codigo_sequencial → SIAFI+UO. "
             "Usada para enriquecer dcgce_geral (que não tem UO) e o cronograma."
         ),
-        opcoes_leitura={"header": 1},
+        opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
 
     # -----------------------------------------------------------------------
