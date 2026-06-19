@@ -156,4 +156,162 @@ Afeta: `dcgce_unidades.executoras`, `dcgce_termo.aditivo`, `dcgce_plano.trabalho
 
 ---
 
-(FASE C, D e relatório final são adicionados ao final desta execução.)
+## FASE C — Implementado
+
+1. **Bugfix** `core/extract/armazenamento.py::caminho_destino()` — ganhou o
+   parâmetro opcional `extensao` (`None` = comportamento atual, inferido de
+   `Path(arquivo).suffix`; `""` = usa o nome completo sem separar nada).
+   `core/extract/gmail.py` passa `extensao=""` explicitamente. Sem isso, 3 dos
+   17 assuntos do grupo `sigcon` pousavam com o nome corrompido (ver Fase A).
+
+2. **`core/ingestion/sources.py`** — as 15 `FonteDados` do grupo `sigcon` com
+   `FonteDados` cadastrada ganharam `"engine": "openpyxl"` explícito em
+   `opcoes_leitura`. Necessário porque o anexo do Gmail pousa sem extensão e
+   `pd.read_excel` não consegue inferir o engine sozinho nesse caso. Não muda
+   nada para quem ainda copia o `.xlsx` manualmente — é o mesmo engine que o
+   pandas já escolheria implicitamente para esse formato.
+
+3. **`core/ingestion/ponte_extracao.py`** (novo módulo):
+   - `MAPA_GMAIL_PARA_FONTE`: 15 assuntos → chave em `FONTES` (só os que já
+     tinham `FonteDados` cadastrada).
+   - `_localizar_mais_recente(diretorio, prefixo)`: mesmo padrão de
+     `silver._bronze_mais_recente` (`sorted(glob(f"{prefixo}_*"))[-1]`),
+     aplicado a `data/raw/<fonte>/`.
+   - `ingerir_gmail_mapeados()`: para cada assunto mapeado, localiza o
+     arquivo mais recente em `data/raw/gmail/` e chama `bronze.ingerir()`.
+     Assunto sem nenhum arquivo no disco → log + pula, não aborta os demais.
+   - `ingerir_transferegov()`: localiza o `.zip` mais recente em
+     `data/raw/transferegov/`, extrai **apenas** o membro esperado
+     (`Path(FONTES["siconv_convenio"].arquivo).name`) para um
+     `tempfile.TemporaryDirectory()` efêmero, chama `bronze.ingerir()` sobre
+     ele. Nada é escrito de volta em `data/raw/` — raw continua imutável.
+
+   **Validação feita** (sem rede, sem credenciais — `data/raw/` está vazio
+   neste ambiente): criei fixtures sintéticas (`.xlsx` sem extensão simulando
+   um anexo do Gmail para `dcgce_esfera`; um `.zip` fake com
+   `siconv_convenio.csv` dentro simulando o Transferegov), rodei
+   `ingerir_gmail_mapeados()` e `ingerir_transferegov()` diretamente, conferi
+   que os dois geraram Bronze corretamente e removi as fixtures depois. Os 14
+   assuntos mapeados sem arquivo (esperado, fixture só cobria 1) logaram
+   warning e foram pulados sem abortar — comportamento conforme o plano.
+
+## FASE D — Maestro
+
+`apps/dashboard/management/commands/rodar_extracao.py` foi **renomeado** para
+`rodar_pipeline.py` (via `git mv`, histórico preservado) porque o escopo
+cresceu de "só extração" para "extração + bronze". O comando:
+
+1. Chama `transferegov.extrair()` e `gmail.extrair()` em sequência (já
+   existia) — falha de um não impede o outro.
+2. Em seguida chama `ingerir_gmail_mapeados()` e `ingerir_transferegov()` — a
+   etapa Bronze.
+
+**Decisão tomada sobre fonte com extração falha** (pedida explicitamente na
+tarefa): o Bronze **sempre roda** sobre o arquivo mais recente disponível em
+`data/raw/<fonte>/`, **independente** de a extração de hoje ter tido sucesso
+para aquela fonte. Só é **pulado** quando não existe nenhum arquivo, de
+nenhuma data. Não diferenciei "rodou com dado de hoje" de "rodou com dado
+antigo" no log atual — ambos aparecem como `[bronze] <caminho>`. Replica
+exatamente a semântica que `core/transform/silver.py::_bronze_mais_recente`
+já usa entre bronze→silver; mantive consistência em vez de inventar uma regra
+nova. **Avalie se isso é aceitável** — ver TODO abaixo.
+
+Continua "magro": nenhuma lógica de download/parsing/escrita nova no comando,
+só chamadas às funções de `core/extract/` e `core/ingestion/`.
+
+### Regressão verificada (não quebrei o que já funcionava)
+
+- `python manage.py check` — sem issues.
+- `rodar_ingestao`, `rodar_silver`, `gerar_schemas` — carregam normalmente.
+- `rodar_ingestao siafi2` com um CSV sintético — ingestão CSV inalterada.
+- `rodar_ingestao dcgce_convenio --arquivo tests/fixtures/convenios_exemplo.csv`
+  falha **igual** com o `sources.py` antigo e o novo (testei os dois) — é um
+  descompasso pré-existente entre o docstring do comando (exemplo usa a fonte
+  `"convenios"`, que não existe mais em `FONTES`) e o fixture CSV, não uma
+  regressão desta tarefa. Não toquei nisso — fora do escopo.
+
+---
+
+## O que ficou pendente da sua revisão (TODOs no código)
+
+1. **`core/ingestion/ponte_extracao.py` — `MAPA_GMAIL_PARA_FONTE` incompleto
+   por falta de amostra real**: `tabelauo2`, `dcgce_Chave` (grupo `sigcon`) e
+   os grupos `siafi` (8 assuntos) e `siad` (5 assuntos) não têm `FonteDados`
+   cadastrada. Cadastrar uma fonte exige confirmar formato/separador/encoding
+   reais (`gerar_schemas`) — não tinha um anexo real pra isso neste ambiente.
+   `README.md` já marcava SIAD/SEI como previsto, não implementado, então
+   isso não é regressão, é trabalho futuro explícito.
+
+2. **`core/ingestion/ponte_extracao.py::ingerir_transferegov()` — nome do
+   membro dentro do zip é uma suposição**: assumi que é
+   `Path(FONTES["siconv_convenio"].arquivo).name` (`"siconv_convenio.csv"`),
+   espelhando o que o script legado `baixar_siconv.py` produzia ao extrair o
+   zip inteiro. **Não havia um `.zip` real do Transferegov disponível neste
+   ambiente para confirmar.** Se o nome real for diferente, a função loga
+   erro com a lista completa de membros do zip — use esse log pra corrigir o
+   nome esperado na primeira execução real.
+
+3. **`core/ingestion/baixar_siconv.py` (script legado)** — não é chamado por
+   nenhum management command, baixa e extrai direto em `data/raw/uniao/`, e
+   **apaga o zip original** depois de extrair (`zip_path.unlink()`), o que
+   viola "raw é imutável". Não removi nem toquei nele — fica candidato a
+   deprecação/remoção, mas é uma decisão sua (pode haver gente rodando esse
+   script manualmente).
+
+4. **Comportamento "Bronze sempre usa o mais recente disponível, mesmo se a
+   extração de hoje falhou"** (Fase D) — decisão tomada por consistência com
+   o padrão já existente em Silver, não por ter certeza de que é o que você
+   quer. Alternativa seria: se a extração de hoje falhou/pulou aquele grupo,
+   pular o Bronze daquela fonte também (mais conservador, porém o painel
+   ficaria sem nenhum dado novo até a próxima extração bem-sucedida).
+
+5. **Nada foi testado fim-a-fim com rede/credenciais reais.**
+   `secrets/credentials.json` e `secrets/token.json` existem neste ambiente
+   — rodar `gmail.extrair()` de verdade dispararia autenticação OAuth real
+   contra uma conta de e-mail real, e `transferegov.extrair()` faria uma
+   requisição HTTP real a um site do governo. Não executei nenhum dos dois de
+   verdade (autonomamente, sem você por perto, pareceu a decisão certa) — só
+   testei a ponte com fixtures sintéticas. **A primeira execução real de
+   `rodar_pipeline` precisa ser sua.**
+
+---
+
+## Comandos para você testar quando voltar
+
+```bash
+# 1. Revisar o diff completo da branch antes de tocar em qualquer coisa
+git log --oneline main..feature/fase6-bronze
+git diff main..feature/fase6-bronze
+
+# 2. Conferir que nada quebrou (regressão)
+python manage.py check
+python manage.py rodar_ingestao siafi2          # ou outra fonte CSV que você já usa
+python manage.py rodar_silver dcgce_convenio    # fluxo silver inalterado
+
+# 3. Primeira execução REAL da extração + bronze (efeitos colaterais reais:
+#    rede + OAuth Gmail) — rode isolado antes do pipeline completo se quiser
+#    controlar melhor:
+python manage.py shell -c "from core.extract import transferegov; print(transferegov.extrair())"
+python manage.py shell -c "from core.extract import gmail; print(gmail.extrair())"
+
+# 4. Se os dois acima rodarem limpo, o maestro completo:
+python manage.py rodar_pipeline
+
+# 5. Se ingerir_transferegov() logar erro de "membro nao encontrado", o log
+#    traz a lista real de arquivos dentro do zip - ajuste
+#    core/ingestion/ponte_extracao.py::ingerir_transferegov() com o nome certo.
+```
+
+## Branch e commits
+
+Branch: `feature/fase6-bronze` (criada a partir de `main`, nada foi tocado
+direto na main). Commits, em ordem:
+
+1. `chore: protege secrets/ contra rastreamento acidental pelo git`
+2. `feat(extract): camada de extracao (transferegov + gmail) com orquestrador` (trabalho de sessões anteriores, commitado agora)
+3. `docs(fase6): diagnostico raw->bronze e plano de costura com a extracao`
+4. `fix(extract): caminho_destino nao deve tratar ponto interno do assunto como extensao`
+5. `feat(ingestion): ponte raw->bronze entre core/extract/ e bronze.ingerir()`
+6. `feat(maestro): rodar_extracao -> rodar_pipeline, encadeia extracao + bronze`
+
+Nenhum commit toca `secrets/`. Nenhum merge foi feito na `main`.
