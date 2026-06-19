@@ -171,7 +171,7 @@ def extrair() -> list[Path]:
         logger.info("grupo %r validado por completo, baixando anexos", grupo)
         for assunto, msg_id in validados.items():
             try:
-                destino = caminho_destino("gmail", assunto)
+                destino = caminho_destino("gmail", assunto, extensao="")
                 if ja_existe(destino):
                     logger.info("arquivo do dia ja existe para %r, pulando: %s", assunto, destino)
                     continue
