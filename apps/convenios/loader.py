@@ -267,7 +267,14 @@ def carregar_cronograma_desembolso(silver_path: Path | None = None) -> dict:
         → geral.convenio_codigo_sequencial
         → cod_conv.convenio_codigo_sequencial
         → cod_conv.(convenio_numero_sequencial_siafi, unidade_orcamentaria_codigo)
+
+    convenio_codigo (Código SIGCON) é carimbado 1:1 por linha pela mesma
+    chave plano_trabalho_codigo, reaproveitando dcgce_geral
+    (core/gold/relacionamento.py::carimbar_convenio_codigo) — nunca via SIAFI,
+    que é 1:N convênio.
     """
+    from core.gold.relacionamento import carimbar_convenio_codigo
+
     crono = _ler_parquet(silver_path or _silver_path("dcgce_cronograma_desembolso"))
     geral = _ler_parquet(_silver_path("dcgce_geral"))
     cod_conv = _ler_parquet(_silver_path("dcgce_codigo_convenio"))
@@ -288,7 +295,10 @@ def carregar_cronograma_desembolso(silver_path: Path | None = None) -> dict:
         left_on="plano_trabalho_codigo",
         right_on="conveno_codigo_plano_trabalho",
         how="left",
-    )
+    ).drop(columns=["conveno_codigo_plano_trabalho"])
+
+    # Step 1b: carimba convenio_codigo (Código SIGCON) 1:1 pela mesma chave
+    crono_enrich = carimbar_convenio_codigo(crono_enrich, geral, coluna_plano_trabalho="plano_trabalho_codigo")
 
     # Step 2: → CodigoConvenio (convenio_codigo_sequencial → SIAFI+UO)
     cod_conv_sub = (
@@ -314,6 +324,7 @@ def carregar_cronograma_desembolso(silver_path: Path | None = None) -> dict:
     objetos = [
         CronogramaDesembolso(
             plano_trabalho_codigo=_para_str(row["plano_trabalho_codigo"]),
+            convenio_codigo=_para_str(row.get("convenio_codigo")),
             convenio_numero_sequencial_siafi=_para_str(row.get("convenio_numero_sequencial_siafi")),
             unidade_orcamentaria_codigo=_para_str(row.get("unidade_orcamentaria_codigo")),
             valor_concedente_cronograma_desembolso=_para_decimal(row["valor_concedente_cronograma_desembolso"]),
@@ -396,13 +407,28 @@ def carregar_plano_trabalho(silver_path: Path | None = None) -> dict:
 
 
 def carregar_plano_aplicacao(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_plano_aplicacao.parquet → model PlanoAplicacao."""
+    """
+    Fonte: dcgce_plano_aplicacao.parquet → model PlanoAplicacao.
+
+    convenio_codigo (Código SIGCON) é carimbado 1:1 por linha via
+    plano_trabalho_codigo, reaproveitando dcgce_geral
+    (core/gold/relacionamento.py::carimbar_convenio_codigo) — nunca via SIAFI,
+    que é 1:N convênio.
+    """
+    from core.gold.relacionamento import carimbar_convenio_codigo
+
     caminho = silver_path or _silver_path("dcgce_plano_aplicacao")
     df = _ler_parquet(caminho)
+    geral = _ler_parquet(_silver_path("dcgce_geral"))
+
+    _normalizar_chave(df, ["codigo_plano_trabalho"])
+    _normalizar_chave(geral, ["conveno_codigo_plano_trabalho"])
+    df = carimbar_convenio_codigo(df, geral, coluna_plano_trabalho="codigo_plano_trabalho")
 
     objetos = [
         PlanoAplicacao(
             codigo_plano_trabalho=_para_str(row["codigo_plano_trabalho"]),
+            convenio_codigo=_para_str(row.get("convenio_codigo")),
             codigo_unidade_orcamentaria=_para_str(row["codigo_unidade_orcamentaria"]),
             funcao_codigo=_para_str(row["funcao_codigo"]),
             subfuncao_codigo=_para_str(row["subfuncao_codigo"]),
