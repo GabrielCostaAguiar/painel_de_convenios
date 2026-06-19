@@ -98,13 +98,11 @@ def ingerir_transferegov(
     temporário, nunca em data/raw/) o membro correspondente ao arquivo
     configurado em FONTES[nome_fonte] e roda bronze.ingerir() sobre ele.
 
-    TODO (decisão pendente, sem amostra real para confirmar): o nome do
-    membro dentro do zip é assumido como o basename de
-    FONTES[nome_fonte].arquivo (hoje "siconv_convenio.csv"), espelhando o
-    que core/ingestion/baixar_siconv.py (legado) produzia ao extrair o zip
-    inteiro em data/raw/uniao/. Não havia um .zip real neste ambiente para
-    confirmar o nome exato do membro — confirme na primeira execução real
-    (o erro logado abaixo lista o conteúdo real do zip) e ajuste se necessário.
+    Confirmado: o zip do Transferegov contém o membro "siconv_convenio.csv".
+    O nome esperado continua derivado de FONTES[nome_fonte].arquivo (em vez
+    de um literal fixo aqui) pra ter uma única fonte da verdade — se o zip
+    real mudar de conteúdo no futuro, o erro abaixo aponta o descompasso
+    em vez de falhar silenciosamente.
     """
     diretorio = Path(settings.DATA_DIR) / "raw" / "transferegov"
     zip_path = _localizar_mais_recente(diretorio, prefixo_zip)
@@ -124,8 +122,8 @@ def ingerir_transferegov(
             if membro_esperado not in nomes:
                 logger.error(
                     "bronze: membro %r nao encontrado em %s (conteudo do zip: %s). "
-                    "TODO: confirmar o nome real do membro e ajustar "
-                    "ingerir_transferegov() / FONTES[%r].arquivo.",
+                    "Esperado 'siconv_convenio.csv' confirmado previamente - "
+                    "o zip do Transferegov mudou de formato? Confira FONTES[%r].arquivo.",
                     membro_esperado, zip_path, nomes, nome_fonte,
                 )
                 return None
