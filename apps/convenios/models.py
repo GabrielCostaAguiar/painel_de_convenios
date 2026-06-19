@@ -262,6 +262,9 @@ class CronogramaDesembolso(models.Model):
         "Código do Plano de Trabalho", max_length=50, db_index=True, null=True, blank=True,
     )
     # carimbados no ETL via Geral+CodigoConvenio
+    convenio_codigo = models.CharField(
+        "Código SIGCON", max_length=50, null=True, blank=True,
+    )
     convenio_numero_sequencial_siafi = models.CharField(
         "Código SIAFI", max_length=50, null=True, blank=True,
     )
@@ -293,6 +296,7 @@ class CronogramaDesembolso(models.Model):
         verbose_name_plural = "Cronogramas de Desembolso"
         indexes = [
             models.Index(fields=["plano_trabalho_codigo"], name="cronograma_plano_codigo_idx"),
+            models.Index(fields=["convenio_codigo"], name="cronograma_convenio_codigo_idx"),
             models.Index(
                 fields=["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"],
                 name="cronograma_chave_composta_idx",
@@ -320,6 +324,10 @@ class PlanoAplicacao(models.Model):
     # --- identificação ---
     codigo_plano_trabalho = models.CharField(
         "Código do Plano de Trabalho", max_length=50, db_index=True, null=True, blank=True,
+    )
+    # carimbado no ETL via Geral (ver core/gold/relacionamento.py::carimbar_convenio_codigo)
+    convenio_codigo = models.CharField(
+        "Código SIGCON", max_length=50, null=True, blank=True,
     )
     codigo_unidade_orcamentaria = models.CharField(
         "Cód. Unidade Orçamentária", max_length=50, null=True, blank=True,
@@ -382,6 +390,7 @@ class PlanoAplicacao(models.Model):
         verbose_name_plural = "Planos de Aplicação"
         indexes = [
             models.Index(fields=["codigo_plano_trabalho"], name="plano_aplicacao_codigo_idx"),
+            models.Index(fields=["convenio_codigo"], name="plano_apl_conv_codigo_idx"),
         ]
 
     def __str__(self) -> str:
