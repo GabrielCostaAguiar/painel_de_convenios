@@ -337,7 +337,7 @@ def plano_aplicacao_export_csv(request):
     for pa in qs:
         writer.writerow([
             siafi_sel,
-            cod_sigcon,
+            pa.convenio_codigo or "",
             pa.codigo_plano_trabalho or "",
             pa.ano_exercicio_programa_trabalho or "",
             pa.funcional_programatica_formatado or "",
@@ -375,7 +375,7 @@ def plano_aplicacao_export_xlsx(request):
     linhas = [
         [
             siafi_sel,
-            cod_sigcon,
+            pa.convenio_codigo or "",
             pa.codigo_plano_trabalho or "",
             pa.ano_exercicio_programa_trabalho or "",
             pa.funcional_programatica_formatado or "",
@@ -467,7 +467,7 @@ def cronograma_export_csv(request):
     for item in qs:
         writer.writerow([
             item.convenio_numero_sequencial_siafi or "",
-            cod_sigcon,
+            item.convenio_codigo or "",
             item.plano_trabalho_codigo or "",
             item.mes_cronograma_desembolso or "",
             item.ano_cronograma_desembolso or "",
@@ -497,7 +497,7 @@ def cronograma_export_xlsx(request):
     linhas = [
         [
             item.convenio_numero_sequencial_siafi or "",
-            cod_sigcon,
+            item.convenio_codigo or "",
             item.plano_trabalho_codigo or "",
             item.mes_cronograma_desembolso or "",
             item.ano_cronograma_desembolso or "",

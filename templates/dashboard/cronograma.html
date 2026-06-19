@@ -100,7 +100,7 @@
         {% for item in page_obj %}
         <tr>
           <td class="mono">{{ item.convenio_numero_sequencial_siafi|default:"—" }}</td>
-          <td class="mono">{{ cod_sigcon_sel|default:"—" }}</td>
+          <td class="mono">{{ item.convenio_codigo|default:"—" }}</td>
           <td class="mono">{{ item.plano_trabalho_codigo|default:"—" }}</td>
           <td class="mono">{{ item.mes_cronograma_desembolso|default:"—" }}</td>
           <td class="mono">{{ item.ano_cronograma_desembolso|default:"—" }}</td>
