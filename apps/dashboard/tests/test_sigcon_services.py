@@ -119,7 +119,6 @@ class PlanoAplicacaoQsTest(TestCase):
 
         self.assertEqual(qs.count(), 1)
         self.assertEqual(qs.first().codigo_plano_trabalho, PT_CODIGO)
-        self.assertEqual(ctx["convenio_codigo"], COD_SIGCON)
         self.assertEqual(ctx["siafi"], SIAFI)
         self.assertEqual(ctx["plano_trabalho_codigo"], PT_CODIGO)
 
@@ -162,7 +161,6 @@ class CronogramaQsTest(TestCase):
         self.assertEqual(qs.count(), 1)
         item = qs.first()
         self.assertEqual(item.convenio_numero_sequencial_siafi, SIAFI)
-        self.assertEqual(ctx["convenio_codigo"], COD_SIGCON)
 
     def test_modo_standalone_sem_filtro(self):
         CronogramaDesembolso.objects.create(

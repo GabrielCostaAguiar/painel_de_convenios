@@ -163,8 +163,10 @@ def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
     Retorna (QuerySet[PlanoAplicacao], context_dict) para a aba Plano de Aplicação.
 
     Chave de ligação: Convenio.plano_trabalho_codigo → PlanoAplicacao.codigo_plano_trabalho
-    context_dict fornece convenio_codigo, siafi e uo ao template (campos não presentes
-    diretamente em PlanoAplicacao).
+    context_dict fornece siafi e uo ao template (campos não presentes diretamente em
+    PlanoAplicacao). O Código SIGCON de cada linha vem do próprio model
+    (PlanoAplicacao.convenio_codigo, carimbado no loader) — não pertence a este context,
+    que é por página, não por linha (SIAFI é 1:N convênio).
 
     cod_sigcon tem prioridade; cod_siafi (filtro global) é usado quando cod_sigcon
     não foi informado — resolve plano_trabalho_codigo via Convenio, pois
@@ -172,7 +174,7 @@ def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
     """
     from apps.convenios.models import Convenio, PlanoAplicacao
 
-    context = {"convenio_codigo": cod_sigcon or ""}
+    context = {}
 
     if cod_sigcon:
         conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
@@ -210,10 +212,14 @@ def get_cronograma_qs(
 
     Modo detalhe (cod_sigcon): filtra por siafi+uo derivados de Convenio.
     Modo standalone: filtra por cod_siafi e/ou plano (comportamento existente).
+
+    O Código SIGCON de cada linha vem do próprio model
+    (CronogramaDesembolso.convenio_codigo, carimbado no loader) — não pertence a
+    este context, que é por página, não por linha (SIAFI é 1:N convênio).
     """
     from apps.convenios.models import Convenio, CronogramaDesembolso
 
-    context = {"convenio_codigo": cod_sigcon or ""}
+    context = {}
     qs = CronogramaDesembolso.objects.all()
 
     if cod_sigcon:
