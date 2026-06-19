@@ -15,8 +15,10 @@ efêmero, criado e destruído dentro da própria chamada.
 """
 
 import logging
+import re
 import tempfile
 import zipfile
+from datetime import date, datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -25,6 +27,8 @@ from .bronze import ingerir
 from .sources import FONTES
 
 logger = logging.getLogger(__name__)
+
+_PADRAO_DATA = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
 # Mapeia assunto do Gmail (core.extract.gmail.GRUPOS_ASSUNTOS) -> chave em
 # FONTES. Só inclui os que já têm FonteDados cadastrada (mesmos arquivos
@@ -63,6 +67,39 @@ def _localizar_mais_recente(diretorio: Path, prefixo: str) -> Path | None:
     return candidatos[-1] if candidatos else None
 
 
+def _extrair_data(caminho: Path) -> date | None:
+    # Busca o padrao AAAA-MM-DD direto no nome do arquivo (Path.stem/.suffix
+    # NAO servem aqui: assuntos do Gmail podem ter ponto no nome, ex.
+    # "dcgce_unidades.executoras_2026-06-19" - ver bugfix em armazenamento.py)
+    match = _PADRAO_DATA.search(caminho.name)
+    if not match:
+        return None
+    try:
+        return datetime.strptime(match.group(1), "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _avisar_se_desatualizado(nome_fonte: str, caminho: Path) -> None:
+    # NAO aborta - so deixa a defasagem visivel no log (auditoria da data
+    # do dado realmente processado pelo Bronze).
+    data_arquivo = _extrair_data(caminho)
+    if data_arquivo is None:
+        logger.warning(
+            "bronze: nao foi possivel extrair a data do nome de %s (fonte %r)",
+            caminho, nome_fonte,
+        )
+        return
+    dias_atraso = (date.today() - data_arquivo).days
+    if dias_atraso == 0:
+        logger.info("bronze: %r usando arquivo de hoje (%s): %s", nome_fonte, data_arquivo, caminho)
+    else:
+        logger.warning(
+            "bronze: %r DESATUALIZADO - usando arquivo de %s (%d dia(s) de atraso): %s",
+            nome_fonte, data_arquivo, dias_atraso, caminho,
+        )
+
+
 def ingerir_gmail_mapeados() -> list[Path]:
     """Roda bronze.ingerir() para cada assunto do Gmail com FonteDados
     mapeada, usando o arquivo mais recente pousado em data/raw/gmail/.
@@ -79,6 +116,7 @@ def ingerir_gmail_mapeados() -> list[Path]:
                 assunto, nome_fonte,
             )
             continue
+        _avisar_se_desatualizado(nome_fonte, caminho)
         try:
             destino = ingerir(nome_fonte, arquivo=caminho)
         except Exception as exc:
@@ -109,6 +147,7 @@ def ingerir_transferegov(
     if zip_path is None:
         logger.warning("bronze: nenhum .zip do transferegov encontrado em %s, pulando", diretorio)
         return None
+    _avisar_se_desatualizado(nome_fonte, zip_path)
 
     fonte = FONTES.get(nome_fonte)
     if fonte is None:
