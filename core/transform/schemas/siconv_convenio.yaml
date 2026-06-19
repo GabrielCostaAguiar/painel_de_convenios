@@ -1,0 +1,76 @@
+fonte: siconv_convenio
+gerado_em: '2026-06-19'
+colunas:
+  data:
+  - data_suspensiva
+  valor:
+  - vl_saldo_conta
+  - valor_global_original_conv
+  identificador:
+  - i»¿nr_convenio
+  - id_proposta
+  - dia_assin_conv
+  - nr_processo
+  - dia_publ_conv
+  - dia_inic_vigenc_conv
+  - dia_fim_vigenc_conv
+  - dia_fim_vigenc_original_conv
+  - dia_limite_prest_contas
+  texto:
+  - dia
+  - mes
+  - ano
+  - sit_convenio
+  - subsituacao_conv
+  - situacao_publicacao
+  - instrumento_ativo
+  - ind_opera_obtv
+  - ug_emitente
+  - dias_prest_contas
+  - data_retirada_suspensiva
+  - dias_clausula_suspensiva
+  - situacao_contratacao
+  - ind_assinado
+  - motivo_suspensao
+  - ind_foto
+  - qtde_convenios
+  - qtd_ta
+  - qtd_prorroga
+  - vl_global_conv
+  - vl_repasse_conv
+  - vl_contrapartida_conv
+  - vl_empenhado_conv
+  - vl_desembolsado_conv
+  - vl_saldo_reman_tesouro
+  - vl_saldo_reman_convenente
+  - vl_rendimento_aplicacao
+  - vl_ingresso_contrapartida
+duvidoso:
+- dia
+- mes
+- ano
+- sit_convenio
+- subsituacao_conv
+- situacao_publicacao
+- instrumento_ativo
+- ind_opera_obtv
+- ug_emitente
+- dias_prest_contas
+- data_retirada_suspensiva
+- dias_clausula_suspensiva
+- situacao_contratacao
+- ind_assinado
+- motivo_suspensao
+- ind_foto
+- qtde_convenios
+- qtd_ta
+- qtd_prorroga
+- vl_global_conv
+- vl_repasse_conv
+- vl_contrapartida_conv
+- vl_empenhado_conv
+- vl_desembolsado_conv
+- vl_saldo_reman_tesouro
+- vl_saldo_reman_convenente
+- vl_rendimento_aplicacao
+- vl_ingresso_contrapartida

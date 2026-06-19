@@ -1,0 +1,28 @@
+fonte: dcgce_termo_aditivo
+gerado_em: '2026-06-19'
+colunas:
+  data:
+  - termo_aditivo_data_assinatura
+  - termo_aditivo_data_inicio_vigencia
+  - termo_aditivo_data_termino_vigencia
+  - data_termo_aditivo
+  valor:
+  - valor_aditado_concedente_contratado
+  - valor_aditado_proponente_contratado
+  identificador:
+  - termo_aditivo_codigo_sequencial
+  - termo_aditivo_numero_termo_aditivo
+  texto:
+  - termo_aditivo_ano
+  - termo_aditivo_alteracao
+  - termo_aditivo_justificativa
+  - termo_aditivo_tipo
+  - tipo_termo_aditivo
+  - quantidade_termo_aditivo
+duvidoso:
+- termo_aditivo_ano
+- termo_aditivo_alteracao
+- termo_aditivo_justificativa
+- termo_aditivo_tipo
+- tipo_termo_aditivo
+- quantidade_termo_aditivo
