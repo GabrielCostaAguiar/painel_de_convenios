@@ -120,6 +120,46 @@ def _col(df: pd.DataFrame, nome: str) -> pd.Series | None:
 
 
 # ---------------------------------------------------------------------------
+# Convenio_codigo (Código SIGCON) 1:1 por linha — Plano de Aplicação / Cronograma
+# ---------------------------------------------------------------------------
+
+def carimbar_convenio_codigo(
+    df: pd.DataFrame,
+    df_geral: pd.DataFrame,
+    coluna_plano_trabalho: str,
+) -> pd.DataFrame:
+    """
+    Carimba convenio_codigo (Código SIGCON) 1:1 por linha, via plano_trabalho_codigo.
+
+    NUNCA usar SIAFI como chave aqui — SIAFI é 1:N convênio (o mesmo número
+    SIAFI pode abrigar convênios diferentes ao longo do tempo, conforme
+    diagnóstico do caso SIAFI 9481207). plano_trabalho_codigo identifica o
+    convênio EXATO de cada linha — mesma chave que já liga Plano de Aplicação
+    e Cronograma ao convênio desde o R0–R4.
+
+    dcgce_geral traz, na mesma linha, conveno_codigo_plano_trabalho (a chave,
+    com o typo de origem) e convenio_codigo (Código SIGCON) — join direto,
+    sem tabela intermediária.
+
+    Pré-requisito: chaves já normalizadas pelo chamador (ver
+    apps/convenios/loader.py::_normalizar_chave) — esta função não normaliza.
+    """
+    geral_codigo = (
+        df_geral[["conveno_codigo_plano_trabalho", "convenio_codigo"]]
+        .drop_duplicates("conveno_codigo_plano_trabalho")
+    )
+    antes = len(df)
+    resultado = df.merge(
+        geral_codigo,
+        left_on=coluna_plano_trabalho,
+        right_on="conveno_codigo_plano_trabalho",
+        how="left",
+    )
+    _validar_fan_out(antes, len(resultado), "carimbar_convenio_codigo")
+    return resultado
+
+
+# ---------------------------------------------------------------------------
 # R2 — preparação do sigcon_convenio antes do join
 # ---------------------------------------------------------------------------
 
