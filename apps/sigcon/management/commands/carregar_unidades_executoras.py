@@ -1,13 +1,20 @@
 """
-Management command: carregar_controle_sei
+Management command: carregar_unidades_executoras
 
-Full refresh do model ControleSEI a partir do Silver controle_sei.parquet.
+Full refresh consolidado: lê dcgce_convenio + dcgce_geral + dcgce_plano_trabalho
++ dcgce_esfera, faz os joins internos (SIAFI+UO, plano de trabalho, esfera)
+e recarrega a tabela Convenio no banco.
 
-Pré-requisito:
-  python manage.py rodar_silver controle_sei
+Pré-requisito: Silver de todas as fontes deve estar gerado.
+  python manage.py rodar_silver dcgce_convenio
+  python manage.py rodar_silver dcgce_geral
+  python manage.py rodar_silver dcgce_plano_trabalho
+  python manage.py rodar_silver dcgce_esfera
+  python manage.py rodar_silver dcgce_codigo_convenio
 
 Uso:
-    python manage.py carregar_controle_sei
+    python manage.py carregar_unidades_executoras
+    python manage.py carregar_unidades_executoras --silver data/silver/dcgce_unidade_executora.parquet
 """
 
 from pathlib import Path
@@ -18,13 +25,16 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.cache import invalidar_cache_indicadores
 
-from apps.convenios.loader import carregar_controle_sei
+from apps.sigcon.loader import carregar_unidades_executoras
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Full refresh do ControleSEI a partir de data/silver/controle_sei.parquet."
+    help = (
+        "Full refresh consolidado: carrega UnidadesExecutoras unindo dcgce_unidade_executora + dcgce_geral "
+        "+ dcgce_plano_trabalho + dcgce_esfera."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -32,14 +42,18 @@ class Command(BaseCommand):
             type=Path,
             default=None,
             metavar="CAMINHO",
-            help="Caminho customizado para o Parquet Silver. Omitir = DATA_DIR/silver/controle_sei.parquet",
+            help=(
+                "Caminho customizado para o Parquet Silver da unidade executora. "
+                "Omitir = DATA_DIR/silver/dcgce_unidade_executora.parquet"
+            ),
         )
 
     def handle(self, *args, **options):
-        self.stdout.write("Carregando Controle SEI no banco (full refresh)...")
+        silver_path = options["silver"]
+        self.stdout.write("Carregando unidades executoras no banco (full refresh)...")
 
         try:
-            resultado = carregar_controle_sei(options["silver"])
+            resultado = carregar_unidades_executoras(silver_path)
         except FileNotFoundError as exc:
             # Erro esperado: a fonte ainda nao foi ingerida/transformada. O
             # proprio loader ja diz qual arquivo falta e o que rodar antes,
@@ -51,8 +65,8 @@ class Command(BaseCommand):
             # encadeada com `from exc`, para o diagnostico nao se perder atras
             # da mensagem generica. Antes, o `except (FileNotFoundError,
             # Exception)` engolia os dois casos do mesmo jeito.
-            logger.exception("Falha inesperada ao carregar %s", "Controle SEI")
-            raise CommandError(f"Falha ao carregar {"Controle SEI"}: {exc}") from exc
+            logger.exception("Falha inesperada ao carregar %s", "unidades executoras")
+            raise CommandError(f"Falha ao carregar {"unidades executoras"}: {exc}") from exc
 
         # A carga alterou o banco: invalida os indicadores agora, para o painel
         # nao servir numeros velhos ate o TTL do cache expirar. Feito aqui (e

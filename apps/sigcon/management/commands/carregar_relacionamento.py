@@ -31,7 +31,7 @@ from django.core.management.base import BaseCommand, CommandError
 from core.cache import invalidar_cache_indicadores
 from django.conf import settings
 
-from apps.convenios.loader import carregar_tabela_integrada
+from apps.sigcon.loader import carregar_tabela_integrada
 
 logger = logging.getLogger(__name__)
 

@@ -153,7 +153,7 @@ def tipo_por_siafi_uo(siafi_uos: list[str] | None = None) -> dict[str, str]:
     siafi_uos : lista de chaves SIAFI_UO a resolver; None = todas.
     Retorna {siafi_uo: tipo_contrapartida}.
     """
-    from apps.convenios.models import CodigoPlanoTrabalho, PlanoTrabalho
+    from apps.sigcon.models import CodigoPlanoTrabalho, PlanoTrabalho
 
     planos_qs = PlanoTrabalho.objects.values(
         "plano_trabalho_codigo",

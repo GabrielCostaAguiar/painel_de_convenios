@@ -5,7 +5,7 @@ Usa banco SQLite de teste (pytest-django); sem arquivos externos.
 
 import pytest
 
-from apps.convenios.models import ControleSEI, Convenio
+from apps.sigcon.models import ControleSEI, Convenio
 
 
 @pytest.mark.django_db

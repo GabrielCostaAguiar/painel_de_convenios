@@ -23,7 +23,7 @@ import pandas as pd
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 
-from apps.convenios.models import Convenio
+from apps.sigcon.models import Convenio
 
 
 def _para_date(valor: str) -> date | None:

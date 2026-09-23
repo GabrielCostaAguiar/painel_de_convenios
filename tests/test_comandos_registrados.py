@@ -17,7 +17,8 @@ COMANDOS_PIPELINE = [
     "gerar_schemas",
 ]
 
-# Carga Silver → banco, domínio de convênios.
+# Carga Silver → banco, dominio das Consultas SIGCON (pacote apps.sigcon,
+# label "convenios").
 COMANDOS_CONVENIOS = [
     "carregar_convenios",
     "carregar_fonte",
@@ -34,8 +35,8 @@ def test_comandos_de_pipeline_vivem_em_apps_pipeline(comando):
 
 
 @pytest.mark.parametrize("comando", COMANDOS_CONVENIOS)
-def test_comandos_de_carga_vivem_em_apps_convenios(comando):
-    assert get_commands()[comando] == "apps.convenios"
+def test_comandos_de_carga_vivem_em_apps_sigcon(comando):
+    assert get_commands()[comando] == "apps.sigcon"
 
 
 def test_dashboard_nao_expoe_nenhum_comando():

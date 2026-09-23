@@ -12,8 +12,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from apps.convenios.loader import carregar_tabela_integrada
-from apps.convenios.models import ConvenioIntegrado
+from apps.sigcon.loader import carregar_tabela_integrada
+from apps.sigcon.models import ConvenioIntegrado
 
 
 # ---------------------------------------------------------------------------

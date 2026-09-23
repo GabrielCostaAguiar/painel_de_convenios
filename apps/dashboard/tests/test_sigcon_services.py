@@ -18,7 +18,7 @@ import datetime
 
 from django.test import TestCase
 
-from apps.convenios.models import (
+from apps.sigcon.models import (
     Convenio,
     ConvenioIntegrado,
     CodigoPlanoTrabalho,

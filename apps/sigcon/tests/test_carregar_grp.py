@@ -20,8 +20,8 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 
-from apps.convenios.management.commands.carregar_grp import _LOADERS_GRP, FONTES_GRP
-from apps.convenios.models import (
+from apps.sigcon.management.commands.carregar_grp import _LOADERS_GRP, FONTES_GRP
+from apps.sigcon.models import (
     CronogramaDesembolsoGrp,
     DadosGrp,
     EsferaGrp,
@@ -147,7 +147,7 @@ def test_fonte_sem_arquivo_nao_impede_as_outras(data_dir_sintetico):
 
 @pytest.mark.django_db
 def test_erro_inesperado_registra_traceback_e_segue(data_dir_sintetico, caplog):
-    from apps.convenios.management.commands import carregar_grp as cmd
+    from apps.sigcon.management.commands import carregar_grp as cmd
 
     loaders_com_falha = dict(cmd._LOADERS_GRP)
     loaders_com_falha["dcgce_dados_grp"] = mock.Mock(
@@ -166,7 +166,7 @@ def test_erro_inesperado_registra_traceback_e_segue(data_dir_sintetico, caplog):
 
 @pytest.mark.django_db
 def test_carga_bem_sucedida_invalida_o_cache(data_dir_sintetico):
-    from apps.convenios.management.commands import carregar_grp as cmd
+    from apps.sigcon.management.commands import carregar_grp as cmd
 
     with mock.patch.object(cmd, "invalidar_cache_indicadores") as invalidar:
         call_command("carregar_grp", "--fonte", "dcgce_esfera_grp")
@@ -176,7 +176,7 @@ def test_carga_bem_sucedida_invalida_o_cache(data_dir_sintetico):
 
 @pytest.mark.django_db
 def test_sem_nenhuma_carga_bem_sucedida_nao_invalida(data_dir_sintetico):
-    from apps.convenios.management.commands import carregar_grp as cmd
+    from apps.sigcon.management.commands import carregar_grp as cmd
 
     for fonte in FONTES_GRP:
         (data_dir_sintetico / "silver" / f"{fonte}.parquet").unlink()
@@ -264,4 +264,4 @@ def test_etapa_gold_executa_carregar_grp_quando_ligado():
 def test_comando_pertence_ao_app_convenios():
     from django.core.management import get_commands
 
-    assert get_commands()["carregar_grp"] == "apps.convenios"
+    assert get_commands()["carregar_grp"] == "apps.sigcon"

@@ -8,7 +8,7 @@ uo_cod) valem para todas as sub-abas.
 from django.core.paginator import Paginator
 from django.shortcuts import render
 
-from apps.convenios.models import DadosGrp
+from apps.sigcon.models import DadosGrp
 from apps.dashboard.services import (
     get_grp_cronograma_qs,
     get_grp_dados_qs,

@@ -22,7 +22,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.cache import invalidar_cache_indicadores
 
-from apps.convenios import loader as loaders
+from apps.sigcon import loader as loaders
 
 _LOADERS = {
     "dcgce_geral":                    loaders.carregar_convenio_geral,

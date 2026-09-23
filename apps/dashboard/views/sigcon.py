@@ -7,7 +7,7 @@ Os exports CSV/XLSX das mesmas abas ficam em exports.py.
 from django.core.paginator import Paginator
 from django.shortcuts import render
 
-from apps.convenios.models import Convenio, CronogramaDesembolso, TermoAditivo
+from apps.sigcon.models import Convenio, CronogramaDesembolso, TermoAditivo
 from apps.dashboard.services import (
     enrich_convenios_page,
     get_anos_disponiveis,

@@ -21,11 +21,11 @@ from django.core.management.base import CommandError
 
 # (nome do comando, função do loader que ele chama, args extras)
 COMANDOS_DE_CARGA = [
-    ("carregar_convenios", "apps.convenios.management.commands.carregar_convenios.carregar_convenios", []),
-    ("carregar_cronograma", "apps.convenios.management.commands.carregar_cronograma.carregar_cronograma_desembolso", []),
-    ("carregar_unidades_executoras", "apps.convenios.management.commands.carregar_unidades_executoras.carregar_unidades_executoras", []),
-    ("carregar_controle_sei", "apps.convenios.management.commands.carregar_controle_sei.carregar_controle_sei", []),
-    ("carregar_relacionamento", "apps.convenios.management.commands.carregar_relacionamento.carregar_tabela_integrada", []),
+    ("carregar_convenios", "apps.sigcon.management.commands.carregar_convenios.carregar_convenios", []),
+    ("carregar_cronograma", "apps.sigcon.management.commands.carregar_cronograma.carregar_cronograma_desembolso", []),
+    ("carregar_unidades_executoras", "apps.sigcon.management.commands.carregar_unidades_executoras.carregar_unidades_executoras", []),
+    ("carregar_controle_sei", "apps.sigcon.management.commands.carregar_controle_sei.carregar_controle_sei", []),
+    ("carregar_relacionamento", "apps.sigcon.management.commands.carregar_relacionamento.carregar_tabela_integrada", []),
 ]
 
 IDS = [nome for nome, _, _ in COMANDOS_DE_CARGA]
@@ -86,7 +86,7 @@ def test_carregar_fonte_tambem_segue_o_padrao(caplog):
     erro = ValueError("parquet corrompido")
 
     with mock.patch(
-        "apps.convenios.loader.carregar_convenio_geral", side_effect=erro,
+        "apps.sigcon.loader.carregar_convenio_geral", side_effect=erro,
     ):
         with caplog.at_level(logging.ERROR):
             with pytest.raises(CommandError) as excinfo:

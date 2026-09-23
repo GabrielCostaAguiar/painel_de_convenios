@@ -142,7 +142,7 @@ def carimbar_convenio_codigo(
     sem tabela intermediária.
 
     Pré-requisito: chaves já normalizadas pelo chamador (ver
-    apps/convenios/loader.py::_normalizar_chave) — esta função não normaliza.
+    apps/sigcon/loader.py::_normalizar_chave) — esta função não normaliza.
     """
     geral_codigo = (
         df_geral[["conveno_codigo_plano_trabalho", "convenio_codigo"]]

@@ -11,7 +11,7 @@ import logging
 from django.db.models import Count, Sum
 from django.db.models.functions import ExtractYear
 
-from apps.convenios.models import Convenio
+from apps.sigcon.models import Convenio
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from datetime import date
 
 import pytest
 
-from apps.convenios.models import Convenio
+from apps.sigcon.models import Convenio
 from core.gold.convenios import kpis, por_situacao, por_ano, recentes
 
 # Mesma amostra de dados da versão anterior do teste (5 registros):

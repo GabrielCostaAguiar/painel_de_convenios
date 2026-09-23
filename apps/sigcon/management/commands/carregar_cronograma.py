@@ -22,7 +22,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.cache import invalidar_cache_indicadores
 
-from apps.convenios.loader import carregar_cronograma_desembolso
+from apps.sigcon.loader import carregar_cronograma_desembolso
 
 logger = logging.getLogger(__name__)
 

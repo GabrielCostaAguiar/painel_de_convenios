@@ -1,5 +1,5 @@
 """
-Testes do helper de full refresh (apps.convenios.loader._bulk_refresh).
+Testes do helper de full refresh (apps.sigcon.loader._bulk_refresh).
 
 O que está sob teste é a garantia transacional: o par delete + bulk_create
 precisa ser tudo-ou-nada. Sem isso, uma falha no meio da carga deixa a tabela
@@ -12,8 +12,8 @@ from unittest import mock
 
 import pytest
 
-from apps.convenios.loader import _bulk_refresh
-from apps.convenios.models import CodigoConvenio
+from apps.sigcon.loader import _bulk_refresh
+from apps.sigcon.models import CodigoConvenio
 
 
 def _objs(codigos):

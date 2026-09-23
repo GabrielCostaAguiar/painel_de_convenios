@@ -28,7 +28,7 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 
-from apps.convenios.models import DadosGrp
+from apps.sigcon.models import DadosGrp
 from core.cache import (
     CHAVE_INDICADORES,
     chave_indicadores,
@@ -79,7 +79,7 @@ def get_indicadores(ano: int | None = None, usar_cache: bool = True) -> dict:
 
 def get_anos_disponiveis() -> list[int]:
     """Lista de anos com convênios registrados, em ordem decrescente."""
-    from apps.convenios.models import Convenio
+    from apps.sigcon.models import Convenio
     from django.db.models.functions import ExtractYear
 
     return list(
@@ -179,7 +179,7 @@ def enrich_convenios_page(page_items: list) -> dict:
       ControleSEI:        siafi puro   — NÃO siafi_uo
       tipo_contrapartida: siafi_uo     — siafi + uo concatenados (sem separador)
     """
-    from apps.convenios.models import ControleSEI, ConvenioIntegrado
+    from apps.sigcon.models import ControleSEI, ConvenioIntegrado
     from core.gold.contrapartida import tipo_por_siafi_uo
 
     if not page_items:
@@ -244,7 +244,7 @@ def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
     não foi informado — resolve plano_trabalho_codigo via Convenio, pois
     PlanoAplicacao não tem SIAFI diretamente.
     """
-    from apps.convenios.models import Convenio, PlanoAplicacao
+    from apps.sigcon.models import Convenio, PlanoAplicacao
 
     context = {}
 
@@ -291,7 +291,7 @@ def get_cronograma_qs(
     (CronogramaDesembolso.convenio_codigo, carimbado no loader) — não pertence a
     este context, que é por página, não por linha (SIAFI é 1:N convênio).
     """
-    from apps.convenios.models import Convenio, CronogramaDesembolso
+    from apps.sigcon.models import Convenio, CronogramaDesembolso
 
     context = {}
     qs = CronogramaDesembolso.objects.all()
@@ -334,7 +334,7 @@ def get_prorrogacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = No
     cod_sigcon tem prioridade; cod_siafi (filtro global) resolve os convenio_codigo
     correspondentes via Convenio quando cod_sigcon não foi informado.
     """
-    from apps.convenios.models import Convenio, ProrrogacaoOficio
+    from apps.sigcon.models import Convenio, ProrrogacaoOficio
 
     context = {"convenio_codigo": cod_sigcon or ""}
     qs = ProrrogacaoOficio.objects.all()
@@ -369,7 +369,7 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
     cod_sigcon tem prioridade (resolve siafi+uo via Convenio); cod_siafi (filtro
     global) consulta a ponte CodigoTermoAditivo direto pelo SIAFI, sem exigir UO.
     """
-    from apps.convenios.models import Convenio, CodigoTermoAditivo, TermoAditivo
+    from apps.sigcon.models import Convenio, CodigoTermoAditivo, TermoAditivo
 
     context = {"convenio_codigo": cod_sigcon or "", "ta_pt_map": {}}
 
@@ -422,7 +422,7 @@ def get_unidades_executoras_qs(cod_sigcon: str | None = None, cod_siafi: str | N
     cod_siafi (filtro global) usa convenio_numero_sequencial_siafi, presente
     diretamente no model — sem precisar passar por Convenio.
     """
-    from apps.convenios.models import UnidadesExecutoras
+    from apps.sigcon.models import UnidadesExecutoras
 
     context = {"convenio_codigo": cod_sigcon or ""}
     qs = UnidadesExecutoras.objects.all()
@@ -459,7 +459,7 @@ def get_sigcon_qs(filtros: dict):
     model Convenio — resolvidos via (siafi, uo) a partir das tabelas-ponte e
     da Gold, no mesmo padrão usado em enrich_convenios_page.
     """
-    from apps.convenios.models import Convenio, TermoAditivo, CodigoTermoAditivo, ConvenioIntegrado
+    from apps.sigcon.models import Convenio, TermoAditivo, CodigoTermoAditivo, ConvenioIntegrado
     from core.gold.contrapartida import tipo_por_siafi_uo
 
     qs = Convenio.objects.all()
@@ -517,7 +517,7 @@ def get_grp_dados_qs(filtros: dict):
     (string; "" significa "sem filtro").
     Retorna QuerySet[NúmeroGRP] filtrado para a aba GRP (tela teste).
     """
-    from apps.convenios.models import DadosGrp, TermoAditivo, CodigoTermoAditivo, ConvenioIntegrado
+    from apps.sigcon.models import DadosGrp, TermoAditivo, CodigoTermoAditivo, ConvenioIntegrado
     from core.gold.contrapartida import tipo_por_siafi_uo
 
     qs = DadosGrp.objects.all()
@@ -544,7 +544,7 @@ def get_grp_dados_qs(filtros: dict):
 
 def _grp_filtrar_por_nr_grp(qs, filtros: dict):
     """Aplica os filtros do GRP a qualquer QuerySet que tenha o campo nr_grp."""
-    from apps.convenios.models import DadosGrp
+    from apps.sigcon.models import DadosGrp
 
     if filtros.get("nr_grp"):
         qs = qs.filter(nr_grp__icontains=filtros["nr_grp"])
@@ -567,7 +567,7 @@ def _grp_filtrar_por_nr_grp(qs, filtros: dict):
 
 def get_grp_cronograma_qs(filtros: dict):
     """QuerySet[CronogramaDesembolsoGrp] filtrado pelos filtros do GRP."""
-    from apps.convenios.models import CronogramaDesembolsoGrp
+    from apps.sigcon.models import CronogramaDesembolsoGrp
 
     qs = _grp_filtrar_por_nr_grp(CronogramaDesembolsoGrp.objects.all(), filtros)
     return qs.order_by("nr_grp", "ano_desembolso", "mes_desembolso", "parcela_desembolso")
@@ -575,7 +575,7 @@ def get_grp_cronograma_qs(filtros: dict):
 
 def get_grp_recursos_contrapartida_qs(filtros: dict):
     """QuerySet[RecursosContrapartidaGrp] filtrado pelos filtros do GRP."""
-    from apps.convenios.models import RecursosContrapartidaGrp
+    from apps.sigcon.models import RecursosContrapartidaGrp
 
     qs = _grp_filtrar_por_nr_grp(RecursosContrapartidaGrp.objects.all(), filtros)
     return qs.order_by("nr_grp")
@@ -583,7 +583,7 @@ def get_grp_recursos_contrapartida_qs(filtros: dict):
 
 def get_grp_recursos_concedente_qs(filtros: dict):
     """QuerySet[RecursosConcedenteGrp] filtrado pelos filtros do GRP."""
-    from apps.convenios.models import RecursosConcedenteGrp
+    from apps.sigcon.models import RecursosConcedenteGrp
 
     qs = _grp_filtrar_por_nr_grp(RecursosConcedenteGrp.objects.all(), filtros)
     return qs.order_by("nr_grp")
@@ -591,7 +591,7 @@ def get_grp_recursos_concedente_qs(filtros: dict):
 
 def get_grp_plano_aplicacao_qs(filtros: dict):
     """QuerySet[PlanoAplicacaoGrp] filtrado pelos filtros do GRP."""
-    from apps.convenios.models import PlanoAplicacaoGrp
+    from apps.sigcon.models import PlanoAplicacaoGrp
 
     qs = _grp_filtrar_por_nr_grp(PlanoAplicacaoGrp.objects.all(), filtros)
     return qs.order_by("nr_grp")
@@ -599,7 +599,7 @@ def get_grp_plano_aplicacao_qs(filtros: dict):
 
 def get_grp_plano_aplicacao_detalhes_qs(filtros: dict):
     """QuerySet[PlanoAplicacaoGrpDetalhes] filtrado pelos filtros do GRP."""
-    from apps.convenios.models import PlanoAplicacaoGrpDetalhes
+    from apps.sigcon.models import PlanoAplicacaoGrpDetalhes
 
     qs = _grp_filtrar_por_nr_grp(PlanoAplicacaoGrpDetalhes.objects.all(), filtros)
     return qs.order_by("nr_grp", "nr_catmas")
@@ -614,6 +614,6 @@ def get_grp_esfera_qs(filtros: dict):
     nr_grp dentro das tabelas do GRP. A sub-aba sempre mostra tudo; a view
     sinaliza no template que o filtro não se aplica aqui.
     """
-    from apps.convenios.models import EsferaGrp
+    from apps.sigcon.models import EsferaGrp
 
     return EsferaGrp.objects.all().order_by("concedente_cnpj")

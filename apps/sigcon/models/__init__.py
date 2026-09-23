@@ -13,7 +13,7 @@ Os arquivos:
   externos.py  — fontes externas ao SIGCON-MG (ControleSEI)
   grp.py       — tabelas do GRP (em teste)
 
-Tudo é reexportado aqui, então `from apps.convenios.models import Convenio`
+Tudo é reexportado aqui, então `from apps.sigcon.models import Convenio`
 continua funcionando igual em todo o projeto — nenhum import externo mudou.
 """
 
