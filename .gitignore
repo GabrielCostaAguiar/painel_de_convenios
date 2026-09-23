@@ -49,6 +49,13 @@ data/silver/*
 data/gold/*
 !data/gold/.gitkeep
 
+# Configuracao pessoal do Claude Code
+# settings.json e a configuracao compartilhada do projeto e VAI para o Git.
+# settings.local.json e por maquina: guarda permissoes e caminhos de quem esta
+# rodando ali, que nao fazem sentido para o resto da equipe.
+.claude/settings.local.json
+.claude/settings.local.json.bak
+
 # VS Code
 .vscode/
 *.code-workspace
