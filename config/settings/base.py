@@ -69,7 +69,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
+# Destino do collectstatic. Sobrescrevivel por ambiente porque em alguns
+# deploys o diretorio servido pelo servidor web fica fora do projeto.
+_static_root_env = env("STATIC_ROOT", default="")
+STATIC_ROOT = _static_root_env if _static_root_env else BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -38,6 +38,8 @@ print(json.dumps({
     "cache_location": str(settings.CACHES["default"].get("LOCATION", "")),
     "cache_key_prefix": settings.CACHES["default"].get("KEY_PREFIX", ""),
     "middleware": list(settings.MIDDLEWARE),
+    "static_root": str(settings.STATIC_ROOT or ""),
+    "staticfiles_backend": settings.STORAGES["staticfiles"]["BACKEND"],
     "gold_cache_seconds": settings.GOLD_CACHE_SECONDS,
     "debug": settings.DEBUG,
     "hsts_seconds": settings.SECURE_HSTS_SECONDS,
@@ -108,6 +110,45 @@ def test_gold_cache_seconds_tem_default_de_uma_hora(prod_sem_redis):
 
 def test_gold_cache_seconds_e_configuravel_por_env():
     assert _settings_de_prod(GOLD_CACHE_SECONDS="60")["gold_cache_seconds"] == 60
+
+
+# ---------------------------------------------------------------------------
+# Arquivos estáticos
+# ---------------------------------------------------------------------------
+
+SECURITY_MIDDLEWARE = "django.middleware.security.SecurityMiddleware"
+WHITENOISE_MIDDLEWARE = "whitenoise.middleware.WhiteNoiseMiddleware"
+
+
+def test_whitenoise_esta_logo_apos_o_security_middleware(prod_sem_redis):
+    """
+    Com DEBUG=False o Django não serve /static/ sozinho. A posição é a
+    recomendada pela lib: depois do SecurityMiddleware, para os headers de
+    segurança valerem também nos estáticos, e antes de todo o resto.
+    """
+    middleware = prod_sem_redis["middleware"]
+
+    assert WHITENOISE_MIDDLEWARE in middleware
+    assert middleware.index(WHITENOISE_MIDDLEWARE) == middleware.index(SECURITY_MIDDLEWARE) + 1
+
+
+def test_whitenoise_aparece_uma_vez_so(prod_sem_redis):
+    """Guarda contra duplicação se um dia o middleware entrar também no base.py."""
+    assert prod_sem_redis["middleware"].count(WHITENOISE_MIDDLEWARE) == 1
+
+
+def test_static_root_esta_definido(prod_sem_redis):
+    """Sem STATIC_ROOT o collectstatic não tem para onde copiar."""
+    assert prod_sem_redis["static_root"]
+
+
+def test_static_root_e_configuravel_por_env(tmp_path):
+    destino = str(tmp_path / "estaticos")
+    assert _settings_de_prod(STATIC_ROOT=destino)["static_root"] == destino
+
+
+def test_storage_de_estaticos_e_do_whitenoise(prod_sem_redis):
+    assert prod_sem_redis["staticfiles_backend"].startswith("whitenoise.storage.")
 
 
 # ---------------------------------------------------------------------------

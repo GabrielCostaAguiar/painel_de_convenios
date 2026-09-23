@@ -19,6 +19,41 @@ DATABASES = {
 }
 
 # ---------------------------------------------------------------------------
+# Arquivos estaticos — WhiteNoise
+# ---------------------------------------------------------------------------
+# Com DEBUG=False o Django para de servir /static/ por conta propria. Se nada
+# na frente fizer isso, o painel sobe sem CSS nem JS. O WhiteNoise faz o
+# proprio Django servir esses arquivos de forma eficiente.
+#
+# Se o servidor web da Prodemge tambem servir /static/, ele atende a
+# requisicao antes de ela chegar ao Python e o WhiteNoise simplesmente nao e
+# acionado — por isso ligar aqui e seguro nos dois cenarios.
+#
+# Posicao recomendada pela propria lib: logo apos o SecurityMiddleware, para
+# os headers de seguranca valerem tambem para os estaticos. Mesma posicao que
+# o Modo Compartilhar do dev.py ja usa.
+_WHITENOISE = "whitenoise.middleware.WhiteNoiseMiddleware"
+
+if _WHITENOISE not in MIDDLEWARE:  # noqa: F405
+    _idx_security = MIDDLEWARE.index(  # noqa: F405
+        "django.middleware.security.SecurityMiddleware"
+    )
+    MIDDLEWARE = [  # noqa: F405
+        *MIDDLEWARE[: _idx_security + 1],  # noqa: F405
+        _WHITENOISE,
+        *MIDDLEWARE[_idx_security + 1:],  # noqa: F405
+    ]
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Compressed: serve .gz/.br pre-comprimidos, gerados no collectstatic.
+    # Manifest: renomeia cada arquivo com o hash do conteudo, para o navegador
+    # nunca reaproveitar um CSS antigo depois de um deploy.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
+
+# ---------------------------------------------------------------------------
 # Cache — precisa ser COMPARTILHADO entre processos
 # ---------------------------------------------------------------------------
 # O LocMemCache (default implicito do Django) guarda tudo na memoria de cada
