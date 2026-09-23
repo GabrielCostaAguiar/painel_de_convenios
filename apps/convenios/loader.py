@@ -7,6 +7,9 @@ Cada função:
   3. Reconstrói via bulk_create(batch_size=500)
   4. Retorna dict com 'apagados' e 'inseridos'
 
+Os passos 2 e 3 rodam sempre dentro de uma mesma transação (ver _bulk_refresh):
+ou a tabela inteira é substituída, ou nada muda.
+
 Funções do piloto (Convenio consolidado + Cronograma com SIAFI):
   carregar_convenios()          — full-refresh do Convenio consolidado
   carregar_cronograma_desembolso() — full-refresh do CronogramaDesembolso com SIAFI
@@ -21,6 +24,7 @@ from pathlib import Path
 
 import pandas as pd
 from django.conf import settings
+from django.db import transaction
 
 from .models import (
     CodigoConvenio,
@@ -107,9 +111,24 @@ def _ler_parquet(caminho: Path) -> pd.DataFrame:
     return df
 
 
-def _bulk_refresh(model, objetos: list) -> dict:
-    apagados, _ = model.objects.all().delete()
-    model.objects.bulk_create(objetos, batch_size=500)
+def _bulk_refresh(model, objetos: list, batch_size: int = 500) -> dict:
+    """
+    Substitui todo o conteúdo da tabela de forma atômica.
+
+    O delete e o bulk_create formam uma única transação: se qualquer passo
+    falhar (valor inválido, erro de encoding, queda de conexão), o banco faz
+    rollback e a tabela mantém os dados anteriores — em vez de ficar vazia,
+    que era o resultado possível quando os dois passos rodavam soltos.
+
+    Efeito colateral desejado no PostgreSQL: pelo MVCC, quem estiver lendo o
+    painel durante a carga continua enxergando os dados antigos até o commit,
+    em vez de pegar a tabela no intervalo entre o delete e o insert.
+
+    batch_size evita estourar o limite de parâmetros por query do SQLite.
+    """
+    with transaction.atomic():
+        apagados, _ = model.objects.all().delete()
+        model.objects.bulk_create(objetos, batch_size=batch_size)
     logger.info("%s: %d apagados, %d inseridos", model.__name__, apagados, len(objetos))
     return {"apagados": apagados, "inseridos": len(objetos)}
 
