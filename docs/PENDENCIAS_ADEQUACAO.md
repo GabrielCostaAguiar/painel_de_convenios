@@ -257,9 +257,14 @@ As 7 estão registradas em `FONTES`, têm Bronze e Silver gerados, e todas passa
   - `6f3ffde` fix(commands): distingue erro esperado de inesperado e preserva o traceback
   - `7918962` feat(grp): adiciona comando carregar_grp e etapa opcional no pipeline
   - `8220cf4` chore(security): torna HSTS de subdomínios configurável, desligado por padrão
-  - `docs: atualiza checklist de deploy, CLAUDE.md e README após pendências`
-- Push: ver a seção correspondente no relatório entregue junto com esta branch.
-- PR: idem.
+  - `2274378` docs: atualiza checklist de deploy, CLAUDE.md e README após pendências
+  - `(este commit)` docs: preenche o resultado do push no relatório
+- Push: **sucesso** — https://github.com/GabrielCostaAguiar/painel_de_convenios/tree/fix/pendencias-adequacao
+- PR: **não aberto** — o `gh` CLI não está instalado neste ambiente
+  (`gh: command not found`). Abrir manualmente em
+  https://github.com/GabrielCostaAguiar/painel_de_convenios/pull/new/fix/pendencias-adequacao,
+  **com base em `refactor/adequacao-django`** (não em `main`), usando este
+  documento como descrição. **Não foi feito merge.**
 
 ## Como revisar / reverter
 
