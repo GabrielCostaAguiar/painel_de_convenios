@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "apps.dashboard",
     "apps.convenios",
+    "apps.pipeline",
 ]
 
 MIDDLEWARE = [

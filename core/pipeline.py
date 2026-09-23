@@ -2,7 +2,7 @@
 Orquestrador do pipeline completo: extracao+bronze -> silver -> gold/carga ORM.
 
 Fat service, thin command: toda a logica de orquestracao vive aqui;
-apps/dashboard/management/commands/rodar_pipeline.py so chama atualizar_painel().
+apps/pipeline/management/commands/rodar_pipeline.py so chama atualizar_painel().
 
 Contrato entre etapas: a etapa N so roda se a etapa N-1 produziu alguma
 saida (pelo menos um arquivo Bronze; pelo menos uma fonte Silver). Se uma
