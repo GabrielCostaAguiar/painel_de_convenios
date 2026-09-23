@@ -21,6 +21,7 @@ import re
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from core.cache import invalidar_cache_indicadores
 from core.extract import gmail, transferegov
 from core.ingestion.ponte_extracao import ingerir_gmail_mapeados, ingerir_transferegov
 
@@ -204,12 +205,29 @@ def _etapa_gold_orm() -> dict:
     }
 
 
+def _houve_carga_orm(etapas: list[dict]) -> bool:
+    """True se a etapa gold_orm rodou e pelo menos um loader gravou no banco.
+
+    contagens da etapa gold_orm tem uma entrada por comando que terminou sem
+    erro; um comando que levantou CommandError nao entra la.
+    """
+    for etapa in etapas:
+        if etapa["nome"] == "gold_orm":
+            return bool(etapa["contagens"])
+    return False
+
+
 def atualizar_painel() -> dict:
     """Orquestra o pipeline completo: extracao+bronze -> silver -> gold/carga ORM.
 
     Para na primeira etapa que nao produzir saida - nao roda as proximas
-    etapas em cima de dado incompleto. Invalida o cache de indicadores
-    (apps/dashboard/services.py) somente se o pipeline completar com sucesso.
+    etapas em cima de dado incompleto.
+
+    Invalida o cache de indicadores (core/cache.py) se pelo menos uma carga
+    ORM tiver rodado com sucesso - e nao apenas quando o pipeline inteiro der
+    certo. O criterio e "o banco mudou", nao "tudo deu certo": se
+    carregar_convenios falha mas outros loaders passam, os dados em tela
+    mudaram e o cache precisa ser recalculado do mesmo jeito.
 
     Retorna {"sucesso": bool, "etapas": [dict, ...]} - uma entrada por etapa
     realmente executada (etapas nao alcancadas, por uma etapa anterior ter
@@ -225,8 +243,7 @@ def atualizar_painel() -> dict:
             logger.error("pipeline interrompido na etapa %r - ver erros acima", etapa["nome"])
             break
 
-    if resultado["sucesso"]:
-        from apps.dashboard.services import invalidar_cache
-        invalidar_cache()
+    if _houve_carga_orm(resultado["etapas"]):
+        invalidar_cache_indicadores()
 
     return resultado
