@@ -16,10 +16,6 @@ urlpatterns = [
     path("indicadores/",   views.indicadores,   name="indicadores"),
     path("graficos/",      views.graficos,      name="graficos"),
 
-    # Consultas ainda em construcao
-    path("uniao/",         views.uniao,         name="uniao"),
-    path("execucao/",      views.execucao,      name="execucao"),
-
     # Acompanhamento
     path("monitoramento/", views.monitoramento, name="monitoramento"),
     path("relatorio/",     views.relatorio,     name="relatorio"),

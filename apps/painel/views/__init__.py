@@ -15,13 +15,11 @@ from .grp import (
     grp_recursos_contrapartida,
 )
 from .painel import graficos, indicadores
-from .stubs import alertas, emendas, execucao, monitoramento, relatorio, uniao
+from .stubs import alertas, emendas, monitoramento, relatorio
 
 __all__ = [
     "indicadores",
     "graficos",
-    "uniao",
-    "execucao",
     "monitoramento",
     "relatorio",
     "alertas",

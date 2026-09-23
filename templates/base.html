@@ -48,13 +48,13 @@
       </a>
 
       <a class="nav-item{% if secao_ativa == 'uniao' %} active{% endif %}"
-         href="{% url 'painel:uniao' %}">
+         href="{% url 'uniao:uniao' %}">
         <svg viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13M4 21h16M9 21v-6h6v6"/></svg>
         <span class="lbl">Consultas União</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'execucao' %} active{% endif %}"
-         href="{% url 'painel:execucao' %}">
+         href="{% url 'execucao:execucao' %}">
         <svg viewBox="0 0 24 24"><path d="M4 5h16M4 5v14h16V5M9 9v6M15 9v6M12 9v6"/></svg>
         <span class="lbl">Execução Estadual</span>
       </a>

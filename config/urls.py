@@ -13,5 +13,7 @@ urlpatterns = [
     #
     # O sigcon vem primeiro porque responde tambem pela raiz ("").
     path("", include("apps.sigcon.urls")),
+    path("", include("apps.uniao.urls")),
+    path("", include("apps.execucao.urls")),
     path("", include("apps.painel.urls")),
 ]
