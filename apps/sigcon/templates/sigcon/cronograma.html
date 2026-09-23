@@ -7,7 +7,7 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Cronograma de Desembolso</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-{% include "painel/_subtabs.html" %}
+{% include "sigcon/_subtabs.html" %}
 
 {% include "painel/_filtro_global.html" %}
 
@@ -15,12 +15,12 @@
 <div class="panel" style="padding:10px 16px;font-size:.85rem;border-left:3px solid var(--accent)">
   Exibindo cronograma do convênio <strong>{{ cod_sigcon_sel|default:"—" }}</strong>
   {% if cod_siafi_sel %} · SIAFI: <strong>{{ cod_siafi_sel }}</strong>{% endif %}
-  <a href="{% url 'painel:cronograma' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
+  <a href="{% url 'sigcon:cronograma' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
 </div>
 {% endif %}
 
 <!-- Filtros
-<form method="get" action="{% url 'painel:cronograma' %}">
+<form method="get" action="{% url 'sigcon:cronograma' %}">
 <div class="panel filters">
   <div class="filters-top">
     <div class="ttl">
@@ -28,7 +28,7 @@
       Filtros da consulta
     </div>
     <div class="filters-actions">
-      <a href="{% url 'painel:cronograma' %}" class="btn ghost-danger">
+      <a href="{% url 'sigcon:cronograma' %}" class="btn ghost-danger">
         <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
         Limpar filtros
       </a>
@@ -67,8 +67,8 @@
           <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="export-pop" id="exportPop">
-          <a href="{% url 'painel:cronograma_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
-          <a href="{% url 'painel:cronograma_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
+          <a href="{% url 'sigcon:cronograma_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'sigcon:cronograma_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
         </div>
       </div>
     </div>

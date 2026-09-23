@@ -1,8 +1,9 @@
 """
 Views de export CSV/XLSX das abas de Consultas SIGCON.
 
-Cada export repete os filtros da tela correspondente em sigcon.py, para que
-o arquivo baixado tenha exatamente as linhas que o usuário está vendo.
+Cada export usa a mesma função de serviço da tela correspondente, para que o
+arquivo baixado tenha exatamente as linhas — e na mesma ordem — que o usuário
+está vendo.
 
 Atenção: core.export.xlsx não pode importar pandas/numpy (erro de OpenBLAS com
 múltiplos workers em produção) — não introduza esse import neste caminho.
@@ -10,9 +11,7 @@ múltiplos workers em produção) — não introduza esse import neste caminho.
 
 import csv
 
-from django.http import HttpResponse
-
-from apps.painel.services import (
+from apps.sigcon.services import (
     enrich_convenios_page,
     get_cronograma_qs,
     get_plano_aplicacao_qs,
@@ -22,21 +21,20 @@ from apps.painel.services import (
     get_unidades_executoras_qs,
 )
 from core.export.xlsx import exportar_xlsx
+from core.web import resposta_csv
 
-from ._helpers import _ler_filtros_sigcon
+from ._filtros import ler_filtros_sigcon
 
 
 def sigcon_export_csv(request):
     """Exporta para CSV os Convenio que respeitam os mesmos filtros da tela."""
-    filtros = _ler_filtros_sigcon(request.GET)
+    filtros = ler_filtros_sigcon(request.GET)
     qs = get_sigcon_qs(filtros).order_by("convenio_codigo")
 
     items = list(qs)
     enrichment = enrich_convenios_page(items)
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="convenios.csv"'
-    response.write("﻿")  # BOM — Excel abre UTF-8 corretamente
+    response = resposta_csv("convenios")
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow([
@@ -87,7 +85,7 @@ _COLUNAS_SIGCON_XLSX = [
 
 def sigcon_export_xlsx(request):
     """Exporta para XLSX os Convenio que respeitam os mesmos filtros e ordem da tela."""
-    filtros = _ler_filtros_sigcon(request.GET)
+    filtros = ler_filtros_sigcon(request.GET)
     items = list(get_sigcon_qs(filtros))
     enrichment = enrich_convenios_page(items)
 
@@ -128,9 +126,7 @@ def plano_aplicacao_export_csv(request):
 
     siafi_sel = ctx.get("siafi", "")
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="plano_aplicacao.csv"'
-    response.write("﻿")  # BOM — Excel abre UTF-8 corretamente
+    response = resposta_csv("plano_aplicacao")
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow([
@@ -213,9 +209,7 @@ def cronograma_export_csv(request):
         plano=plano or None,
     )
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="cronograma_desembolso.csv"'
-    response.write("﻿")  # BOM — Excel abre UTF-8 corretamente
+    response = resposta_csv("cronograma_desembolso")
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow([
@@ -273,9 +267,7 @@ def prorrogacao_export_csv(request):
 
     plano_sel = ctx.get("plano_trabalho_codigo", "")
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="prorrogacao_oficio.csv"'
-    response.write("﻿")  # BOM — Excel abre UTF-8 corretamente
+    response = resposta_csv("prorrogacao_oficio")
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow([
@@ -323,9 +315,7 @@ def termo_aditivo_export_csv(request):
     qs, ctx = get_termos_aditivos_qs(cod_sigcon or None, cod_siafi or None)
     ta_pt_map = ctx.get("ta_pt_map", {})
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="termo_aditivo.csv"'
-    response.write("﻿")  # BOM — Excel abre UTF-8 corretamente
+    response = resposta_csv("termo_aditivo")
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow([
@@ -382,9 +372,7 @@ def unidades_executoras_export_csv(request):
     cod_siafi  = request.GET.get("cod_siafi", "")
     qs, _ = get_unidades_executoras_qs(cod_sigcon or None, cod_siafi or None)
 
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="unidades_executoras.csv"'
-    response.write("﻿")  # BOM — Excel abre UTF-8 corretamente
+    response = resposta_csv("unidades_executoras")
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow(["Código SIGCON", "Código SIAFI", "Cód. UO", "Unidade Executora"])

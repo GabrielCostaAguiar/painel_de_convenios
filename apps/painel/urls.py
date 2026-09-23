@@ -1,3 +1,10 @@
+"""
+Rotas da casca do painel: indicadores, graficos e telas de Acompanhamento.
+
+As rotas de cada aba ficam no app da aba (apps.sigcon.urls, apps.grp.urls, ...)
+e sao incluidas em config/urls.py.
+"""
+
 from django.urls import path
 
 from . import views
@@ -5,48 +12,26 @@ from . import views
 app_name = "painel"
 
 urlpatterns = [
-    # Página inicial — Consultas SIGCON: aba mestre
-    path("",                        views.sigcon,               name="sigcon"),
-    path("export.csv",              views.sigcon_export_csv,    name="sigcon_export_csv"),
-    path("export.xlsx",             views.sigcon_export_xlsx,   name="sigcon_export_xlsx"),
-
     # Painel
-    path("indicadores/",            views.indicadores,          name="indicadores"),
-    path("graficos/",               views.graficos,             name="graficos"),
+    path("indicadores/",   views.indicadores,   name="indicadores"),
+    path("graficos/",      views.graficos,      name="graficos"),
 
-    # Sub-tabs de Consultas SIGCON
-    path("plano_aplicacao/",        views.plano_aplicacao,      name="plano_aplicacao"),
-    path("plano_aplicacao/export.csv", views.plano_aplicacao_export_csv, name="plano_aplicacao_export_csv"),
-    path("plano_aplicacao/export.xlsx", views.plano_aplicacao_export_xlsx, name="plano_aplicacao_export_xlsx"),
-    path("cronograma/",             views.cronograma,           name="cronograma"),
-    path("cronograma/export.csv",   views.cronograma_export_csv, name="cronograma_export_csv"),
-    path("cronograma/export.xlsx",  views.cronograma_export_xlsx, name="cronograma_export_xlsx"),
-    path("prorrogacao/",            views.prorrogacao,          name="prorrogacao"),
-    path("prorrogacao/export.csv",  views.prorrogacao_export_csv, name="prorrogacao_export_csv"),
-    path("prorrogacao/export.xlsx", views.prorrogacao_export_xlsx, name="prorrogacao_export_xlsx"),
-    path("termo_aditivo/",          views.termo_aditivo,        name="termo_aditivo"),
-    path("termo_aditivo/export.csv", views.termo_aditivo_export_csv, name="termo_aditivo_export_csv"),
-    path("termo_aditivo/export.xlsx", views.termo_aditivo_export_xlsx, name="termo_aditivo_export_xlsx"),
-    path("unidades_executoras/",    views.unidades_executoras,  name="unidades_executoras"),
-    path("unidades_executoras/export.csv", views.unidades_executoras_export_csv, name="unidades_executoras_export_csv"),
-    path("unidades_executoras/export.xlsx", views.unidades_executoras_export_xlsx, name="unidades_executoras_export_xlsx"),
-
-    # Consultas
-    path("uniao/",                  views.uniao,                name="uniao"),
-    path("execucao/",               views.execucao,             name="execucao"),
+    # Consultas ainda em construcao
+    path("uniao/",         views.uniao,         name="uniao"),
+    path("execucao/",      views.execucao,      name="execucao"),
 
     # Acompanhamento
-    path("monitoramento/",          views.monitoramento,        name="monitoramento"),
-    path("relatorio/",              views.relatorio,            name="relatorio"),
-    path("alertas/",                views.alertas,              name="alertas"),
-    path("emendas/",                views.emendas,              name="emendas"),
+    path("monitoramento/", views.monitoramento, name="monitoramento"),
+    path("relatorio/",     views.relatorio,     name="relatorio"),
+    path("alertas/",       views.alertas,       name="alertas"),
+    path("emendas/",       views.emendas,       name="emendas"),
 
-        # GRP — 7 sub-abas de teste
-    path("grp/dados/",                     views.grp_instrumentos,                       name="grp_dados"),
-    path("grp/cronograma/",                views.grp_cronograma,                  name="grp_cronograma"),
-    path("grp/recursos_contrapartida/",    views.grp_recursos_contrapartida,      name="grp_recursos_contrapartida"),
-    path("grp/recursos_concedente/",       views.grp_recursos_concedente,         name="grp_recursos_concedente"),
-    path("grp/plano_aplicacao/",           views.grp_plano_aplicacao,             name="grp_plano_aplicacao"),
-    path("grp/plano_aplicacao_detalhes/",  views.grp_plano_aplicacao_detalhes,    name="grp_plano_aplicacao_detalhes"),
-    path("grp/esfera/",                    views.grp_esfera,                      name="grp_esfera"),
+    # GRP — 7 sub-abas de teste. Migram para apps.grp na proxima etapa.
+    path("grp/dados/",                    views.grp_instrumentos,             name="grp_dados"),
+    path("grp/cronograma/",               views.grp_cronograma,               name="grp_cronograma"),
+    path("grp/recursos_contrapartida/",   views.grp_recursos_contrapartida,   name="grp_recursos_contrapartida"),
+    path("grp/recursos_concedente/",      views.grp_recursos_concedente,      name="grp_recursos_concedente"),
+    path("grp/plano_aplicacao/",          views.grp_plano_aplicacao,          name="grp_plano_aplicacao"),
+    path("grp/plano_aplicacao_detalhes/", views.grp_plano_aplicacao_detalhes, name="grp_plano_aplicacao_detalhes"),
+    path("grp/esfera/",                   views.grp_esfera,                   name="grp_esfera"),
 ]

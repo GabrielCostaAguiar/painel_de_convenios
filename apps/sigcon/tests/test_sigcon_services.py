@@ -30,7 +30,7 @@ from apps.sigcon.models import (
     TermoAditivo,
     UnidadesExecutoras,
 )
-from apps.painel.services import (
+from apps.sigcon.services import (
     enrich_convenios_page,
     get_cronograma_qs,
     get_plano_aplicacao_qs,

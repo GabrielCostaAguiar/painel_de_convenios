@@ -109,8 +109,10 @@ class Command(BaseCommand):
                 self.stderr.write(f"Erro ao salvar {nr}: {exc}")
                 erros += 1
 
-        from apps.painel.services import invalidar_cache
-        invalidar_cache()
+        # Direto de core.cache: um app de aba nao importa do painel. O
+        # invalidar_cache() de apps.painel.services e so uma fachada disto.
+        from core.cache import invalidar_cache_indicadores
+        invalidar_cache_indicadores()
 
         self.stdout.write(
             self.style.SUCCESS(

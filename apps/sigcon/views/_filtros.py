@@ -1,17 +1,14 @@
-"""
-Utilitarios privados das views do painel.
-
-`paginas_visiveis` e `view_em_construcao` moravam aqui; foram para core/web/
-porque passaram a ser usados por mais de um app.
-"""
+"""Leitura dos filtros das Consultas SIGCON a partir da querystring."""
 
 
-# ---------------------------------------------------------------------------
-# Consultas SIGCON — filtros compartilhados entre a tela e o export
-# ---------------------------------------------------------------------------
+def ler_filtros_sigcon(get_params):
+    """
+    Filtros da tela, lidos da querystring.
 
-def _ler_filtros_sigcon(get_params):
-    """Le os filtros da querystring; usado tanto pela tela quanto pelo export."""
+    Usado pela tela e pelo export correspondente — e por isso que ele vive num
+    modulo proprio, e nao dentro da view: os dois precisam ler exatamente os
+    mesmos parametros, senao o arquivo baixado nao bate com o que esta em tela.
+    """
     return {
         "ano": get_params.get("ano", ""),
         "situacao": get_params.get("situacao", ""),

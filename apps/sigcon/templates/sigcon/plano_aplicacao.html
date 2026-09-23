@@ -7,7 +7,7 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Plano de Aplicação</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-{% include "painel/_subtabs.html" %}
+{% include "sigcon/_subtabs.html" %}
 
 {% include "painel/_filtro_global.html" %}
 
@@ -16,7 +16,7 @@
   Exibindo registros do convênio <strong>{{ cod_sigcon_sel|default:"—" }}</strong>
   {% if siafi_sel %} · SIAFI: <strong>{{ siafi_sel }}</strong>{% endif %}
   {% if plano_sel %} · Plano de Trabalho: <strong>{{ plano_sel }}</strong>{% endif %}
-  <a href="{% url 'painel:plano_aplicacao' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
+  <a href="{% url 'sigcon:plano_aplicacao' %}" style="margin-left:12px;font-size:.8rem">Remover filtro</a>
 </div>
 {% endif %}
 
@@ -32,8 +32,8 @@
           <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="export-pop" id="exportPop">
-          <a href="{% url 'painel:plano_aplicacao_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
-          <a href="{% url 'painel:plano_aplicacao_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
+          <a href="{% url 'sigcon:plano_aplicacao_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'sigcon:plano_aplicacao_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
         </div>
       </div>
     </div>
