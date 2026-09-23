@@ -16,3 +16,12 @@ google-auth==2.54.0
 google-auth-oauthlib==1.4.0
 google-auth-httplib2==0.4.0
 google-api-python-client==2.197.0
+
+# Banco e cache de producao (usados por config/settings/prod.py). Ficam neste
+# arquivo, e nao no -dev, porque sao o que o ambiente de producao instala.
+# psycopg 3: o Django 6.0 exige >= 3.1.12. A variante [binary] traz a libpq
+# compilada junto, dispensando libpq-dev e compilador C na maquina de deploy.
+psycopg[binary]==3.3.6
+# Cliente do backend nativo django.core.cache.backends.redis.RedisCache;
+# django-redis nao e necessario.
+redis==8.1.0
