@@ -48,6 +48,11 @@ python manage.py carregar_unidades_executoras
 python manage.py carregar_controle_sei
 python manage.py carregar_relacionamento --construir   # Gold ConvenioIntegrado (needs chaves_convenio, siafi2, dcgce_convenio/codigo_convenio/geral/plano_trabalho/esfera silver)
 
+# GRP (em teste) — as 7 tabelas de uma vez, ou fontes escolhidas.
+# Fora do rodar_pipeline por padrão: ver PIPELINE_INCLUIR_GRP abaixo.
+python manage.py carregar_grp
+python manage.py carregar_grp --fonte dcgce_esfera_grp --fonte dcgce_dados_grp
+
 # Generate YAML schema for a new source (then manually review the YAML before running rodar_silver)
 python manage.py gerar_schemas <nome_fonte>
 python manage.py gerar_schemas --sobrescrever       # force regeneration of existing YAMLs
@@ -68,7 +73,7 @@ python -m pytest -q tests/     # cross-cutting suites only
 var is needed to run them. Dev dependencies (pytest, pytest-django, black) come from
 `requirements-dev.txt`, not `requirements.txt`.
 
-**177 tests, all passing.** Split across two locations — `tests/` at the repo root for
+**247 tests, all passing.** Split across two locations — `tests/` at the repo root for
 cross-cutting suites, and `<app>/tests/` for what belongs to one app:
 
 | File | Tests | Covers |
@@ -86,6 +91,10 @@ cross-cutting suites, and `<app>/tests/` for what belongs to one app:
 | `apps/convenios/tests/test_bulk_refresh.py` | 4 | atomicity of the full refresh |
 | `tests/test_sei_service.py` | 3 | SEI service |
 | `tests/test_r4.py` | 2 | idempotent load, ORM read |
+| `tests/test_settings_prod.py` | 17 | production settings, loaded in a subprocess |
+| `apps/convenios/tests/test_excecoes_comandos.py` | 14 | expected vs. unexpected errors in the load commands |
+| `apps/convenios/tests/test_carregar_grp.py` | 14 | `carregar_grp` and the optional GRP pipeline stage |
+| `apps/dashboard/tests/test_ordenacao.py` | 20 | deterministic ordering of the paginated screens |
 
 No test touches real data — they use in-memory DataFrames, temporary Parquet files or
 small synthetic fixtures.
@@ -157,14 +166,18 @@ presentation layer. That's why cache keys live in `core/cache.py` and not in
 **`apps/convenios/`**  
 - `models/`: package, one file per domain — `sigcon.py` (`Convenio` main table + SIGCON-MG auxiliaries), `codigos.py` (code-mapping tables), `gold.py` (`ConvenioIntegrado`), `externos.py` (`ControleSEI`), `grp.py` (the 7 GRP models). `__init__.py` re-exports all 24 classes, so `from apps.convenios.models import X` works regardless of the file. Splitting the package does **not** generate a migration — the ORM keys models by `app_label` + class name, never by file.  
 - `loader.py`: one `carregar_*` function per model — all **full refresh**: `Model.objects.all().delete()` then `bulk_create`. Chosen because SIGCON-MG has no reliable delta; running N times yields the same DB state. Every delete/insert pair goes through `_bulk_refresh`, which wraps both in `transaction.atomic()` — **keep it that way**: without the transaction, a failure mid-load leaves the table empty. Never add a delete/insert path that bypasses the helper.  
+- Management commands that load data follow one exception pattern: `FileNotFoundError` is the *expected* error (source not ingested yet) and becomes a short `CommandError`; anything else is *unexpected* and gets `logger.exception(...)` plus `raise CommandError(...) from exc`, so the traceback survives. Never go back to `except (FileNotFoundError, Exception)` — it hides the cause.  
 - Management commands: `carregar_convenios` (main table), `carregar_fonte <fonte>` (13 auxiliary tables, see `_LOADERS` dict), `carregar_cronograma`, `carregar_unidades_executoras`, `carregar_controle_sei`, `carregar_relacionamento` (Gold `ConvenioIntegrado`). `rodar_transformacao` and `carregar_silver` are **legacy/dead** — do not use (see Common Commands).
 
 **`apps/dashboard/`**  
-- `services.py`: the only layer views should call. Wraps Gold functions with Django cache (key `gold:indicadores:convenios`, TTL from `GOLD_CACHE_SECONDS` in settings, default 3600 s). Cache keys and invalidation live in **`core/cache.py`**, not here — every `carregar_*` command and `atualizar_painel()` already call `invalidar_cache_indicadores()` when data changes, so you don't need to remember to. Keys carry a version number (`...:convenios:v3:ano:2024`); bumping it invalidates the base key and every per-year variant at once, which works on LocMemCache and Redis alike. `invalidar_cache()` stays exported here as a façade.  
+- `services.py`: the only layer views should call. Wraps Gold functions with Django cache (key `gold:indicadores:convenios`, TTL from `GOLD_CACHE_SECONDS` in settings, default 3600 s). Cache keys and invalidation live in **`core/cache.py`**, not here — every `carregar_*` command and `atualizar_painel()` already call `invalidar_cache_indicadores()` when data changes, so you don't need to remember to. Keys carry a version number (`...:convenios:v3:ano:2024`); bumping it invalidates the base key and every per-year variant at once, which works on LocMemCache and Redis alike. `invalidar_cache()` stays exported here as a façade. The backend is per environment: `LocMemCache` in `dev.py`; in `prod.py`, Redis when `REDIS_URL` is set, else `DatabaseCache`. Production **must** use a shared backend — with `LocMemCache` each worker keeps its own copy and the invalidation fired by the load command reaches none of them. Do not swap the version bump for `cache.incr()`: `DatabaseCache` falls back to `BaseCache.incr`, which rewrites the key without a timeout and lets the counter expire before the entries it invalidates.  
+- Paginated screens **must** have a deterministic `order_by`, applied in the `get_*_qs` function of `services.py` (not in the view, not via `Meta.ordering` — that would affect every query of the model, including Gold aggregations). Each ordering follows the screen's columns and **ends in `"pk"`**, because the SIGCON-MG business keys allow ties. `pytest.ini` turns `UnorderedObjectListWarning` into an error to keep it that way.
 - `views/`: package, one file per screen — `sigcon.py` (the 6 SIGCON tabs), `exports.py` (their CSV/XLSX exports), `painel.py` (`indicadores`, `graficos`), `grp.py` (the 7 GRP tabs), `stubs.py` (`uniao`, `execucao`, `monitoramento`, … rendering `em_construcao.html`) and `_helpers.py`. `__init__.py` re-exports everything `urls.py` references.  
 - `templatetags/painel_filters.py`: custom template filters.  
 
 **`apps/pipeline/`** — no models; exists only to host the lakehouse orchestration commands: `rodar_ingestao`, `rodar_silver`, `rodar_pipeline` (extraction + Bronze maestro) and `gerar_schemas`. They operate on the whole Bronze/Silver layer, so they don't belong in the presentation app. `apps/dashboard/` registers **no** management commands — two apps exposing the same command name resolve ambiguously by `INSTALLED_APPS` order.
+
+**Settings worth knowing** (`config/settings/base.py`, overridable by env): `GOLD_CACHE_SECONDS` (default 3600) and `PIPELINE_INCLUIR_GRP` (default `False` — the GRP is still in testing and must not break the daily SIGCON refresh; `rodar_pipeline` behaves exactly as before while it is off). `prod.py` adds `REDIS_URL`, `STATIC_ROOT`, `SECURE_HSTS_INCLUDE_SUBDOMAINS` and `SECURE_HSTS_PRELOAD`. Deploy steps in `docs/CHECKLIST_DEPLOY.md`.
 
 **`config/settings/`**  
 - `base.py`: shared settings; reads `.env` via `django-environ`. Exposes `DATA_DIR` (defaults to `BASE_DIR/data`).  
