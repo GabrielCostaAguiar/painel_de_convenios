@@ -16,6 +16,8 @@ Exemplos:
 
 from pathlib import Path
 
+import logging
+
 from django.core.management.base import BaseCommand, CommandError
 
 from core.cache import invalidar_cache_indicadores
@@ -37,6 +39,8 @@ _LOADERS = {
     "dcgce_Codigo_ta":                loaders.carregar_codigo_termo_aditivo,
     "dcgce_Codigo_dec_contrap":       loaders.carregar_codigo_declaracao_contrapartida,
 }
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -78,8 +82,19 @@ class Command(BaseCommand):
 
         try:
             resultado = loader_fn(silver_path=silver_path)
-        except (FileNotFoundError, KeyError, Exception) as exc:
+        except FileNotFoundError as exc:
+            # Erro esperado: a fonte ainda nao foi ingerida/transformada. O
+            # proprio loader ja diz qual arquivo falta e o que rodar antes,
+            # entao basta repassar — sem traceback, porque nao ha bug aqui.
             raise CommandError(str(exc)) from exc
+        except Exception as exc:
+            # Erro inesperado (dado corrompido, bug, queda de conexao): o
+            # traceback completo vai para o log e a causa original fica
+            # encadeada com `from exc`, para o diagnostico nao se perder atras
+            # da mensagem generica. Antes, o `except (FileNotFoundError,
+            # Exception)` engolia os dois casos do mesmo jeito.
+            logger.exception("Falha inesperada ao carregar %s", fonte)
+            raise CommandError(f"Falha ao carregar {fonte}: {exc}") from exc
 
         # A carga alterou o banco: invalida os indicadores agora, para o painel
         # nao servir numeros velhos ate o TTL do cache expirar. Feito aqui (e
