@@ -18,6 +18,8 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
+from core.cache import invalidar_cache_indicadores
+
 from apps.convenios.loader import carregar_cronograma_desembolso
 
 
@@ -44,6 +46,11 @@ class Command(BaseCommand):
             resultado = carregar_cronograma_desembolso(silver_path)
         except (FileNotFoundError, Exception) as exc:
             raise CommandError(str(exc)) from exc
+
+        # A carga alterou o banco: invalida os indicadores agora, para o painel
+        # nao servir numeros velhos ate o TTL do cache expirar. Feito aqui (e
+        # nao so no rodar_pipeline) porque este comando tambem roda sozinho.
+        invalidar_cache_indicadores()
 
         self.stdout.write(
             self.style.SUCCESS(

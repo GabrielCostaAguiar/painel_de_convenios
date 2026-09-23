@@ -12,8 +12,10 @@ Por que a lógica de query fica aqui e não na view?
   - Separação de conceitos: a view decide o que renderizar; o serviço decide como buscar.
 
 Sobre o cache:
-  Os dados mudam apenas quando `carregar_convenios` é executado.
-  Ao concluir, ele pode chamar invalidar_cache() para forçar recálculo.
+  Os dados mudam apenas quando um comando de carga é executado. Todos eles
+  invalidam o cache ao terminar, chamando core.cache.invalidar_cache_indicadores()
+  — não é preciso lembrar de invalidar à mão. As chaves e a estratégia de
+  invalidação (número de versão) estão documentadas em core/cache.py.
   Em produção, configure Redis em settings.py:
     CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache",
                           "LOCATION": "redis://127.0.0.1:6379/1"}}
@@ -25,12 +27,17 @@ from django.conf import settings
 from django.core.cache import cache
 
 from apps.convenios.models import DadosGrp
+from core.cache import (
+    CHAVE_INDICADORES,
+    chave_indicadores,
+    invalidar_cache_indicadores,
+)
 from core.gold import convenios as gold
 
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL = getattr(settings, "GOLD_CACHE_SECONDS", 3600)
-_CACHE_KEY = "gold:indicadores:convenios"
+_CACHE_KEY = CHAVE_INDICADORES
 
 
 def get_indicadores(ano: int | None = None, usar_cache: bool = True) -> dict:
@@ -42,7 +49,7 @@ def get_indicadores(ano: int | None = None, usar_cache: bool = True) -> dict:
     ano         : filtra pelo ano de início de vigência; None = todos os anos
     usar_cache  : False força recálculo (útil após carga ou para debug)
     """
-    cache_key = _CACHE_KEY if ano is None else f"{_CACHE_KEY}:ano:{ano}"
+    cache_key = chave_indicadores(ano)
 
     if usar_cache:
         cached = cache.get(cache_key)
@@ -84,9 +91,14 @@ def get_anos_disponiveis() -> list[int]:
 
 
 def invalidar_cache() -> None:
-    """Limpa o cache principal. Chamar após cada carga de dados."""
-    cache.delete(_CACHE_KEY)
-    logger.info("Cache invalidado: %s", _CACHE_KEY)
+    """
+    Limpa o cache de indicadores — a chave base e todas as variantes por ano.
+
+    Mantido como fachada do módulo de serviços (outros pontos do projeto podem
+    chamá-lo); a implementação vive em core/cache.py, que é de onde os loaders
+    e o pipeline invalidam sem precisar importar a camada de apresentação.
+    """
+    invalidar_cache_indicadores()
 
 
 # ---------------------------------------------------------------------------
