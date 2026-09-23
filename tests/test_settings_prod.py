@@ -43,6 +43,9 @@ print(json.dumps({
     "gold_cache_seconds": settings.GOLD_CACHE_SECONDS,
     "debug": settings.DEBUG,
     "hsts_seconds": settings.SECURE_HSTS_SECONDS,
+    "hsts_include_subdomains": settings.SECURE_HSTS_INCLUDE_SUBDOMAINS,
+    "hsts_preload": settings.SECURE_HSTS_PRELOAD,
+    "pipeline_incluir_grp": settings.PIPELINE_INCLUIR_GRP,
 }))
 """
 
@@ -161,3 +164,38 @@ def test_debug_desligado(prod_sem_redis):
 
 def test_hsts_seconds_permanece_em_um_ano(prod_sem_redis):
     assert prod_sem_redis["hsts_seconds"] == 31536000
+
+
+def test_hsts_de_subdominios_desligado_por_padrao(prod_sem_redis):
+    """
+    Decisão registrada: ligar sem confirmar que TODOS os subdomínios são HTTPS
+    deixaria qualquer subdomínio em HTTP inacessível para quem já visitou o
+    painel — e o navegador guarda a instrução, então não se desfaz do lado do
+    servidor.
+    """
+    assert prod_sem_redis["hsts_include_subdomains"] is False
+    assert prod_sem_redis["hsts_preload"] is False
+
+
+def test_hsts_de_subdominios_e_configuravel_por_env():
+    """Quando a confirmação vier, liga por variável — sem alterar código."""
+    resultado = _settings_de_prod(
+        SECURE_HSTS_INCLUDE_SUBDOMAINS="True",
+        SECURE_HSTS_PRELOAD="True",
+    )
+
+    assert resultado["hsts_include_subdomains"] is True
+    assert resultado["hsts_preload"] is True
+
+
+# ---------------------------------------------------------------------------
+# Pipeline
+# ---------------------------------------------------------------------------
+
+def test_grp_fora_do_pipeline_por_padrao(prod_sem_redis):
+    """O GRP está em teste: não pode afetar a atualização diária do SIGCON."""
+    assert prod_sem_redis["pipeline_incluir_grp"] is False
+
+
+def test_grp_no_pipeline_e_configuravel_por_env():
+    assert _settings_de_prod(PIPELINE_INCLUIR_GRP="True")["pipeline_incluir_grp"] is True

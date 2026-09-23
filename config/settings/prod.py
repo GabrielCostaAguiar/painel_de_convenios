@@ -92,3 +92,21 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+# HSTS em subdominios — desligado ate alguem confirmar que pode ligar.
+#
+# SECURE_HSTS_INCLUDE_SUBDOMAINS=True instrui o navegador a RECUSAR HTTP em
+# todos os subdominios do dominio, por ate um ano. Se algum subdominio da
+# Prodemge ainda responder so em HTTP, ele fica inacessivel para quem visitou
+# o painel — e isso nao se desfaz do lado do servidor: o navegador ja guardou
+# a instrucao. Por isso o default e False, e ligar e decisao de quem conhece
+# todos os subdominios.
+#
+# SECURE_HSTS_PRELOAD so faz sentido depois do anterior, e e ainda mais dificil
+# de reverter: uma vez na lista de preload dos navegadores, o dominio fica
+# marcado por meses.
+#
+# Configuraveis por ambiente para nao exigir alteracao de codigo quando a
+# confirmacao vier.
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False)
+SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
