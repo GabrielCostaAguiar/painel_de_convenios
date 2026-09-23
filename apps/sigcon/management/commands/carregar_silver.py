@@ -109,7 +109,7 @@ class Command(BaseCommand):
                 self.stderr.write(f"Erro ao salvar {nr}: {exc}")
                 erros += 1
 
-        from apps.dashboard.services import invalidar_cache
+        from apps.painel.services import invalidar_cache
         invalidar_cache()
 
         self.stdout.write(

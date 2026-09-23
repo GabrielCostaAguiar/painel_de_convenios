@@ -1,5 +1,5 @@
 """
-Views do dashboard, agrupadas por tela.
+Views do painel, agrupadas por tela.
 
 Era um único views.py de ~968 linhas. Views são funções comuns: o Django não
 liga para o arquivo em que moram, só para o que urls.py referencia.
@@ -16,7 +16,7 @@ Tudo que urls.py referencia é reexportado aqui, então `views.<nome>` continua
 resolvendo igual e urls.py não precisou mudar.
 """
 
-from ._helpers import _ler_filtros_sigcon, _stub, _visible_pages
+from ._helpers import _ler_filtros_sigcon
 from .exports import (
     cronograma_export_csv,
     cronograma_export_xlsx,
@@ -90,8 +90,6 @@ __all__ = [
     "relatorio",
     "alertas",
     "emendas",
-    # helpers (privados, reexportados para quem já os importava de views)
-    "_visible_pages",
+    # helper privado, reexportado para quem já o importava de views
     "_ler_filtros_sigcon",
-    "_stub",
 ]

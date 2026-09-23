@@ -11,8 +11,8 @@ import re
 
 from django.test import RequestFactory, TestCase
 
-from apps.dashboard.templatetags.painel_filters import querystring_global
-from apps.dashboard.views import sigcon
+from apps.painel.templatetags.painel_filters import querystring_global
+from apps.painel.views import sigcon
 
 
 class QuerystringGlobalTagTest(TestCase):

@@ -1,5 +1,5 @@
 """
-Smoke test das rotas do dashboard, com banco vazio.
+Smoke test das rotas do painel, com banco vazio.
 
 Serve de rede de segurança para refatorações que mexem em views.py/urls.py:
 se uma view some, muda de assinatura ou passa a estourar sem dados, aqui
@@ -57,22 +57,33 @@ EXPORTS_XLSX = [n for n in ROTAS_ESPERADAS if n.endswith("_export_xlsx")]
 TELAS = [n for n in ROTAS_ESPERADAS if not n.endswith(("_export_csv", "_export_xlsx"))]
 
 
-def _inventario_dashboard():
-    """nome da URL → caminho, para os patterns servidos por apps.dashboard."""
+# Prefixo do admin do Django: não faz parte do painel e não é contrato nosso.
+PREFIXO_ADMIN = "admin/"
+
+
+def _inventario_de_rotas():
+    """
+    nome da URL → caminho, para todas as rotas do projeto fora do admin.
+
+    O filtro é pelo caminho, e não pelo módulo da view: numa reorganização em
+    apps, a view muda de módulo o tempo todo, mas o caminho é justamente o que
+    não pode mudar. Filtrar por módulo faria o teste passar por omissão quando
+    uma rota migrasse para outro app.
+    """
     def walk(res, prefixo=""):
         for p in res.url_patterns:
             if isinstance(p, URLResolver):
                 yield from walk(p, prefixo + str(p.pattern))
             else:
-                modulo = getattr(p.callback, "__module__", "")
-                if modulo.startswith("apps.dashboard"):
-                    yield p.name, prefixo + str(p.pattern)
+                caminho = prefixo + str(p.pattern)
+                if not caminho.startswith(PREFIXO_ADMIN):
+                    yield p.name, caminho
 
     return dict(walk(get_resolver()))
 
 
 def test_inventario_de_rotas_bate_com_o_gabarito():
-    assert _inventario_dashboard() == ROTAS_ESPERADAS
+    assert _inventario_de_rotas() == ROTAS_ESPERADAS
 
 
 @pytest.mark.django_db

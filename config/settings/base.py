@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "apps.dashboard",
+    "apps.painel",
     "apps.sigcon",
     "apps.pipeline",
 ]
@@ -76,7 +76,7 @@ STATIC_ROOT = _static_root_env if _static_root_env else BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Tempo de vida do cache de indicadores Gold (apps/dashboard/services.py).
+# Tempo de vida do cache de indicadores Gold (apps/painel/services.py).
 # Declarado aqui para o numero ficar visivel a quem opera, em vez de viver
 # como default embutido no codigo. As chaves e a invalidacao estao em
 # core/cache.py.

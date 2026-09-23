@@ -7,10 +7,10 @@
 <div class="crumbs">Consultas SIGCON <span>›</span> <b>Convênios</b></div>
 <div class="page-h"><h1>Consultas SIGCON</h1></div>
 
-{% include "dashboard/_subtabs.html" %}
-{% include "dashboard/_filtro_global.html" %}
+{% include "painel/_subtabs.html" %}
+{% include "painel/_filtro_global.html" %}
 <!-- Filtros -->
-<!-- <form method="get" action="{% url 'dashboard:sigcon' %}">
+<!-- <form method="get" action="{% url 'painel:sigcon' %}">
 <div class="panel filters">
   <div class="filters-top">
     <div class="ttl">
@@ -18,7 +18,7 @@
       Filtros da consulta
     </div>
     <div class="filters-actions">
-      <a href="{% url 'dashboard:sigcon' %}" class="btn ghost-danger">
+      <a href="{% url 'painel:sigcon' %}" class="btn ghost-danger">
         <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
         Limpar filtros
       </a>
@@ -157,8 +157,8 @@
           <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <div class="export-pop" id="exportPop">
-          <a href="{% url 'dashboard:sigcon_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
-          <a href="{% url 'dashboard:sigcon_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
+          <a href="{% url 'painel:sigcon_export_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{% url 'painel:sigcon_export_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
         </div>
       </div>
     </div>
@@ -222,7 +222,7 @@
         {% for conv in page_obj %}
         <tr>
           <td style="white-space:nowrap">
-            <a href="{% url 'dashboard:plano_aplicacao' %}?cod_sigcon={{ conv.convenio_codigo }}"
+            <a href="{% url 'painel:plano_aplicacao' %}?cod_sigcon={{ conv.convenio_codigo }}"
                class="btn" style="padding:2px 8px;font-size:.75rem" title="Ver abas de detalhe">›</a>
           </td>
           <td class="mono">{{ conv.unidade_orcamentaria_codigo|default:"—" }}</td>

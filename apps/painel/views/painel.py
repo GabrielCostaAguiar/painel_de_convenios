@@ -4,7 +4,7 @@ Views do painel: indicadores (KPIs) e gráficos.
 
 from django.shortcuts import render
 
-from apps.dashboard.services import get_anos_disponiveis, get_indicadores
+from apps.painel.services import get_anos_disponiveis, get_indicadores
 
 
 # ---------------------------------------------------------------------------
@@ -19,14 +19,14 @@ def indicadores(request):
     anos  = get_anos_disponiveis()
 
     if dados.get("vazio"):
-        return render(request, "dashboard/indicadores.html", {
+        return render(request, "painel/indicadores.html", {
             "vazio": True,
             "anos":  anos,
             "ano_selecionado": ano,
             "secao_ativa": "indicadores",
         })
 
-    return render(request, "dashboard/indicadores.html", {
+    return render(request, "painel/indicadores.html", {
         "vazio":        False,
         "anos":         anos,
         "ano_selecionado": ano,
@@ -47,12 +47,12 @@ def graficos(request):
     dados = get_indicadores(ano=ano)
 
     if dados.get("vazio"):
-        return render(request, "dashboard/graficos.html", {
+        return render(request, "painel/graficos.html", {
             "vazio": True,
             "secao_ativa": "graficos",
         })
 
-    return render(request, "dashboard/graficos.html", {
+    return render(request, "painel/graficos.html", {
         "vazio":        False,
         "por_ano":      dados["por_ano"],
         "por_situacao": dados["por_situacao"],

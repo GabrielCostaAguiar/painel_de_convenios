@@ -9,7 +9,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from apps.sigcon.models import DadosGrp
-from apps.dashboard.services import (
+from apps.painel.services import (
     get_grp_cronograma_qs,
     get_grp_dados_qs,
     get_grp_esfera_qs,
@@ -19,7 +19,7 @@ from apps.dashboard.services import (
     get_grp_recursos_contrapartida_qs,
 )
 
-from ._helpers import _visible_pages
+from core.web import paginas_visiveis
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ def _grp_render(request, qs, colunas, campos, titulo, secao_sub,
     contexto = {
         "titulo": titulo, "colunas": colunas, "linhas": linhas,
         "page_obj": page_obj, "total": paginator.count,
-        "querystring": params.urlencode(), "visible_pages": _visible_pages(page_obj),
+        "querystring": params.urlencode(), "visible_pages": paginas_visiveis(page_obj),
         "secao_ativa": "grp", "secao_sub": secao_sub,
         # filtros: mantêm o form preenchido em qualquer sub-aba do GRP
         "nr_grp_sel":         filtros["nr_grp"],
@@ -79,7 +79,7 @@ def _grp_render(request, qs, colunas, campos, titulo, secao_sub,
         "filtro_nao_aplicavel": filtro_nao_aplicavel and any(filtros.values()),
     }
     contexto.update(_grp_listas())
-    return render(request, "dashboard/grp_generico.html", contexto)
+    return render(request, "painel/grp_generico.html", contexto)
 
 def grp_cronograma(request):
     filtros = _ler_filtros_grp(request.GET)
@@ -169,7 +169,7 @@ def grp_instrumentos(request):
 
     return render(
         request, 
-        "dashboard/grp_generico.html", {
+        "painel/grp_generico.html", {
         "page_obj":           page_obj,
         "total":              paginator.count,
         "colunas":            colunas,
@@ -181,7 +181,7 @@ def grp_instrumentos(request):
         "nr_instrumentos":    nr_instrumentos,
         "nr_grps":            nr_grps,
         "querystring":        querystring,
-        "visible_pages":      _visible_pages(page_obj),
+        "visible_pages":      paginas_visiveis(page_obj),
         "secao_ativa":        "grp",
         "secao_sub":          "grp_dados",
     })

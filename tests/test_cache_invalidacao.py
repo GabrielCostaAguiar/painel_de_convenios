@@ -93,7 +93,7 @@ def test_get_indicadores_recalcula_apos_invalidacao():
     Popula o cache pela própria get_indicadores, invalida e confirma que a
     camada Gold é consultada de novo em vez de devolver o valor cacheado.
     """
-    from apps.dashboard import services
+    from apps.painel import services
 
     with mock.patch.object(services.gold, "kpis", return_value={"total_convenios": 1}) as kpis, \
          mock.patch.object(services.gold, "por_situacao", return_value=[]), \
@@ -112,7 +112,7 @@ def test_get_indicadores_recalcula_apos_invalidacao():
 
 def test_invalidar_cache_do_services_delega_para_core():
     """O nome antigo continua exportado em services e faz a mesma coisa."""
-    from apps.dashboard.services import invalidar_cache
+    from apps.painel.services import invalidar_cache
 
     cache.set(chave_indicadores(2024), "velho", 3600)
     invalidar_cache()

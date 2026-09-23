@@ -1,11 +1,11 @@
 """
 Chaves e invalidação do cache de indicadores Gold.
 
-Por que este módulo fica em core/ e não em apps/dashboard/:
+Por que este módulo fica em core/ e não em apps/painel/:
   quem invalida o cache são os loaders e o orquestrador do pipeline — código de
-  núcleo. Se a função de invalidação morasse em apps/dashboard/services.py,
+  núcleo. Se a função de invalidação morasse em apps/painel/services.py,
   core/ passaria a importar da camada de apresentação, invertendo a direção das
-  dependências. Aqui, core/ define o contrato e apps/dashboard/ o consome.
+  dependências. Aqui, core/ define o contrato e apps/painel/ o consome.
 
 Estratégia de invalidação: número de versão
 -------------------------------------------

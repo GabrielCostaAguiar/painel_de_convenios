@@ -13,7 +13,7 @@ empate (várias linhas do mesmo convênio, do mesmo exercício), e sem uma colun
 """
 import pytest
 
-from apps.dashboard import services
+from apps.painel import services
 
 # (nome do serviço, função, constante de ordenação esperada)
 SERVICOS_PAGINADOS = [

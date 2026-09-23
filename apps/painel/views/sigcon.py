@@ -8,7 +8,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from apps.sigcon.models import Convenio, CronogramaDesembolso, TermoAditivo
-from apps.dashboard.services import (
+from apps.painel.services import (
     enrich_convenios_page,
     get_anos_disponiveis,
     get_cronograma_qs,
@@ -20,7 +20,9 @@ from apps.dashboard.services import (
 )
 from core.gold.contrapartida import CATEGORIAS as CATEGORIAS_CONTRAPARTIDA
 
-from ._helpers import _ler_filtros_sigcon, _visible_pages
+from core.web import paginas_visiveis
+
+from ._helpers import _ler_filtros_sigcon
 
 
 def sigcon(request):
@@ -78,7 +80,7 @@ def sigcon(request):
     params.pop("page", None)
     querystring = params.urlencode()
 
-    return render(request, "dashboard/convenios.html", {
+    return render(request, "painel/convenios.html", {
         "page_obj":       page_obj,
         "total":          paginator.count,
         "anos":           anos,
@@ -98,7 +100,7 @@ def sigcon(request):
         "instrumentos":   lista_instrumentos,
         "termos_aditivo": lista_termos_aditivo,
         "tipos_contrapartida": CATEGORIAS_CONTRAPARTIDA,
-        "visible_pages":  _visible_pages(page_obj),
+        "visible_pages":  paginas_visiveis(page_obj),
         "secao_ativa":    "sigcon",
         "secao_sub":      "sigcon",
     })
@@ -120,7 +122,7 @@ def plano_aplicacao(request):
     params.pop("page", None)
     querystring = params.urlencode()
 
-    return render(request, "dashboard/plano_aplicacao.html", {
+    return render(request, "painel/plano_aplicacao.html", {
         "page_obj":       page_obj,
         "total":          paginator.count,
         "cod_sigcon_sel": cod_sigcon,
@@ -129,7 +131,7 @@ def plano_aplicacao(request):
         "uo_sel":         ctx.get("uo", ""),
         "plano_sel":      ctx.get("plano_trabalho_codigo", ""),
         "querystring":    querystring,
-        "visible_pages":  _visible_pages(page_obj),
+        "visible_pages":  paginas_visiveis(page_obj),
         "secao_ativa":    "sigcon",
         "secao_sub":      "plano_aplicacao",
     })
@@ -166,7 +168,7 @@ def cronograma(request):
     params.pop("page", None)
     querystring = params.urlencode()
 
-    return render(request, "dashboard/cronograma.html", {
+    return render(request, "painel/cronograma.html", {
         "page_obj":       page_obj,
         "total":          paginator.count,
         "anos":           anos,
@@ -174,7 +176,7 @@ def cronograma(request):
         "cod_siafi_sel":  ctx.get("siafi", cod_siafi),
         "plano_sel":      ctx.get("plano_trabalho_codigo", plano),
         "querystring":    querystring,
-        "visible_pages":  _visible_pages(page_obj),
+        "visible_pages":  paginas_visiveis(page_obj),
         "secao_ativa":    "sigcon",
         "secao_sub":      "cronograma",
     })
@@ -196,14 +198,14 @@ def prorrogacao(request):
     params.pop("page", None)
     querystring = params.urlencode()
 
-    return render(request, "dashboard/prorrogacao.html", {
+    return render(request, "painel/prorrogacao.html", {
         "page_obj":         page_obj,
         "total":            paginator.count,
         "cod_sigcon_sel":   cod_sigcon,
         "cod_siafi_sel":    cod_siafi,
         "plano_sel":        ctx.get("plano_trabalho_codigo", ""),
         "querystring":      querystring,
-        "visible_pages":    _visible_pages(page_obj),
+        "visible_pages":    paginas_visiveis(page_obj),
         "secao_ativa":      "sigcon",
         "secao_sub":        "prorrogacao",
     })
@@ -231,14 +233,14 @@ def termo_aditivo(request):
     params.pop("page", None)
     querystring = params.urlencode()
 
-    return render(request, "dashboard/termo_aditivo.html", {
+    return render(request, "painel/termo_aditivo.html", {
         "page_obj":       page_obj,
         "total":          paginator.count,
         "cod_sigcon_sel": cod_sigcon,
         "cod_siafi_sel":  cod_siafi,
         "plano_sel":      ctx.get("plano_trabalho_codigo", ""),
         "querystring":    querystring,
-        "visible_pages":  _visible_pages(page_obj),
+        "visible_pages":  paginas_visiveis(page_obj),
         "secao_ativa":    "sigcon",
         "secao_sub":      "termo_aditivo",
     })
@@ -260,13 +262,13 @@ def unidades_executoras(request):
     params.pop("page", None)
     querystring = params.urlencode()
 
-    return render(request, "dashboard/unidades_executoras.html", {
+    return render(request, "painel/unidades_executoras.html", {
         "page_obj":       page_obj,
         "total":          paginator.count,
         "cod_sigcon_sel": cod_sigcon,
         "cod_siafi_sel":  cod_siafi,
         "querystring":    querystring,
-        "visible_pages":  _visible_pages(page_obj),
+        "visible_pages":  paginas_visiveis(page_obj),
         "secao_ativa":    "sigcon",
         "secao_sub":      "unidades_executoras",
     })

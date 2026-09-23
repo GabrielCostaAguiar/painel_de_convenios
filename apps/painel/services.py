@@ -1,5 +1,5 @@
 """
-Camada de serviços do dashboard.
+Camada de serviços do painel.
 
 Responsabilidade: fazer a ponte entre o banco (ORM / Gold) e as views.
 As views NÃO acessam o banco diretamente — elas chamam funções deste módulo.

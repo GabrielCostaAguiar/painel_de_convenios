@@ -11,7 +11,7 @@ from apps.sigcon.models import ControleSEI, Convenio
 @pytest.mark.django_db
 def test_enrich_convenios_page_retorna_sei_pelo_siafi():
     """Para um SIAFI com SEI cadastrado, enrich devolve o nº SEI correto."""
-    from apps.dashboard.services import enrich_convenios_page
+    from apps.painel.services import enrich_convenios_page
 
     ControleSEI.objects.create(
         no_sei="1250.01.0000041/2018-13",
@@ -31,7 +31,7 @@ def test_enrich_convenios_page_retorna_sei_pelo_siafi():
 @pytest.mark.django_db
 def test_enrich_convenios_page_sei_ausente_retorna_tracinho():
     """Convênio sem SEI correspondente recebe '—'."""
-    from apps.dashboard.services import enrich_convenios_page
+    from apps.painel.services import enrich_convenios_page
 
     conv = Convenio.objects.create(
         convenio_codigo="CONV-002",
@@ -50,7 +50,7 @@ def test_enrich_convenios_page_nao_join_por_siafi_uo():
     Se o join fosse por siafi_uo (ex: '91792821261'), o SEI não seria encontrado
     mesmo com SIAFI correto — a chave errada faria o SEI 'sumir' silenciosamente.
     """
-    from apps.dashboard.services import enrich_convenios_page
+    from apps.painel.services import enrich_convenios_page
 
     ControleSEI.objects.create(
         no_sei="1250.01.0000041/2018-13",

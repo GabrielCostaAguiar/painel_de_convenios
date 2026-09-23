@@ -28,13 +28,13 @@
       <div class="nav-label">Painel</div>
 
       <a class="nav-item{% if secao_ativa == 'indicadores' %} active{% endif %}"
-         href="{% url 'dashboard:indicadores' %}">
+         href="{% url 'painel:indicadores' %}">
         <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16v-5M13 16V9M18 16v-8"/></svg>
         <span class="lbl">Indicadores</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'graficos' %} active{% endif %}"
-         href="{% url 'dashboard:graficos' %}">
+         href="{% url 'painel:graficos' %}">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 3"/></svg>
         <span class="lbl">Gráficos</span>
       </a>
@@ -42,19 +42,19 @@
       <div class="nav-label">Consultas</div>
 
       <a class="nav-item{% if secao_ativa == 'sigcon' %} active{% endif %}"
-         href="{% url 'dashboard:sigcon' %}">
+         href="{% url 'painel:sigcon' %}">
         <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg>
         <span class="lbl">Consultas SIGCON</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'uniao' %} active{% endif %}"
-         href="{% url 'dashboard:uniao' %}">
+         href="{% url 'painel:uniao' %}">
         <svg viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13M4 21h16M9 21v-6h6v6"/></svg>
         <span class="lbl">Consultas União</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'execucao' %} active{% endif %}"
-         href="{% url 'dashboard:execucao' %}">
+         href="{% url 'painel:execucao' %}">
         <svg viewBox="0 0 24 24"><path d="M4 5h16M4 5v14h16V5M9 9v6M15 9v6M12 9v6"/></svg>
         <span class="lbl">Execução Estadual</span>
       </a>
@@ -62,25 +62,25 @@
       <div class="nav-label">Acompanhamento</div>
 
       <a class="nav-item{% if secao_ativa == 'monitoramento' %} active{% endif %}"
-         href="{% url 'dashboard:monitoramento' %}">
+         href="{% url 'painel:monitoramento' %}">
         <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
         <span class="lbl">Monitoramento</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'relatorio' %} active{% endif %}"
-         href="{% url 'dashboard:relatorio' %}">
+         href="{% url 'painel:relatorio' %}">
         <svg viewBox="0 0 24 24"><path d="M7 3h10v18l-5-3-5 3z"/></svg>
         <span class="lbl">Relatório Individual</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'alertas' %} active{% endif %}"
-         href="{% url 'dashboard:alertas' %}">
+         href="{% url 'painel:alertas' %}">
         <svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6zM10 20a2 2 0 0 0 4 0"/></svg>
         <span class="lbl">Alertas</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'emendas' %} active{% endif %}"
-         href="{% url 'dashboard:emendas' %}">
+         href="{% url 'painel:emendas' %}">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h3.5a1.5 1.5 0 0 1 0 3H10a1.5 1.5 0 0 0 0 3h3.5"/></svg>
         <span class="lbl">Painel de Emendas</span>
       </a>
@@ -88,7 +88,7 @@
       <div class="nav-label">Teste</div>
 
       <a class="nav-item{% if secao_ativa == 'grp' %} active{% endif %}"
-         href="{% url 'dashboard:grp_dados' %}">
+         href="{% url 'painel:grp_dados' %}">
         <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 9h18M9 9v12"/></svg>
         <span class="lbl">GRP (teste)</span>
       </a>
