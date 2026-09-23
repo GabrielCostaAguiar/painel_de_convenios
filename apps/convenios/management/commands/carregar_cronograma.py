@@ -16,11 +16,15 @@ Uso:
 
 from pathlib import Path
 
+import logging
+
 from django.core.management.base import BaseCommand, CommandError
 
 from core.cache import invalidar_cache_indicadores
 
 from apps.convenios.loader import carregar_cronograma_desembolso
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -44,8 +48,19 @@ class Command(BaseCommand):
 
         try:
             resultado = carregar_cronograma_desembolso(silver_path)
-        except (FileNotFoundError, Exception) as exc:
+        except FileNotFoundError as exc:
+            # Erro esperado: a fonte ainda nao foi ingerida/transformada. O
+            # proprio loader ja diz qual arquivo falta e o que rodar antes,
+            # entao basta repassar — sem traceback, porque nao ha bug aqui.
             raise CommandError(str(exc)) from exc
+        except Exception as exc:
+            # Erro inesperado (dado corrompido, bug, queda de conexao): o
+            # traceback completo vai para o log e a causa original fica
+            # encadeada com `from exc`, para o diagnostico nao se perder atras
+            # da mensagem generica. Antes, o `except (FileNotFoundError,
+            # Exception)` engolia os dois casos do mesmo jeito.
+            logger.exception("Falha inesperada ao carregar %s", "cronograma de desembolsos")
+            raise CommandError(f"Falha ao carregar {"cronograma de desembolsos"}: {exc}") from exc
 
         # A carga alterou o banco: invalida os indicadores agora, para o painel
         # nao servir numeros velhos ate o TTL do cache expirar. Feito aqui (e

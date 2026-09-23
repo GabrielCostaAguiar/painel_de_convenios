@@ -154,7 +154,14 @@ def _etapa_silver() -> dict:
             call_command("rodar_silver", fonte, stdout=buffer)
             gerados += 1
         except CommandError as exc:
+            # Falha prevista, ja diagnosticada pelo proprio comando.
             logger.warning("silver: %r falhou: %s", fonte, exc)
+            erros.append(f"silver/{fonte}: {exc}")
+        except Exception as exc:
+            # Rede de seguranca: o contrato da etapa e que a falha de uma fonte
+            # nao aborta as demais. Se algo escapar do comando sem virar
+            # CommandError, registra o traceback completo e segue.
+            logger.exception("silver: %r falhou de forma inesperada", fonte)
             erros.append(f"silver/{fonte}: {exc}")
 
     sucesso = gerados > 0
@@ -188,7 +195,13 @@ def _etapa_gold_orm() -> dict:
             call_command(comando, *args, stdout=buffer, **kwargs)
             contagens[chave] = _extrair_contagem(buffer.getvalue())
         except CommandError as exc:
+            # Falha prevista, ja diagnosticada pelo proprio comando.
             logger.warning("gold: %r falhou: %s", chave, exc)
+            erros.append(f"gold/{chave}: {exc}")
+        except Exception as exc:
+            # Rede de seguranca: uma carga que falhe nao pode impedir as
+            # outras de rodar (contrato da etapa). Traceback completo no log.
+            logger.exception("gold: %r falhou de forma inesperada", chave)
             erros.append(f"gold/{chave}: {exc}")
 
     sucesso = "carregar_convenios" in contagens
