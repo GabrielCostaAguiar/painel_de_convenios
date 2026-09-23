@@ -209,7 +209,7 @@ python manage.py rodar_silver dcgce_convenios
 ### Como adicionar transformação para nova fonte
 
 1. Crie `core/transform/<nome_fonte>.py` com `transformar_<fonte>` e `gravar_silver`.
-2. Registre em `_TRANSFORMADORES` dentro de `apps/dashboard/management/commands/rodar_silver.py`.
+2. Registre em `_TRANSFORMADORES` dentro de `apps/pipeline/management/commands/rodar_silver.py`.
 3. Rode: `python manage.py rodar_silver <nome_fonte>`
 
 ---
