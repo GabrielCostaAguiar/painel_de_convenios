@@ -576,8 +576,12 @@ Os testes ficam em dois lugares: `tests/` na raiz para o que é transversal, e
 | `apps/convenios/tests/test_bulk_refresh.py` | 4 | Atomicidade do full refresh |
 | `tests/test_sei_service.py` | 3 | Serviço do SEI |
 | `tests/test_r4.py` | 2 | Carga idempotente (2× sem duplicatas), leitura básica do ORM |
+| `tests/test_settings_prod.py` | 17 | Settings de produção (cache compartilhado, WhiteNoise, HSTS), carregadas num subprocesso |
+| `apps/dashboard/tests/test_ordenacao.py` | 20 | Ordenação determinística das telas paginadas |
+| `apps/convenios/tests/test_excecoes_comandos.py` | 14 | Erro esperado vs. inesperado nos comandos de carga |
+| `apps/convenios/tests/test_carregar_grp.py` | 14 | Comando `carregar_grp` e etapa opcional do GRP no pipeline |
 
-**Total: 177 testes, todos passando.** Nenhum teste toca dado real — usam DataFrames em
+**Total: 247 testes, todos passando.** Nenhum teste toca dado real — usam DataFrames em
 memória, Parquet temporário ou fixtures sintéticas pequenas.
 
 ---
