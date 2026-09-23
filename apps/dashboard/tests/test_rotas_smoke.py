@@ -8,6 +8,8 @@ aparece. Não valida conteúdo renderizado — só que a rota resolve e responde
 O inventário de URLs (nome → caminho) também é comparado com a lista fixada
 abaixo, para pegar rota removida, renomeada ou com caminho alterado.
 """
+from html.parser import HTMLParser
+
 import pytest
 from django.urls import get_resolver
 from django.urls.resolvers import URLResolver
@@ -96,3 +98,73 @@ def test_export_xlsx_responde_com_banco_vazio(client, nome):
     assert resposta["Content-Type"] == (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
+
+# ---------------------------------------------------------------------------
+# Estrutura do HTML base
+# ---------------------------------------------------------------------------
+
+# Tags que nunca fecham: nao entram na contagem de abre/fecha.
+TAGS_VAZIAS = {
+    "area", "base", "br", "col", "embed", "hr", "img", "input",
+    "link", "meta", "param", "source", "track", "wbr",
+}
+
+
+class _ContadorDeTags(HTMLParser):
+    """Empilha tags de abertura e casa com os fechamentos.
+
+    Guarda os desbalanceamentos em vez de estourar, para o teste poder
+    relatar todos de uma vez.
+    """
+
+    def __init__(self, tags_de_interesse):
+        super().__init__(convert_charrefs=True)
+        self.tags_de_interesse = tags_de_interesse
+        self.pilha = []
+        self.fechamentos_sem_abertura = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in TAGS_VAZIAS:
+            return
+        if tag in self.tags_de_interesse:
+            self.pilha.append(tag)
+
+    def handle_endtag(self, tag):
+        if tag not in self.tags_de_interesse:
+            return
+        if tag in self.pilha:
+            # fecha a ocorrencia aberta mais recente dessa tag
+            for i in range(len(self.pilha) - 1, -1, -1):
+                if self.pilha[i] == tag:
+                    del self.pilha[i]
+                    break
+        else:
+            self.fechamentos_sem_abertura.append(tag)
+
+
+@pytest.mark.django_db
+def test_sidebar_do_base_html_tem_as_tags_balanceadas(client):
+    """
+    Regressão: o bloco GRP entrou no lugar do `</nav>` da sidebar, deixando a
+    tag aberta. Os navegadores fecham sozinhos, então a tela não quebrava —
+    mas a adivinhação varia entre navegadores e atrapalha leitor de tela.
+    """
+    html = client.get("/").content.decode("utf-8")
+
+    parser = _ContadorDeTags({"nav", "aside", "main", "body", "html"})
+    parser.feed(html)
+
+    assert parser.pilha == [], f"tags abertas e nunca fechadas: {parser.pilha}"
+    assert parser.fechamentos_sem_abertura == [], (
+        f"tags fechadas sem abrir: {parser.fechamentos_sem_abertura}"
+    )
+
+
+@pytest.mark.django_db
+def test_sidebar_traz_a_identificacao_institucional(client):
+    """A marca da sidebar é decisão do responsável — fixada para não regredir."""
+    html = client.get("/").content.decode("utf-8")
+
+    assert "Secretaria Geral · MG" in html
+    assert "Casa Civil" not in html
