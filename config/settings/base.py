@@ -82,6 +82,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # core/cache.py.
 GOLD_CACHE_SECONDS = env.int("GOLD_CACHE_SECONDS", default=3600)
 
+# Inclui as tabelas do GRP na etapa Silver e na carga do `rodar_pipeline`.
+# Default False de proposito: o GRP ainda esta em teste, e uma falha ou
+# ausencia de arquivo GRP nao pode afetar a atualizacao diaria do painel
+# SIGCON. Com False, o `rodar_pipeline` se comporta exatamente como antes de o
+# GRP existir. A carga avulsa continua disponivel por
+# `python manage.py carregar_grp`, independente deste setting.
+PIPELINE_INCLUIR_GRP = env.bool("PIPELINE_INCLUIR_GRP", default=False)
+
 # CACHES nao e definido aqui: cada ambiente escolhe o seu (LocMemCache em
 # dev.py, Redis ou banco em prod.py). Ver a nota em prod.py sobre por que o
 # LocMemCache nao serve para producao.
