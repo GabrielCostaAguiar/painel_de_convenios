@@ -104,6 +104,63 @@ def invalidar_cache() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Ordenacao das telas paginadas
+# ---------------------------------------------------------------------------
+# Paginar um queryset sem order_by pede ao banco "as linhas 51 a 100" sem dizer
+# em que ordem — o banco pode devolver ordens diferentes a cada consulta, e o
+# usuario acaba vendo um registro em duas paginas e nunca vendo outro. O Django
+# avisa disso com UnorderedObjectListWarning.
+#
+# Cada ORDENACAO_* abaixo segue as colunas da tela, da esquerda para a direita,
+# e TERMINA SEMPRE em "pk": as chaves de negocio do SIGCON-MG admitem empate
+# (varias linhas do mesmo convenio, do mesmo exercicio), e so uma coluna unica
+# torna a ordem totalmente deterministica.
+#
+# A ordenacao fica aqui, e nao na view nem em Meta.ordering do model:
+# Meta.ordering valeria para TODAS as consultas daquele model, inclusive as
+# agregacoes do Gold, que nao paginam e nao deveriam pagar por isso.
+#
+# Tela, export CSV e export XLSX compartilham estas funcoes, entao os arquivos
+# baixados saem na mesma ordem da tela — que e o desejado.
+
+ORDENACAO_PLANO_APLICACAO = (
+    "convenio_numero_sequencial_siafi",
+    "convenio_codigo",
+    "ano_exercicio_programa_trabalho",
+    "funcional_programatica_formatado",
+    "pk",
+)
+
+ORDENACAO_CRONOGRAMA = (
+    "convenio_numero_sequencial_siafi",
+    "convenio_codigo",
+    "ano_cronograma_desembolso",
+    "mes_cronograma_desembolso",
+    "pk",
+)
+
+ORDENACAO_PRORROGACAO = (
+    "prorrogacao_oficio_codigo_convenio",
+    "prorrogacao_oficio_codigo",
+    "pk",
+)
+
+ORDENACAO_TERMO_ADITIVO = (
+    "termo_aditivo_codigo_sequencial",
+    "termo_aditivo_numero_termo_aditivo",
+    "pk",
+)
+
+ORDENACAO_UNIDADES_EXECUTORAS = (
+    "convenio_codigo",
+    "convenio_numero_sequencial_siafi",
+    "unidade_orcamentaria_codigo",
+    "unidade_executora",
+    "pk",
+)
+
+
+# ---------------------------------------------------------------------------
 # Consultas SIGCON — serviços das 6 abas
 # ---------------------------------------------------------------------------
 
@@ -194,7 +251,9 @@ def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
     if cod_sigcon:
         conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
         if not conv:
-            return PlanoAplicacao.objects.none(), context
+            # Mesmo vazio, sai ordenado: o contrato da funcao e sempre
+            # devolver queryset ordenado, e a view pagina o resultado.
+            return PlanoAplicacao.objects.none().order_by(*ORDENACAO_PLANO_APLICACAO), context
         context["siafi"] = conv.convenio_numero_sequencial_siafi or "—"
         context["uo"] = conv.unidade_orcamentaria_codigo or "—"
         context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
@@ -214,7 +273,7 @@ def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
         context.update({"siafi": "", "uo": "", "plano_trabalho_codigo": ""})
         qs = PlanoAplicacao.objects.all()
 
-    return qs, context
+    return qs.order_by(*ORDENACAO_PLANO_APLICACAO), context
 
 
 def get_cronograma_qs(
@@ -240,7 +299,8 @@ def get_cronograma_qs(
     if cod_sigcon:
         conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
         if not conv:
-            return CronogramaDesembolso.objects.none(), context
+            # Mesmo vazio, sai ordenado (ver nota em get_plano_aplicacao_qs).
+            return CronogramaDesembolso.objects.none().order_by(*ORDENACAO_CRONOGRAMA), context
         context["siafi"] = conv.convenio_numero_sequencial_siafi or "—"
         context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
         # CronogramaDesembolso carrega siafi+uo via loader (ver loader.py)
@@ -261,7 +321,7 @@ def get_cronograma_qs(
         if plano:
             qs = qs.filter(plano_trabalho_codigo__icontains=plano)
 
-    return qs, context
+    return qs.order_by(*ORDENACAO_CRONOGRAMA), context
 
 
 def get_prorrogacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
@@ -293,7 +353,7 @@ def get_prorrogacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = No
     else:
         context["plano_trabalho_codigo"] = ""
 
-    return qs, context
+    return qs.order_by(*ORDENACAO_PRORROGACAO), context
 
 
 def get_termos_aditivos_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
@@ -316,7 +376,8 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
     if cod_sigcon:
         conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
         if not conv:
-            return TermoAditivo.objects.none(), context
+            # Mesmo vazio, sai ordenado (ver nota em get_plano_aplicacao_qs).
+            return TermoAditivo.objects.none().order_by(*ORDENACAO_TERMO_ADITIVO), context
 
         context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
         ta_rows = list(
@@ -350,7 +411,7 @@ def get_termos_aditivos_qs(cod_sigcon: str | None = None, cod_siafi: str | None 
         context["plano_trabalho_codigo"] = ""
         qs = TermoAditivo.objects.all()
 
-    return qs, context
+    return qs.order_by(*ORDENACAO_TERMO_ADITIVO), context
 
 
 def get_unidades_executoras_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
@@ -371,7 +432,7 @@ def get_unidades_executoras_qs(cod_sigcon: str | None = None, cod_siafi: str | N
     elif cod_siafi:
         qs = qs.filter(convenio_numero_sequencial_siafi=cod_siafi)
 
-    return qs, context
+    return qs.order_by(*ORDENACAO_UNIDADES_EXECUTORAS), context
 
 
 def _filtrar_por_siafi_uo_pares(qs, pares):
