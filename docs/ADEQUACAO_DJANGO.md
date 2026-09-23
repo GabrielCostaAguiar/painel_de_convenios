@@ -150,9 +150,15 @@ efeito prático lá.
   - `86cb04a` refactor(convenios): divide models.py em pacote por domínio
   - `8c49a34` refactor(dashboard): divide views.py em pacote por tela
   - `05be5ec` docs(deploy): registra diagnóstico do check --deploy e estratégia de estáticos
-  - `docs: atualiza CLAUDE.md, README e arquitetura após adequação Django`
-- Push: ver seção correspondente no relatório entregue junto com esta branch.
-- PR: idem.
+  - `7afc68a` docs: atualiza CLAUDE.md, README e arquitetura após adequação Django
+  - `(este commit)` docs: preenche o resultado do push no relatório
+- Push: **sucesso** — https://github.com/GabrielCostaAguiar/painel_de_convenios/tree/refactor/adequacao-django
+- PR: **não aberto** — o `gh` CLI não está instalado neste ambiente
+  (`gh: command not found`), então o PR draft não pôde ser criado por linha de
+  comando. Abrir manualmente em
+  https://github.com/GabrielCostaAguiar/painel_de_convenios/pull/new/refactor/adequacao-django
+  (comparação: `main...refactor/adequacao-django`), com o conteúdo deste
+  documento como descrição. **Não foi feito merge.**
 
 ## Como revisar / reverter
 
