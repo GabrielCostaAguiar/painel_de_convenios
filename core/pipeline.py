@@ -18,6 +18,7 @@ import io
 import logging
 import re
 
+from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
@@ -74,6 +75,43 @@ CARGAS_ORM = [
     ("carregar_controle_sei", [], {}),
     ("carregar_relacionamento", [], {"construir": True}),
 ]
+
+# Fontes Silver do GRP. So entram na etapa Silver quando PIPELINE_INCLUIR_GRP
+# esta ligado - ver _fontes_silver(). Ficam separadas de FONTES_SILVER para o
+# comportamento padrao do pipeline nao mudar.
+FONTES_SILVER_GRP = [
+    "dcgce_dados_grp",
+    "dcgce_cronograma_desembolso_grp",
+    "dcgce_recursos_contrapartida_grp",
+    "dcgce_recursos_concedente_grp",
+    "dcgce_plano_aplicacao_grp",
+    "dcgce_plano_aplicacao_grp_detalhes",
+    "dcgce_esfera_grp",
+]
+
+# Carga das tabelas do GRP, tambem opcional (mesmo setting).
+CARGAS_ORM_GRP = [
+    ("carregar_grp", [], {}),
+]
+
+
+def _incluir_grp() -> bool:
+    """True quando o GRP deve entrar no pipeline completo.
+
+    Lido a cada chamada, e nao no import, para override_settings funcionar
+    nos testes. Default False: o GRP esta em teste e nao pode derrubar a
+    atualizacao diaria do painel SIGCON.
+    """
+    return bool(getattr(settings, "PIPELINE_INCLUIR_GRP", False))
+
+
+def _fontes_silver() -> list[str]:
+    return FONTES_SILVER + FONTES_SILVER_GRP if _incluir_grp() else list(FONTES_SILVER)
+
+
+def _cargas_orm() -> list[tuple]:
+    return CARGAS_ORM + CARGAS_ORM_GRP if _incluir_grp() else list(CARGAS_ORM)
+
 
 _PADRAO_CONTAGEM = re.compile(r"Apagados:\s*(\d+)\s*\|\s*Inseridos:\s*(\d+)")
 
@@ -147,8 +185,9 @@ def _etapa_silver() -> dict:
     """
     erros = []
     gerados = 0
+    fontes = _fontes_silver()
 
-    for fonte in FONTES_SILVER:
+    for fonte in fontes:
         buffer = io.StringIO()
         try:
             call_command("rodar_silver", fonte, stdout=buffer)
@@ -168,12 +207,12 @@ def _etapa_silver() -> dict:
     if not sucesso:
         erros.append("nenhuma fonte Silver foi gerada - nada para a etapa Gold/ORM carregar")
 
-    logger.info("etapa silver: %d/%d fonte(s) geradas, sucesso=%s", gerados, len(FONTES_SILVER), sucesso)
+    logger.info("etapa silver: %d/%d fonte(s) geradas, sucesso=%s", gerados, len(fontes), sucesso)
 
     return {
         "nome": "silver",
         "sucesso": sucesso,
-        "contagens": {"gerados": gerados, "total": len(FONTES_SILVER)},
+        "contagens": {"gerados": gerados, "total": len(fontes)},
         "erros": erros,
     }
 
@@ -187,8 +226,9 @@ def _etapa_gold_orm() -> dict:
     """
     erros = []
     contagens = {}
+    cargas = _cargas_orm()
 
-    for comando, args, kwargs in CARGAS_ORM:
+    for comando, args, kwargs in cargas:
         chave = comando if not args else f"{comando}:{args[0]}"
         buffer = io.StringIO()
         try:
@@ -208,7 +248,7 @@ def _etapa_gold_orm() -> dict:
     if not sucesso:
         erros.append("carregar_convenios falhou - tabela principal do painel nao foi atualizada")
 
-    logger.info("etapa gold_orm: %d/%d comando(s) ok, sucesso=%s", len(contagens), len(CARGAS_ORM), sucesso)
+    logger.info("etapa gold_orm: %d/%d comando(s) ok, sucesso=%s", len(contagens), len(cargas), sucesso)
 
     return {
         "nome": "gold_orm",
