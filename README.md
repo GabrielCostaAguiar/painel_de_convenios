@@ -111,7 +111,13 @@ painel_de_convenios/
 │
 ├── apps/
 │   ├── convenios/                 # App de dados de convênios
-│   │   ├── models.py              # Todos os models ORM
+│   │   ├── models/                # Models ORM, um arquivo por domínio
+│   │   │   ├── __init__.py        # Reexporta os 24 models
+│   │   │   ├── sigcon.py          # Convenio + auxiliares do SIGCON-MG
+│   │   │   ├── codigos.py         # Tabelas de mapeamento de códigos
+│   │   │   ├── gold.py            # ConvenioIntegrado
+│   │   │   ├── externos.py        # ControleSEI
+│   │   │   └── grp.py             # Models do GRP
 │   │   ├── loader.py              # Funções de full-refresh por model
 │   │   ├── admin.py               # Registro no Django Admin
 │   │   ├── migrations/            # Histórico de migrations
@@ -123,16 +129,26 @@ painel_de_convenios/
 │   │       ├── carregar_silver.py          # Carga Silver legada
 │   │       └── rodar_transformacao.py      # Transforma Silver legada
 │   │
-│   └── dashboard/                 # App do painel web
-│       ├── views.py               # Views principais
-│       ├── services.py            # Camada de serviços com cache
-│       ├── urls.py
-│       ├── templatetags/
-│       │   └── painel_filters.py  # Filtros de template customizados
+│   ├── dashboard/                 # App do painel web
+│   │   ├── views/                 # Views, um arquivo por tela
+│   │   │   ├── __init__.py        # Reexporta tudo que urls.py referencia
+│   │   │   ├── sigcon.py          # As 6 sub-abas de Consultas SIGCON
+│   │   │   ├── exports.py         # Exports CSV/XLSX dessas abas
+│   │   │   ├── painel.py          # Indicadores e gráficos
+│   │   │   ├── grp.py             # As 7 sub-abas do GRP
+│   │   │   ├── stubs.py           # Seções "em construção"
+│   │   │   └── _helpers.py        # Utilitários privados
+│   │   ├── services.py            # Camada de serviços com cache
+│   │   ├── urls.py
+│   │   └── templatetags/
+│   │       └── painel_filters.py  # Filtros de template customizados
+│   │
+│   └── pipeline/                  # App sem models: comandos do lakehouse
 │       └── management/commands/
 │           ├── gerar_schemas.py   # Gera YAML de schema para nova fonte
 │           ├── rodar_ingestao.py  # Bronze: ingestão de qualquer fonte
-│           └── rodar_silver.py    # Silver: transformação de qualquer fonte
+│           ├── rodar_silver.py    # Silver: transformação de qualquer fonte
+│           └── rodar_pipeline.py  # Maestro: extração + Bronze + Silver + carga
 │
 ├── core/
 │   ├── ingestion/
@@ -178,13 +194,21 @@ painel_de_convenios/
 │
 ├── static/                        # CSS, JS, imagens
 ├── templates/                     # Templates HTML Django
-├── tests/                         # Testes automatizados
+├── tests/                         # Testes transversais (ver seção 12)
 │   ├── test_r2.py                 # 28 testes: SIAFI_UO, de-paras, correções
 │   ├── test_r3.py                 # 31 testes: G_, A_, coalesce, fan-out
-│   └── test_r4.py                 # 2 testes: carga idempotente, leitura ORM
+│   ├── test_r4.py                 # 2 testes: carga idempotente, leitura ORM
+│   ├── test_gold_convenios.py     # 13 testes: agregações Gold
+│   ├── test_comandos_registrados.py  # 11 testes: app dono de cada comando
+│   ├── test_cache_invalidacao.py  # 9 testes: invalidação do cache
+│   ├── test_contrapartida.py      # 8 testes
+│   ├── test_referencias.py        # 5 testes
+│   └── test_sei_service.py        # 3 testes
 │
 ├── docs/
 │   ├── ARQUITETURA.md             # Documentação técnica detalhada
+│   ├── ADEQUACAO_DJANGO.md        # Relatório da adequação às convenções Django
+│   ├── CHECKLIST_DEPLOY.md        # Diagnóstico do check --deploy e estáticos
 │   ├── AUDITORIA_RELACIONAMENTO.md
 │   └── CONFERENCIA_R3.md
 │
@@ -452,7 +476,10 @@ print(tabela.shape)               # (n_convenios, n_colunas)
 
 ## 10. Modelos Django
 
-Todos em `apps/convenios/models.py`.
+Todos no pacote `apps/convenios/models/` — `sigcon.py` (Convenio + auxiliares do
+SIGCON-MG), `codigos.py` (tabelas de mapeamento), `gold.py` (`ConvenioIntegrado`),
+`externos.py` (`ControleSEI`) e `grp.py` (models do GRP). O `__init__.py` reexporta as
+24 classes, então `from apps.convenios.models import X` funciona para qualquer uma.
 
 ### `ConvenioIntegrado` — tabela Gold integrada (principal)
 
@@ -516,17 +543,42 @@ Arquivos em `core/referencia/` — **fazem parte do repositório** (regras de ne
 ## 12. Testes
 
 ```powershell
-# Rodar todos os testes do projeto (exceto test_gold_convenios.py com import legado)
-python -m pytest tests/test_r2.py tests/test_r3.py tests/test_r4.py -v
+# Suíte completa
+python -m pytest -q
+
+# Só as suítes transversais
+python -m pytest -q tests/
 ```
+
+O `pytest.ini` já aponta `DJANGO_SETTINGS_MODULE` para `config.settings.dev`, então não
+é preciso exportar nada. As dependências de teste estão em `requirements-dev.txt`
+(não em `requirements.txt`):
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+Os testes ficam em dois lugares: `tests/` na raiz para o que é transversal, e
+`<app>/tests/` para o que pertence a uma app só.
 
 | Arquivo | Testes | Cobertura |
 |---|---|---|
-| `test_r2.py` | 28 | `montar_siafi_uo`, `resolver_siafi_atual`, `aplicar_correcoes`, `filtrar_uo`, `aplicar_deparas` |
-| `test_r3.py` | 31 | `_coalesce`, campos G_ (situação, valor, instrumento, esfera, vigência, proponente, limpeza_g), anti-fan-out, campos A_ |
-| `test_r4.py` | 2 | Carga idempotente (2× sem duplicatas), leitura básica do ORM |
+| `apps/dashboard/tests/test_rotas_smoke.py` | 34 | Inventário de rotas contra gabarito; GET em cada tela com banco vazio; Content-Type dos exports |
+| `tests/test_r3.py` | 31 | `_coalesce`, campos G_ (situação, valor, instrumento, esfera, vigência, proponente, limpeza_g), anti-fan-out, campos A_ |
+| `tests/test_r2.py` | 28 | `montar_siafi_uo`, `resolver_siafi_atual`, `aplicar_correcoes`, `filtrar_uo`, `aplicar_deparas` |
+| `apps/dashboard/tests/test_sigcon_services.py` | 22 | Serviços das abas SIGCON |
+| `tests/test_gold_convenios.py` | 13 | Agregações Gold (`kpis`, `por_situacao`, `por_ano`, `recentes`) |
+| `tests/test_comandos_registrados.py` | 11 | App dono de cada comando de gerência |
+| `tests/test_cache_invalidacao.py` | 9 | Invalidação do cache de indicadores e quando o pipeline dispara |
+| `tests/test_contrapartida.py` | 8 | Derivação do tipo de contrapartida |
+| `apps/dashboard/tests/test_filtros_globais.py` | 7 | Propagação dos filtros globais |
+| `tests/test_referencias.py` | 5 | Tabelas de referência |
+| `apps/convenios/tests/test_bulk_refresh.py` | 4 | Atomicidade do full refresh |
+| `tests/test_sei_service.py` | 3 | Serviço do SEI |
+| `tests/test_r4.py` | 2 | Carga idempotente (2× sem duplicatas), leitura básica do ORM |
 
-**Total: 61 testes, todos passando.** Nenhum teste toca arquivos em disco — usam DataFrames em memória (R2/R3) ou Parquet temporário (R4).
+**Total: 177 testes, todos passando.** Nenhum teste toca dado real — usam DataFrames em
+memória, Parquet temporário ou fixtures sintéticas pequenas.
 
 ---
 

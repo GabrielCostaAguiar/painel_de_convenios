@@ -502,7 +502,12 @@ marcador `— sem fonte —` no template:
 
 ### Testes
 
-`apps/dashboard/tests/test_sigcon_services.py` — 11 testes cobrindo todas as abas com fonte:
+> Panorama completo da suite (177 testes) na secao 12 do `README.md`.
+> Regras estruturais registradas em `docs/ADEQUACAO_DJANGO.md`: full refresh sempre
+> atomico (`_bulk_refresh`), invalidacao de cache via `core/cache.py`, e `core/` nunca
+> importa de `apps/dashboard/`.
+
+`apps/dashboard/tests/test_sigcon_services.py` — testes cobrindo todas as abas com fonte:
 - `EnrichConveniosPageTest` (2) — enriquecimento com `ConvenioIntegrado`
 - `PlanoAplicacaoQsTest` (3) — filtragem por `plano_trabalho_codigo`
 - `CronogramaQsTest` (2) — filtragem por `siafi + uo`
