@@ -14,6 +14,7 @@ from django.test import override_settings
 
 from core.cache import (
     CHAVE_INDICADORES,
+    CHAVE_VERSAO,
     chave_indicadores,
     invalidar_cache_indicadores,
     versao_indicadores,
@@ -74,16 +75,16 @@ def test_invalidar_muda_todas_as_chaves_de_uma_vez():
     assert cache.get(chave_indicadores(2023)) is None
 
 
-def test_invalidar_incrementa_a_versao_mesmo_sem_contador_previo():
-    """cache.incr estoura em chave inexistente; a função trata e segue."""
+def test_invalidar_sobe_a_versao_mesmo_sem_contador_previo():
+    """Sem contador gravado ainda, a primeira invalidação já precisa subir."""
     assert versao_indicadores() == 1
 
     primeira = invalidar_cache_indicadores()
     segunda = invalidar_cache_indicadores()
 
-    assert primeira == 2
-    assert segunda == 3
-    assert versao_indicadores() == 3
+    assert primeira > 1
+    assert segunda > primeira
+    assert versao_indicadores() == segunda
 
 
 @pytest.mark.django_db
@@ -200,3 +201,97 @@ def test_atualizar_painel_nao_invalida_quando_gold_rodou_sem_nenhum_sucesso():
         pipeline.atualizar_painel()
 
     invalidar.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Compatibilidade entre backends
+# ---------------------------------------------------------------------------
+
+CACHE_NO_BANCO = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "painel_cache_teste",
+    }
+}
+
+
+@pytest.mark.django_db
+def test_versao_nao_expira_no_databasecache():
+    """
+    Regressão de um bug específico do backend de produção sem Redis.
+
+    cache.incr() tem semântica diferente por backend: LocMemCache e RedisCache
+    preservam a expiração, mas o DatabaseCache não sobrescreve incr() e cai no
+    BaseCache.incr, que regrava a chave SEM timeout — trocando o "nunca expira"
+    pelo TIMEOUT padrão de 300 s. Como os indicadores vivem 3600 s, o contador
+    morreria antes deles, voltaria ao valor inicial e o painel serviria de novo
+    entradas antigas. Por isso a versão é regravada com timeout=None explícito.
+    """
+    from datetime import timedelta, timezone as datetime_timezone
+
+    from django.core.cache import caches
+    from django.core.management import call_command
+    from django.db import connection
+    from django.utils import timezone
+
+    with override_settings(CACHES=CACHE_NO_BANCO):
+        call_command("createcachetable", verbosity=0)
+        backend = caches["default"]
+        backend.clear()
+
+        # Duas vezes de propósito: com cache.incr() a primeira chamada cai no
+        # caminho de "chave ainda não existe" e grava certo; é da segunda em
+        # diante que o BaseCache.incr regrava com o TIMEOUT padrão.
+        invalidar_cache_indicadores()
+        invalidar_cache_indicadores()
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT expires FROM painel_cache_teste WHERE cache_key = %s",
+                [backend.make_key(CHAVE_VERSAO)],
+            )
+            linha = cursor.fetchone()
+
+        assert linha is not None, "a chave de versão não foi gravada"
+        expira_em = linha[0]
+        if isinstance(expira_em, str):
+            expira_em = timezone.datetime.fromisoformat(expira_em)
+        if timezone.is_naive(expira_em):
+            expira_em = timezone.make_aware(expira_em, datetime_timezone.utc)
+
+        # O default do Django é 300 s. Exigir muito mais do que isso prova que
+        # o timeout=None foi respeitado, sem depender do valor exato que cada
+        # backend usa para "nunca expira".
+        assert expira_em > timezone.now() + timedelta(days=365), (
+            f"a chave de versão expira em {expira_em} — o timeout=None foi perdido"
+        )
+
+
+@pytest.mark.django_db
+def test_invalidacao_funciona_no_databasecache():
+    """A estratégia de versão precisa valer também no backend de banco."""
+    from django.core.cache import cache as cache_atual
+    from django.core.management import call_command
+
+    with override_settings(CACHES=CACHE_NO_BANCO):
+        call_command("createcachetable", verbosity=0)
+        cache_atual.clear()
+
+        chave_velha = chave_indicadores(2024)
+        cache_atual.set(chave_velha, "valor-velho", 3600)
+        assert cache_atual.get(chave_velha) == "valor-velho"
+
+        invalidar_cache_indicadores()
+
+        assert cache_atual.get(chave_indicadores(2024)) is None
+
+
+def test_versoes_sucessivas_sempre_crescem():
+    """
+    A versão nunca pode repetir um valor já usado: entradas gravadas sob a
+    versão antiga voltariam a ser servidas. O relógio entra como piso.
+    """
+    versoes = [invalidar_cache_indicadores() for _ in range(5)]
+
+    assert versoes == sorted(versoes)
+    assert len(set(versoes)) == len(versoes)

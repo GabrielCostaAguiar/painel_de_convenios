@@ -18,6 +18,17 @@ DATABASES = {
     }
 }
 
+# Cache em memoria do processo. Serve em desenvolvimento porque o runserver
+# (e tambem o Modo Compartilhar, abaixo) roda num processo so — nao ha outro
+# worker para ficar com uma copia defasada. Declarado explicitamente, em vez
+# de depender do default implicito do Django, para o ambiente ficar obvio.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "painel-dev",
+    }
+}
+
 # -----------------------------------------------------------------------
 # Modo compartilhar — exposição temporária via túnel (cloudflared) para
 # colegas testarem e darem feedback. Liga só com a env var MODO_COMPARTILHAR=1;
