@@ -1,0 +1,11 @@
+fonte: dcgce_esfera_grp
+gerado_em: '2026-09-18'
+colunas:
+  identificador:
+  - concedente_-_cnpj-capj
+  texto:
+  - concedente_-_nome
+  - concedente_-_esferaatuacao
+duvidoso:
+- concedente_-_nome
+- concedente_-_esferaatuacao

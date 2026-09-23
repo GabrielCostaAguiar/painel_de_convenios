@@ -281,4 +281,72 @@ FONTES: dict[str, FonteDados] = {
         opcoes_leitura={"header": 0},
     ),
 
+    # -----------------------------------------------------------------------
+    # Tabelas do GRP — arquivos avulsos em data/raw/grp/
+    # -----------------------------------------------------------------------
+
+    "dcgce_dados_grp": FonteDados(
+        nome="dcgce_dados_grp",
+        arquivo="grp/dcgce_convenio.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de dados do GRP — usada para derivar convenios, cronogramas" \
+            "Chaves: nr_grp"
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
+    "dcgce_cronograma_desembolso_grp": FonteDados(
+        nome="dcgce_cronograma_desembolso_grp",
+        arquivo="grp/dcgce_cronograma_desembolso.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de cronograma de desembolso do GRP. Chave: nr_grp"
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
+    "dcgce_recursos_contrapartida_grp": FonteDados(
+        nome="dcgce_recursos_contrapartida_grp",
+        arquivo="grp/dcgce_recursos_contrapartida.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de recursos de contrapartida do GRP. Chave:nr_grp"
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
+    "dcgce_recursos_concedente_grp": FonteDados(
+        nome="dcgce_recursos_concedente_grp",
+        arquivo="grp/dcgce_recursos_concedente.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de recursos de concedente do GRP. Chave:nr_grp"
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
+    "dcgce_plano_aplicacao_grp": FonteDados(
+        nome="dcgce_plano_aplicacao_grp",
+        arquivo="grp/dcgce_plano_aplicacao.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de planos de aplicação do GRP. Chave: nr_grp."
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
+    "dcgce_plano_aplicacao_grp_detalhes": FonteDados(
+        nome="dcgce_plano_aplicacao_grp_detalhes",
+        arquivo="grp/dcgce_plano_aplicacao_desc.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de detalhes dos planos de aplicação do GRP. Chave: nr_grp."
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
+    "dcgce_esfera_grp": FonteDados(
+        nome="dcgce_esfera_grp",
+        arquivo="grp/dcgce_esfera.xlsx",
+        formato="excel",
+        descricao=(
+            "Tabela de esferas do GRP. Chave: nr_grp."
+        ),
+        opcoes_leitura={"header": 0, "engine": "openpyxl"},
+    ),
 }

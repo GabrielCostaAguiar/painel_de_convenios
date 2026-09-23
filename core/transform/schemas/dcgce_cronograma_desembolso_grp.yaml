@@ -1,0 +1,17 @@
+fonte: dcgce_cronograma_desembolso_grp
+gerado_em: '2026-09-18'
+colunas:
+  valor:
+  - valor_desembolso
+  identificador:
+  - numero_instrumentogrp
+  texto:
+  - parcela_desembolso
+  - desembolso_-_mes
+  - desembolso_-_ano
+  - origem_recurso_parcela
+duvidoso:
+- parcela_desembolso
+- desembolso_-_mes
+- desembolso_-_ano
+- origem_recurso_parcela

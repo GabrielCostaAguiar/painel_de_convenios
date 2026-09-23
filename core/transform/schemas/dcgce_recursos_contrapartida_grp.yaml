@@ -1,0 +1,11 @@
+fonte: dcgce_recursos_contrapartida_grp
+gerado_em: '2026-09-18'
+colunas:
+  valor:
+  - valor_contrapartida_financeira
+  identificador:
+  - unidorcamentaria_financiadora_-_codigo
+  - fonterecurso_-_codigo
+  - numero_instrumentogrp
+  - ipu_-_codigo
+duvidoso: []

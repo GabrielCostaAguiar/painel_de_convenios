@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}GRP — {{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="crumbs">GRP <span>›</span> <b>{{ titulo }}</b></div>
+<div class="page-h"><h1>GRP (teste)</h1></div>
+
+{% include "dashboard/_subtabs_grp.html" %}
+
+<form method="get" action="{{ request.path }}">
+<div class="panel filters">
+  <div class="filters-top">
+    <div class="ttl">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      Filtros da consulta
+    </div>
+    <div class="filters-actions">
+      <a href="{{ request.path }}" class="btn ghost-danger">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Limpar filtros
+      </a>
+      <button type="submit" class="btn primary">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Aplicar
+      </button>
+    </div>
+  </div>
+
+  {% if filtro_nao_aplicavel %}
+    <div class="aviso-filtro" style="margin:0 0 12px;padding:10px 12px;border-radius:8px;
+         background:rgba(234,179,8,.12);color:var(--ink-2, #6b5b00);font-size:13px;">
+      Esta aba lista a tabela de esferas (ligada por CNPJ do concedente, não por Nº GRP) —
+      os filtros acima ficam guardados para as outras sub-abas, mas não se aplicam aqui.
+    </div>
+  {% endif %}
+
+  <div class="filter-grid">
+    <div class="field">
+      <label for="f-uo_cod">UO do instrumento</label>
+      <select id="f-uo_cod" name="uo_cod">
+        <option value="">Todas</option>
+        {% for uo in uos %}
+          <option value="{{ uo }}"{% if uo_cod_sel == uo|stringformat:"s" %} selected{% endif %}>{{ uo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-nr_instrumento">Número do Instrumento</label>
+      <input 
+      id="f-nr_instrumento" 
+      name="nr_instrumento" 
+      type="text" 
+      placeholder="Digite o número do instrumento" 
+      value="{{ nr_instrumento_sel }}"
+      autocomplete="off"
+      list="lista-nr_instrumento"
+      >
+
+      <datalist id="lista-nr_instrumento">
+        {% for nr_instrumento in nr_instrumentos %}
+          {% if nr_instrumento %}
+            <option value="{{ nr_instrumento }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class="field">
+      <label for="f-nr_grp">Número GRP</label>
+
+      <input
+        id="f-nr_grp"
+        name="nr_grp"
+        type="text"
+        placeholder="Digite o número do GRP"
+        list="lista-nr_grp"
+        value="{{ nr_grp_sel }}"
+        autocomplete="off"
+      >
+
+      <datalist id="lista-nr_grp">
+        {% for nr_grp in nr_grps %}
+          {% if nr_grp %}
+            <option value="{{ nr_grp }}">
+          {% endif %}
+        {% endfor %}
+      </datalist>
+    </div>
+  </div>
+</div>
+<div class="panel table-wrap">
+  <div class="table-head">
+    <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+  </div>
+
+  <div class="scroll-x">
+    <table>
+      <thead>
+        <tr>{% for col in colunas %}<th>{{ col }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for linha in linhas %}
+          <tr>
+            {% for celula in linha %}<td class="mono">{{ celula|default:"—" }}</td>{% endfor %}
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{{ colunas|length }}" style="text-align:center;padding:40px;color:var(--ink-3);">
+              Nenhum registro encontrado.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <div class="info">
+      {% if total %}
+        Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
+      {% else %}
+        <b>0</b> resultados
+      {% endif %}
+    </div>
+    <div class="pages">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="nav"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+      {% endif %}
+
+      {% for p in visible_pages %}
+        {% if p == page_obj.number %}
+          <button class="cur" disabled>{{ p }}</button>
+        {% elif p %}
+          <a href="?page={{ p }}{% if querystring %}&{{ querystring }}{% endif %}">{{ p }}</a>
+        {% else %}
+          <button disabled style="cursor:default;border:none;background:none;color:var(--ink-3)">…</button>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="nav"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

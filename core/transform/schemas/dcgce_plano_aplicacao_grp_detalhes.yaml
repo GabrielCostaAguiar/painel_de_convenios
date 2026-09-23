@@ -1,0 +1,26 @@
+fonte: dcgce_plano_aplicacao_grp_detalhes
+gerado_em: '2026-09-18'
+colunas:
+  valor:
+  - valor_unitario_item_aexecutar
+  - valor_total_item_aexecutar
+  identificador:
+  - numero_catmas
+  - numero_instrumentogrp
+  - categoriaeconomica_-_codigo
+  - grupodespesa_-_codigo
+  - modalidade_-_codigo
+  - elementodespesa_-_codigo
+  - beneficiario_-_cnpj-capj
+  texto:
+  - tipo_despesa_aexecutar
+  - descricao_item_aexecutar
+  - origem_recurso
+  - quantidade_item_aexecutar
+  - situacao_item_aexecutar
+duvidoso:
+- tipo_despesa_aexecutar
+- descricao_item_aexecutar
+- origem_recurso
+- quantidade_item_aexecutar
+- situacao_item_aexecutar

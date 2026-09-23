@@ -1,0 +1,20 @@
+fonte: dcgce_plano_aplicacao_grp
+gerado_em: '2026-09-18'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - convenenteinstrumento_-_cnpj-capj
+  texto:
+  - nome_projeto
+  - objeto_projeto
+  - situacao_instrumento
+  - tipo_proposta/instrumento
+  - responsavel_-_nome
+  - responsavel_-_atribuicao
+duvidoso:
+- nome_projeto
+- objeto_projeto
+- situacao_instrumento
+- tipo_proposta/instrumento
+- responsavel_-_nome
+- responsavel_-_atribuicao
