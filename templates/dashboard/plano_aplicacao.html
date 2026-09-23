@@ -86,7 +86,7 @@
       <tbody>
         {% for pa in page_obj %}
         <tr>
-          <td class="mono">{{ siafi_sel|default:"—" }}</td>
+          <td class="mono">{{ pa.convenio_numero_sequencial_siafi|default:"—" }}</td>
           <td class="mono">{{ pa.convenio_codigo|default:"—" }}</td>
           <td class="mono">{{ pa.codigo_plano_trabalho|default:"—" }}</td>
           <td class="mono">{{ pa.ano_exercicio_programa_trabalho|default:"—" }}</td>

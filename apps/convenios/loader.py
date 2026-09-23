@@ -40,6 +40,13 @@ from .models import (
     ProrrogacaoOficio,
     TermoAditivo,
     UnidadesExecutoras,
+    DadosGrp,
+    CronogramaDesembolsoGrp,
+    RecursosContrapartidaGrp,
+    RecursosConcedenteGrp,
+    PlanoAplicacaoGrp,
+    PlanoAplicacaoGrpDetalhes,
+    EsferaGrp,
 )
 
 logger = logging.getLogger(__name__)
@@ -414,21 +421,53 @@ def carregar_plano_aplicacao(silver_path: Path | None = None) -> dict:
     plano_trabalho_codigo, reaproveitando dcgce_geral
     (core/gold/relacionamento.py::carimbar_convenio_codigo) — nunca via SIAFI,
     que é 1:N convênio.
+
+    convenio_numero_sequencial_siafi é carimbado pela mesma rota usada em
+    carregar_cronograma_desembolso: Geral.convenio_codigo_sequencial →
+    CodigoConvenio.convenio_numero_sequencial_siafi.
     """
     from core.gold.relacionamento import carimbar_convenio_codigo
 
     caminho = silver_path or _silver_path("dcgce_plano_aplicacao")
     df = _ler_parquet(caminho)
     geral = _ler_parquet(_silver_path("dcgce_geral"))
+    cod_conv = _ler_parquet(_silver_path("dcgce_codigo_convenio"))
 
     _normalizar_chave(df, ["codigo_plano_trabalho"])
-    _normalizar_chave(geral, ["conveno_codigo_plano_trabalho"])
+    _normalizar_chave(geral, ["conveno_codigo_plano_trabalho", "convenio_codigo_sequencial"])
+    _normalizar_chave(cod_conv, ["convenio_codigo_sequencial", "convenio_numero_sequencial_siafi"])
+
+    # Step 1: plano_aplicacao → Geral (codigo_plano_trabalho = conveno_codigo_plano_trabalho)
+    geral_seq = (
+        geral[["conveno_codigo_plano_trabalho", "convenio_codigo_sequencial"]]
+        .drop_duplicates("conveno_codigo_plano_trabalho")
+    )
+    antes = len(df)
+    df = df.merge(
+        geral_seq,
+        left_on="codigo_plano_trabalho",
+        right_on="conveno_codigo_plano_trabalho",
+        how="left",
+    ).drop(columns=["conveno_codigo_plano_trabalho"])
+    assert len(df) == antes, "fan-out inesperado no join Geral->sequencial"
+
+    # Step 1b: carimba convenio_codigo (Código SIGCON) 1:1 pela mesma chave
     df = carimbar_convenio_codigo(df, geral, coluna_plano_trabalho="codigo_plano_trabalho")
+
+    # Step 2: → CodigoConvenio (convenio_codigo_sequencial → SIAFI)
+    cod_conv_sub = (
+        cod_conv[["convenio_codigo_sequencial", "convenio_numero_sequencial_siafi"]]
+        .drop_duplicates("convenio_codigo_sequencial")
+    )
+    antes = len(df)
+    df = df.merge(cod_conv_sub, on="convenio_codigo_sequencial", how="left")
+    assert len(df) == antes, "fan-out inesperado no join sequencial->SIAFI"
 
     objetos = [
         PlanoAplicacao(
             codigo_plano_trabalho=_para_str(row["codigo_plano_trabalho"]),
             convenio_codigo=_para_str(row.get("convenio_codigo")),
+            convenio_numero_sequencial_siafi=_para_str(row.get("convenio_numero_sequencial_siafi")),
             codigo_unidade_orcamentaria=_para_str(row["codigo_unidade_orcamentaria"]),
             funcao_codigo=_para_str(row["funcao_codigo"]),
             subfuncao_codigo=_para_str(row["subfuncao_codigo"]),
@@ -633,10 +672,146 @@ def carregar_codigo_declaracao_contrapartida(silver_path: Path | None = None) ->
     return _bulk_refresh(CodigoDeclaracaoContrapartida, objetos)
 
 
+#----- CARREGAR DADOS DO GRP PARA TESTE DAS TABELAS ----------------------
+def carregar_dados_grp(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_dados_grp.parquet → model DadosGrp."""
+    caminho = silver_path or _silver_path("dcgce_dados_grp")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        DadosGrp(
+            nr_grp=_para_str(row["numero_instrumentogrp"]),
+            nr_instrumento=_para_str(row["numero_instrumento"]),
+            uo_cod=_para_str(row["unidadeorcam_-_codigo"]),
+            situacao=_para_str(row["situacao_instrumento"]),
+            dt_vigencia_inicial=_str_para_date(row["data_vigencia_instrumento_-_inicio"]),
+            dt_vigencia_termino=_str_para_date(row["data_vigencia_instrumento_-_termino"]),
+            dt_vigenciainicial_termino=_str_para_date(row["data_vigenciainicial_instrumento_-_termino"]),
+            vl_instrumento_concedente_inicial=_para_decimal(row["valor_instrumento_-_concedente_inicial"]),
+            vl_instrumento_concedente=_para_decimal(row["valor_instrumento_-_concedente"]),
+            vl_instrumento_contrapartida_fin_inicial=_para_decimal(row["valor_instrumento_-_contrapartida_financeira_inicial"]),
+            vl_instrumento_contrapartida_fin=_para_decimal(row["valor_instrumento_-_contrapartida_financeira"]),
+            vl_instrumento_total=_para_decimal(row["valor_instrumento_-_total"]),
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(DadosGrp, objetos)
+
+def carregar_cronograma_desembolso_grp(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_cronograma_desembolso_grp.parquet → model CronogramaDesembolsoGrp."""
+    caminho = silver_path or _silver_path("dcgce_cronograma_desembolso_grp")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        CronogramaDesembolsoGrp(
+            nr_grp=_para_str(row["numero_instrumentogrp"]),
+            parcela_desembolso=_para_str(row["parcela_desembolso"]),
+            mes_desembolso=_para_str(row["desembolso_-_mes"]),
+            ano_desembolso=_para_str(row["desembolso_-_ano"]),
+            origem_recurso_parcela=_para_str(row["origem_recurso_parcela"]),
+            vl_desembolso=_para_decimal(row["valor_desembolso"])
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(CronogramaDesembolsoGrp, objetos)
+def carregar_recurso_contrapartida_grp(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_recurso_contrapartida_grp.parquet → model RecursoContrapartidaGrp."""
+    caminho = silver_path or _silver_path("dcgce_recursos_contrapartida_grp")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        RecursosContrapartidaGrp(
+            uo_cod=_para_str(row["unidorcamentaria_financiadora_-_codigo"]),
+            fonte=_para_str(row["fonterecurso_-_codigo"]),
+            nr_grp=_para_str(row["numero_instrumentogrp"]),
+            ipu=_para_str(row["ipu_-_codigo"]),
+            vl_contrapartida_financeira=_para_decimal(row["valor_contrapartida_financeira"])
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(RecursosContrapartidaGrp, objetos)
+
+def carregar_recurso_concedente_grp(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_recurso_concedente_grp.parquet → model RecursoConcedenteGrp."""
+    caminho = silver_path or _silver_path("dcgce_recursos_concedente_grp")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        RecursosConcedenteGrp(
+            uo_cod=_para_str(row["unidorcamentaria_arrecadacao_-_codigo"]),
+            nr_grp=_para_str(row["numero_instrumentogrp"]),
+            fonte=_para_str(row["fonterecurso_-_codigo"]),
+            ipu=_para_str(row["ipu_-_codigo"]),
+            vl_concedente=_para_decimal(row["valor_recurso_concedente"])
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(RecursosConcedenteGrp, objetos)
+
+def carregar_plano_aplicacao_grp(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_plano_aplicacao_grp.parquet → model PlanoAplicacaoGrp."""
+    caminho = silver_path or _silver_path("dcgce_plano_aplicacao_grp")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        PlanoAplicacaoGrp(
+            nr_grp=_para_str(row["numero_instrumentogrp"]),
+            nome_projeto=_para_str(row["nome_projeto"]),
+            objeto_projeto=_para_str(row["objeto_projeto"]),
+            situacao_instrumento=_para_str(row["situacao_instrumento"]),
+            tipo_instrumento=_para_str(row["tipo_proposta/instrumento"]),
+            responsavel_nome=_para_str(row["responsavel_-_nome"]),
+            responsavel_atribuicao=_para_str(row["responsavel_-_atribuicao"]),
+            cnpj_convenente=_para_str(row["convenenteinstrumento_-_cnpj-capj"]),
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(PlanoAplicacaoGrp, objetos)
+
+def carregar_plano_aplicacao_grp_detalhes(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_plano_aplicacao_grp_detalhes.parquet → model PlanoAplicacaoGrpDetalhes."""
+    caminho = silver_path or _silver_path("dcgce_plano_aplicacao_grp_detalhes")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        PlanoAplicacaoGrpDetalhes(
+            nr_catmas=_para_str(row["numero_catmas"]),
+            nr_grp=_para_str(row["numero_instrumentogrp"]),
+            tipo_despesa=_para_str(row["tipo_despesa_aexecutar"]),
+            categoria_despesa=_para_str(row["categoriaeconomica_-_codigo"]),
+            grupo_despesa=_para_str(row["grupodespesa_-_codigo"]),
+            modalidade=_para_str(row["modalidade_-_codigo"]),
+            elemento_despesa=_para_str(row["elementodespesa_-_codigo"]),
+            beneficiario_cnpj=_para_str(row["beneficiario_-_cnpj-capj"]),
+            descricao_item=_para_str(row["descricao_item_aexecutar"]),
+            origem_recurso=_para_str(row["origem_recurso"]),
+            qt_item_executar=_para_decimal(row["quantidade_item_aexecutar"]),
+            vl_uni_item_a_executar=_para_decimal(row["valor_unitario_item_aexecutar"]),
+            vl_total_item_a_executar=_para_decimal(row["valor_total_item_aexecutar"]),
+            situacao_item_a_executar=_para_str(row["situacao_item_aexecutar"]),
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(PlanoAplicacaoGrpDetalhes, objetos)
+
+def carregar_esfera_grp(silver_path: Path | None = None) -> dict:
+    """Fonte: dcgce_esfera_grp.parquet → model EsferaGrp."""
+    caminho = silver_path or _silver_path("dcgce_esfera_grp")
+    df = _ler_parquet(caminho)
+
+    objetos = [
+        EsferaGrp(
+            concedente_nome=_para_str(row["concedente_-_nome"]),
+            concedente_cnpj=_para_str(row["concedente_-_cnpj-capj"]),
+            concedente_esfera=_para_str(row["concedente_-_esferaatuacao"]),
+        )
+        for _, row in df.iterrows()
+    ]
+    return _bulk_refresh(EsferaGrp, objetos)
+
 # ---------------------------------------------------------------------------
 # Gold — ConvenioIntegrado (tabela G_/A_ completa)
 # ---------------------------------------------------------------------------
-
 def _str_para_date(val):
     """String ISO / pd.Timestamp / NaT → datetime.date; erro ou NA → None."""
     try:

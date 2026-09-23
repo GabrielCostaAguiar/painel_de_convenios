@@ -32,6 +32,25 @@ def querystring_global(context):
     return urlencode(params)
 
 
+# Filtros globais da aba GRP — propagados entre as 7 sub-abas do GRP.
+# Lista própria (não reaproveita GLOBAL_PARAMS) para que mexer no GRP nunca
+# altere o que as abas do SIGCON propagam entre si.
+GRP_PARAMS = ("nr_grp", "nr_instrumento", "uo_cod")
+
+
+@register.simple_tag(takes_context=True)
+def querystring_grp(context):
+    """
+    Querystring com os filtros do GRP (GRP_PARAMS) presentes em request.GET —
+    usada para montar os links das sub-abas do GRP preservando o filtro.
+    """
+    request = context.get("request")
+    if request is None:
+        return ""
+    params = {k: v for k, v in request.GET.items() if k in GRP_PARAMS and v}
+    return urlencode(params)
+
+
 @register.filter(name="badge_class")
 def badge_class(situacao):
     """Maps situação string → CSS badge class for .badge styling."""

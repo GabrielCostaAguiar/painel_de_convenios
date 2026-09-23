@@ -1,0 +1,11 @@
+fonte: dcgce_recursos_concedente_grp
+gerado_em: '2026-09-18'
+colunas:
+  valor:
+  - valor_recurso_concedente
+  identificador:
+  - unidorcamentaria_arrecadacao_-_codigo
+  - numero_instrumentogrp
+  - fonterecurso_-_codigo
+  - ipu_-_codigo
+duvidoso: []

@@ -1,0 +1,11 @@
+{% load painel_filters %}
+{% querystring_grp as qs_grp %}
+<div class="subtabs">
+  <a href="{% url 'dashboard:grp_dados' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_dados' %} active{% endif %}">Dados</a>
+  <a href="{% url 'dashboard:grp_cronograma' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_cronograma' %} active{% endif %}">Cronograma</a>
+  <a href="{% url 'dashboard:grp_recursos_contrapartida' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_recursos_contrapartida' %} active{% endif %}">Rec. Contrapartida</a>
+  <a href="{% url 'dashboard:grp_recursos_concedente' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_recursos_concedente' %} active{% endif %}">Rec. Concedente</a>
+  <a href="{% url 'dashboard:grp_plano_aplicacao' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_plano_aplicacao' %} active{% endif %}">Plano de Aplicação</a>
+  <a href="{% url 'dashboard:grp_plano_aplicacao_detalhes' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_plano_aplicacao_detalhes' %} active{% endif %}">Plano Aplic. Detalhes</a>
+  <a href="{% url 'dashboard:grp_esfera' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_esfera' %} active{% endif %}">Esfera</a>
+</div>
