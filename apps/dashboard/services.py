@@ -16,9 +16,11 @@ Sobre o cache:
   invalidam o cache ao terminar, chamando core.cache.invalidar_cache_indicadores()
   — não é preciso lembrar de invalidar à mão. As chaves e a estratégia de
   invalidação (número de versão) estão documentadas em core/cache.py.
-  Em produção, configure Redis em settings.py:
-    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache",
-                          "LOCATION": "redis://127.0.0.1:6379/1"}}
+  O backend é escolhido por ambiente: LocMemCache em dev.py; em prod.py,
+  Redis quando REDIS_URL está definida, senão DatabaseCache. Produção precisa
+  de um backend compartilhado — com LocMemCache cada worker teria a sua cópia
+  e a invalidação feita pelo comando de carga não chegaria a nenhum deles.
+  O TTL vem de settings.GOLD_CACHE_SECONDS (base.py, default 3600 s).
 """
 
 import logging
@@ -36,7 +38,7 @@ from core.gold import convenios as gold
 
 logger = logging.getLogger(__name__)
 
-_CACHE_TTL = getattr(settings, "GOLD_CACHE_SECONDS", 3600)
+_CACHE_TTL = settings.GOLD_CACHE_SECONDS
 _CACHE_KEY = CHAVE_INDICADORES
 
 

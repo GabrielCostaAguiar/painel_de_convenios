@@ -72,3 +72,13 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Tempo de vida do cache de indicadores Gold (apps/dashboard/services.py).
+# Declarado aqui para o numero ficar visivel a quem opera, em vez de viver
+# como default embutido no codigo. As chaves e a invalidacao estao em
+# core/cache.py.
+GOLD_CACHE_SECONDS = env.int("GOLD_CACHE_SECONDS", default=3600)
+
+# CACHES nao e definido aqui: cada ambiente escolhe o seu (LocMemCache em
+# dev.py, Redis ou banco em prod.py). Ver a nota em prod.py sobre por que o
+# LocMemCache nao serve para producao.
