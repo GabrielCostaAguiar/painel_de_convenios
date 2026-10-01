@@ -26,7 +26,7 @@ import logging
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.sigcon import loader as loaders
+from apps.grp import loader as loaders
 from core.cache import invalidar_cache_indicadores
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,8 @@ _LOADERS_GRP = {
     "dcgce_plano_aplicacao_grp": loaders.carregar_plano_aplicacao_grp,
     "dcgce_plano_aplicacao_grp_detalhes": loaders.carregar_plano_aplicacao_grp_detalhes,
     "dcgce_esfera_grp": loaders.carregar_esfera_grp,
+    "dcgce_tabela_uo_grp": loaders.carregar_tabela_uo_grp,
+    "grp_instrumento": loaders.carregar_grp_instrumento,
 }
 
 FONTES_GRP = tuple(_LOADERS_GRP)
@@ -56,7 +58,7 @@ FONTES_GRP = tuple(_LOADERS_GRP)
 class Command(BaseCommand):
     help = (
         "Full refresh das tabelas do GRP a partir dos Parquets Silver. "
-        "Sem argumentos, carrega as 7; use --fonte para escolher."
+        "Sem argumentos, carrega as 8; use --fonte para escolher."
     )
 
     def add_arguments(self, parser):

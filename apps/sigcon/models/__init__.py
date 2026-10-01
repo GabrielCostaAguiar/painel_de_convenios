@@ -11,7 +11,6 @@ Os arquivos:
   codigos.py   — tabelas de mapeamento de códigos entre entidades
   gold.py      — camada Gold (ConvenioIntegrado)
   externos.py  — fontes externas ao SIGCON-MG (ControleSEI)
-  grp.py       — tabelas do GRP (em teste)
 
 Tudo é reexportado aqui, então `from apps.sigcon.models import Convenio`
 continua funcionando igual em todo o projeto — nenhum import externo mudou.
@@ -25,15 +24,6 @@ from .codigos import (
 )
 from .externos import ControleSEI
 from .gold import ConvenioIntegrado
-from .grp import (
-    CronogramaDesembolsoGrp,
-    DadosGrp,
-    EsferaGrp,
-    PlanoAplicacaoGrp,
-    PlanoAplicacaoGrpDetalhes,
-    RecursosConcedenteGrp,
-    RecursosContrapartidaGrp,
-)
 from .sigcon import (
     Convenio,
     ConvenioGeral,
@@ -70,12 +60,4 @@ __all__ = [
     "ConvenioIntegrado",
     # externos
     "ControleSEI",
-    # grp
-    "DadosGrp",
-    "CronogramaDesembolsoGrp",
-    "RecursosContrapartidaGrp",
-    "RecursosConcedenteGrp",
-    "PlanoAplicacaoGrp",
-    "PlanoAplicacaoGrpDetalhes",
-    "EsferaGrp",
 ]

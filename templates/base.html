@@ -17,7 +17,7 @@
   <!-- ===== Sidebar ===== -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">CC</div>
+      <div class="brand-mark">MG</div>
       <div class="brand-text">
         <strong>DCGCE</strong>
         <span>Secretaria Geral · MG</span>
@@ -44,19 +44,25 @@
       <a class="nav-item{% if secao_ativa == 'sigcon' %} active{% endif %}"
          href="{% url 'sigcon:sigcon' %}">
         <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg>
-        <span class="lbl">Consultas SIGCON</span>
+        <span class="lbl">SIGCON</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'uniao' %} active{% endif %}"
          href="{% url 'uniao:uniao' %}">
-        <svg viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13M4 21h16M9 21v-6h6v6"/></svg>
-        <span class="lbl">Consultas União</span>
+        <svg viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13M4 21h16M9 21v-6h6v6"/><path d=""></svg>
+        <span class="lbl">União</span>
       </a>
 
       <a class="nav-item{% if secao_ativa == 'execucao' %} active{% endif %}"
          href="{% url 'execucao:execucao' %}">
         <svg viewBox="0 0 24 24"><path d="M4 5h16M4 5v14h16V5M9 9v6M15 9v6M12 9v6"/></svg>
         <span class="lbl">Execução Estadual</span>
+      </a>
+
+      <a class="nav-item{% if secao_ativa == 'grp' %} active{% endif %}"
+         href="{% url 'grp:grp_dados' %}">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16M4 5v14h16V5M9 9v6M15 9v6M12 9v6"/></svg>
+        <span class="lbl">GRP (dev)</span>
       </a>
 
       <div class="nav-label">Acompanhamento</div>
@@ -88,7 +94,7 @@
       <div class="nav-label">Teste</div>
 
       <a class="nav-item{% if secao_ativa == 'grp' %} active{% endif %}"
-         href="{% url 'painel:grp_dados' %}">
+         href="{% url 'grp:grp_dados' %}">
         <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 9h18M9 9v12"/></svg>
         <span class="lbl">GRP (teste)</span>
       </a>

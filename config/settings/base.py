@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "apps.painel",
     "apps.sigcon",
+    "apps.grp",
     "apps.uniao",
     "apps.execucao",
     "apps.pipeline",

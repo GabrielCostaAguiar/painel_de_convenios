@@ -1,3 +1,5 @@
+import os
+
 from .base import *  # noqa: F401, F403
 from pathlib import Path
 
@@ -13,8 +15,12 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "painel_convenios",
+        "USER": "postgres",
+        "PASSWORD": os.environ.get("SENHA_BANCO"),
+        "HOST": "localhost",
+        "PORT": "5432",
     }
 }
 

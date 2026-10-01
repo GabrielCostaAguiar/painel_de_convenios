@@ -7,7 +7,7 @@ Cada função:
   3. Reconstrói via bulk_create(batch_size=500)
   4. Retorna dict com 'apagados' e 'inseridos'
 
-Os passos 2 e 3 rodam sempre dentro de uma mesma transação (ver _bulk_refresh):
+Os passos 2 e 3 rodam sempre dentro de uma mesma transação (core.db.bulk_refresh):
 ou a tabela inteira é substituída, ou nada muda.
 
 Funções do piloto (Convenio consolidado + Cronograma com SIAFI):
@@ -24,7 +24,8 @@ from pathlib import Path
 
 import pandas as pd
 from django.conf import settings
-from django.db import transaction
+
+from core.db import bulk_refresh as _bulk_refresh
 
 from .models import (
     CodigoConvenio,
@@ -109,28 +110,6 @@ def _ler_parquet(caminho: Path) -> pd.DataFrame:
     df = pd.read_parquet(caminho)
     logger.info("Parquet lido: %s (%d linhas × %d colunas)", caminho.name, *df.shape)
     return df
-
-
-def _bulk_refresh(model, objetos: list, batch_size: int = 500) -> dict:
-    """
-    Substitui todo o conteúdo da tabela de forma atômica.
-
-    O delete e o bulk_create formam uma única transação: se qualquer passo
-    falhar (valor inválido, erro de encoding, queda de conexão), o banco faz
-    rollback e a tabela mantém os dados anteriores — em vez de ficar vazia,
-    que era o resultado possível quando os dois passos rodavam soltos.
-
-    Efeito colateral desejado no PostgreSQL: pelo MVCC, quem estiver lendo o
-    painel durante a carga continua enxergando os dados antigos até o commit,
-    em vez de pegar a tabela no intervalo entre o delete e o insert.
-
-    batch_size evita estourar o limite de parâmetros por query do SQLite.
-    """
-    with transaction.atomic():
-        apagados, _ = model.objects.all().delete()
-        model.objects.bulk_create(objetos, batch_size=batch_size)
-    logger.info("%s: %d apagados, %d inseridos", model.__name__, apagados, len(objetos))
-    return {"apagados": apagados, "inseridos": len(objetos)}
 
 
 def _normalizar_chave(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
@@ -692,145 +671,8 @@ def carregar_codigo_declaracao_contrapartida(silver_path: Path | None = None) ->
 
 
 #----- CARREGAR DADOS DO GRP PARA TESTE DAS TABELAS ----------------------
-def carregar_dados_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_dados_grp.parquet → model DadosGrp."""
-    caminho = silver_path or _silver_path("dcgce_dados_grp")
-    df = _ler_parquet(caminho)
 
-    objetos = [
-        DadosGrp(
-            nr_grp=_para_str(row["numero_instrumentogrp"]),
-            nr_instrumento=_para_str(row["numero_instrumento"]),
-            uo_cod=_para_str(row["unidadeorcam_-_codigo"]),
-            situacao=_para_str(row["situacao_instrumento"]),
-            dt_vigencia_inicial=_str_para_date(row["data_vigencia_instrumento_-_inicio"]),
-            dt_vigencia_termino=_str_para_date(row["data_vigencia_instrumento_-_termino"]),
-            dt_vigenciainicial_termino=_str_para_date(row["data_vigenciainicial_instrumento_-_termino"]),
-            vl_instrumento_concedente_inicial=_para_decimal(row["valor_instrumento_-_concedente_inicial"]),
-            vl_instrumento_concedente=_para_decimal(row["valor_instrumento_-_concedente"]),
-            vl_instrumento_contrapartida_fin_inicial=_para_decimal(row["valor_instrumento_-_contrapartida_financeira_inicial"]),
-            vl_instrumento_contrapartida_fin=_para_decimal(row["valor_instrumento_-_contrapartida_financeira"]),
-            vl_instrumento_total=_para_decimal(row["valor_instrumento_-_total"]),
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(DadosGrp, objetos)
 
-def carregar_cronograma_desembolso_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_cronograma_desembolso_grp.parquet → model CronogramaDesembolsoGrp."""
-    caminho = silver_path or _silver_path("dcgce_cronograma_desembolso_grp")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        CronogramaDesembolsoGrp(
-            nr_grp=_para_str(row["numero_instrumentogrp"]),
-            parcela_desembolso=_para_str(row["parcela_desembolso"]),
-            mes_desembolso=_para_str(row["desembolso_-_mes"]),
-            ano_desembolso=_para_str(row["desembolso_-_ano"]),
-            origem_recurso_parcela=_para_str(row["origem_recurso_parcela"]),
-            vl_desembolso=_para_decimal(row["valor_desembolso"])
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(CronogramaDesembolsoGrp, objetos)
-def carregar_recurso_contrapartida_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_recurso_contrapartida_grp.parquet → model RecursoContrapartidaGrp."""
-    caminho = silver_path or _silver_path("dcgce_recursos_contrapartida_grp")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        RecursosContrapartidaGrp(
-            uo_cod=_para_str(row["unidorcamentaria_financiadora_-_codigo"]),
-            fonte=_para_str(row["fonterecurso_-_codigo"]),
-            nr_grp=_para_str(row["numero_instrumentogrp"]),
-            ipu=_para_str(row["ipu_-_codigo"]),
-            vl_contrapartida_financeira=_para_decimal(row["valor_contrapartida_financeira"])
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(RecursosContrapartidaGrp, objetos)
-
-def carregar_recurso_concedente_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_recurso_concedente_grp.parquet → model RecursoConcedenteGrp."""
-    caminho = silver_path or _silver_path("dcgce_recursos_concedente_grp")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        RecursosConcedenteGrp(
-            uo_cod=_para_str(row["unidorcamentaria_arrecadacao_-_codigo"]),
-            nr_grp=_para_str(row["numero_instrumentogrp"]),
-            fonte=_para_str(row["fonterecurso_-_codigo"]),
-            ipu=_para_str(row["ipu_-_codigo"]),
-            vl_concedente=_para_decimal(row["valor_recurso_concedente"])
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(RecursosConcedenteGrp, objetos)
-
-def carregar_plano_aplicacao_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_plano_aplicacao_grp.parquet → model PlanoAplicacaoGrp."""
-    caminho = silver_path or _silver_path("dcgce_plano_aplicacao_grp")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        PlanoAplicacaoGrp(
-            nr_grp=_para_str(row["numero_instrumentogrp"]),
-            nome_projeto=_para_str(row["nome_projeto"]),
-            objeto_projeto=_para_str(row["objeto_projeto"]),
-            situacao_instrumento=_para_str(row["situacao_instrumento"]),
-            tipo_instrumento=_para_str(row["tipo_proposta/instrumento"]),
-            responsavel_nome=_para_str(row["responsavel_-_nome"]),
-            responsavel_atribuicao=_para_str(row["responsavel_-_atribuicao"]),
-            cnpj_convenente=_para_str(row["convenenteinstrumento_-_cnpj-capj"]),
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(PlanoAplicacaoGrp, objetos)
-
-def carregar_plano_aplicacao_grp_detalhes(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_plano_aplicacao_grp_detalhes.parquet → model PlanoAplicacaoGrpDetalhes."""
-    caminho = silver_path or _silver_path("dcgce_plano_aplicacao_grp_detalhes")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        PlanoAplicacaoGrpDetalhes(
-            nr_catmas=_para_str(row["numero_catmas"]),
-            nr_grp=_para_str(row["numero_instrumentogrp"]),
-            tipo_despesa=_para_str(row["tipo_despesa_aexecutar"]),
-            categoria_despesa=_para_str(row["categoriaeconomica_-_codigo"]),
-            grupo_despesa=_para_str(row["grupodespesa_-_codigo"]),
-            modalidade=_para_str(row["modalidade_-_codigo"]),
-            elemento_despesa=_para_str(row["elementodespesa_-_codigo"]),
-            beneficiario_cnpj=_para_str(row["beneficiario_-_cnpj-capj"]),
-            descricao_item=_para_str(row["descricao_item_aexecutar"]),
-            origem_recurso=_para_str(row["origem_recurso"]),
-            qt_item_executar=_para_decimal(row["quantidade_item_aexecutar"]),
-            vl_uni_item_a_executar=_para_decimal(row["valor_unitario_item_aexecutar"]),
-            vl_total_item_a_executar=_para_decimal(row["valor_total_item_aexecutar"]),
-            situacao_item_a_executar=_para_str(row["situacao_item_aexecutar"]),
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(PlanoAplicacaoGrpDetalhes, objetos)
-
-def carregar_esfera_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_esfera_grp.parquet → model EsferaGrp."""
-    caminho = silver_path or _silver_path("dcgce_esfera_grp")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        EsferaGrp(
-            concedente_nome=_para_str(row["concedente_-_nome"]),
-            concedente_cnpj=_para_str(row["concedente_-_cnpj-capj"]),
-            concedente_esfera=_para_str(row["concedente_-_esferaatuacao"]),
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(EsferaGrp, objetos)
-
-# ---------------------------------------------------------------------------
-# Gold — ConvenioIntegrado (tabela G_/A_ completa)
-# ---------------------------------------------------------------------------
 def _str_para_date(val):
     """String ISO / pd.Timestamp / NaT → datetime.date; erro ou NA → None."""
     try:

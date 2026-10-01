@@ -25,7 +25,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .utils import normalizar_coluna
+from .utils import limpar_colunas_padronizadas, normalizar_coluna
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,16 @@ def _limpar_id(val: str) -> str | None:
         return val[:-2]
     return val
 
+def _para_numero(val: str) -> str:
+    """
+    Converte valor no formato brasileiro para o americano, que o pandas entende.
+    '13.334.172,00' -> '13334172.00'
+    Só age se houver vírgula, para não estragar valores já no formato americano
+    (ex.: '744684.0' das fontes antigas continua igual).
+    """
+    if not isinstance(val, str) or "," not in val:
+        return val
+    return val.replace(".", "").replace(",", ".")
 
 def _bronze_mais_recente(nome_fonte: str) -> Path:
     from django.conf import settings
@@ -136,7 +146,7 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
         if col not in df.columns:
             logger.warning("  Coluna data '%s' ausente no Bronze de '%s'", col, nome)
             continue
-        convertida = pd.to_datetime(df[col], errors="coerce")
+        convertida = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
         logger.info("  %-45s  NaT: %d", col, convertida.isna().sum())
         df[col] = convertida
 
@@ -146,7 +156,7 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
         if col not in df.columns:
             logger.warning("  Coluna valor '%s' ausente no Bronze de '%s'", col, nome)
             continue
-        convertida = pd.to_numeric(df[col], errors="coerce")
+        convertida = pd.to_numeric(df[col].map(_para_numero), errors="coerce")
         logger.info("  %-45s  NaN: %d", col, convertida.isna().sum())
         df[col] = convertida
 
@@ -165,6 +175,19 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
     for col in df.columns:
         if col not in cols_tipadas:
             df[col] = df[col].str.strip().astype("string")
+
+    # --- renomeação para os nomes finais (bloco "renomear" do YAML) ---
+    mapa = {
+        normalizar_coluna(original): final
+        for original, final in schema.get("renomear", {}).items()
+    }
+    faltando = set(mapa) - set(df.columns)
+    if faltando:
+        raise ValueError(f"Colunas do 'renomear' que não existem na fonte: {faltando}")
+    df = df.rename(columns=mapa)
+
+    if mapa:  # só fontes com bloco 'renomear' (as novas)
+        df = limpar_colunas_padronizadas(df)
 
     _validar(df, nome)
     return df

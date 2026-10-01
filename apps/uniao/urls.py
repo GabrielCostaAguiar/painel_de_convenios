@@ -12,5 +12,5 @@ from . import views
 app_name = "uniao"
 
 urlpatterns = [
-    path("uniao/", views.uniao, name="uniao"),
+    path("uniao/", views.consultas_uniao, name="uniao"),
 ]

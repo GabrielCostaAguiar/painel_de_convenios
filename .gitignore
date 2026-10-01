@@ -39,15 +39,15 @@ local_settings.py
 media/
 staticfiles/
 
-# Data layer — ignora conteúdo das subpastas, mas mantém os .gitkeep
-data/raw/*
-!data/raw/.gitkeep
-data/bronze/*
-!data/bronze/.gitkeep
-data/silver/*
-!data/silver/.gitkeep
-data/gold/*
-!data/gold/.gitkeep
+# Data layer — ignora todo o conteúdo, mas mantém os .gitkeep
+# Tudo em data/ (raiz e subpastas) fica fora do Git. As pastas sao
+# re-incluidas so para que os .gitkeep possam ser versionados.
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# Sessoes SQL do editor (consultas pessoais)
+*.session.sql
 
 # Configuracao pessoal do Claude Code
 # settings.json e a configuracao compartilhada do projeto e VAI para o Git.

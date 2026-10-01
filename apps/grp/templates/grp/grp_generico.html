@@ -2,10 +2,10 @@
 {% block title %}GRP — {{ titulo }}{% endblock %}
 
 {% block content %}
-<div class="crumbs">GRP <span>›</span> <b>{{ titulo }}</b></div>
-<div class="page-h"><h1>GRP (teste)</h1></div>
+<div class="crumbs">Consulta <span>›</span> <b>GRP</b></div>
+<div class="page-h"><h1>Dados gerais</h1></div>
 
-{% include "painel/_subtabs_grp.html" %}
+{% include "grp/_subtabs_grp.html" %}
 
 <form method="get" action="{{ request.path }}">
 <div class="panel filters">

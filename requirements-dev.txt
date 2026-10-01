@@ -13,3 +13,4 @@ Pygments==2.20.0
 pytest==9.0.3
 pytest-django==4.12.0
 pytokens==0.4.1
+psycopg2==2.9.7
