@@ -24,12 +24,34 @@ from .models import (
     CronogramaDesembolsoGrp,
     DadosGrp,
     EsferaGrp,
+    GrpTabelaUo,
     PlanoAplicacaoGrp,
     PlanoAplicacaoGrpDetalhes,
     RecursosConcedenteGrp,
     RecursosContrapartidaGrp,
     TabelaUoGrp,
     GrpInstrumento,
+    GrpConcedente,
+    GrpPrestacaoContas,
+    GrpPlanejamentoObras,
+    GrpPropostaMarcoLogico,
+    GrpEmenda,
+    GrpInterveniente,
+    GrpUnidadeExecutora,
+    GrpMunicipioAtendido,
+    GrpRegiaoAtendida,
+    GrpRecursoConcedente,
+    GrpRecursoContrapartida,
+    GrpDotacaoContrapartida,
+    GrpAcaoOrcamentaria,
+    GrpInstrumentoFinanciado,
+    GrpItemExecutar,
+    GrpCronogramaDesembolso,
+    GrpCronogramaFisico,
+    GrpEntregaProjeto,
+    GrpAtividadeProjeto,
+    GrpMatrizResponsabilidade,
+    GrpTabelaUo,
 )
 
 logger = logging.getLogger(__name__)
@@ -225,7 +247,7 @@ def carregar_esfera_grp(silver_path: Path | None = None) -> dict:
     return _bulk_refresh(EsferaGrp, objetos)
 
 def carregar_tabela_uo_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_tabela_uo_grp.xlsx → model EsferaGrp."""
+    """Fonte: dcgce_tabela_uo_grp.xlsx → model TabelaUoGrp."""
     caminho = silver_path or _silver_path("dcgce_tabela_uo_grp")
     df = _ler_parquet(caminho)
 
@@ -292,3 +314,24 @@ def carregar_tabela_generica(nome_fonte: str, model) -> dict:
 
 
 carregar_grp_instrumento = partial(carregar_tabela_generica, "grp_instrumento", GrpInstrumento)
+carregar_grp_concedente = partial(carregar_tabela_generica, "grp_concedente", GrpConcedente)
+carregar_grp_prestacao_contas = partial(carregar_tabela_generica, "grp_prestacao_contas", GrpPrestacaoContas)
+carregar_grp_planejamento_obras = partial(carregar_tabela_generica, "grp_planejamento_obras", GrpPlanejamentoObras)
+carregar_grp_proposta_marco_logico = partial(carregar_tabela_generica, "grp_proposta_marco_logico", GrpPropostaMarcoLogico)
+carregar_grp_emenda = partial(carregar_tabela_generica, "grp_emenda", GrpEmenda)
+carregar_grp_interveniente = partial(carregar_tabela_generica, "grp_interveniente", GrpInterveniente)
+carregar_grp_unidade_executora = partial(carregar_tabela_generica, "grp_unidade_executora", GrpUnidadeExecutora)
+carregar_grp_municipio_atendido = partial(carregar_tabela_generica, "grp_municipio_atendido", GrpMunicipioAtendido)
+carregar_grp_regiao_atendida = partial(carregar_tabela_generica, "grp_regiao_atendida", GrpRegiaoAtendida)
+carregar_grp_recurso_concedente = partial(carregar_tabela_generica, "grp_recurso_concedente", GrpRecursoConcedente)
+carregar_grp_recurso_contrapartida = partial(carregar_tabela_generica, "grp_recurso_contrapartida", GrpRecursoContrapartida)
+carregar_grp_dotacao_contrapartida = partial(carregar_tabela_generica, "grp_dotacao_contrapartida", GrpDotacaoContrapartida)
+carregar_grp_acao_orcamentaria = partial(carregar_tabela_generica, "grp_acao_orcamentaria", GrpAcaoOrcamentaria)
+carregar_grp_instrumento_financiado = partial(carregar_tabela_generica, "grp_instrumento_financiado", GrpInstrumentoFinanciado)
+carregar_grp_item_executar = partial(carregar_tabela_generica, "grp_item_executar", GrpItemExecutar)
+carregar_grp_cronograma_desembolso = partial(carregar_tabela_generica, "grp_cronograma_desembolso", GrpCronogramaDesembolso)
+carregar_grp_cronograma_fisico = partial(carregar_tabela_generica, "grp_cronograma_fisico", GrpCronogramaFisico)
+carregar_grp_entrega_projeto = partial(carregar_tabela_generica, "grp_entrega_projeto", GrpEntregaProjeto)
+carregar_grp_atividade_projeto = partial(carregar_tabela_generica, "grp_atividade_projeto", GrpAtividadeProjeto)
+carregar_grp_matriz_responsabilidade = partial(carregar_tabela_generica, "grp_matriz_responsabilidade", GrpMatrizResponsabilidade)
+carregar_grp_tabela_uo = partial(carregar_tabela_generica, "grp_tabela_uo", GrpTabelaUo)
