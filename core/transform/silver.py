@@ -56,9 +56,13 @@ def _para_numero(val: str) -> str:
     Só age se houver vírgula, para não estragar valores já no formato americano
     (ex.: '744684.0' das fontes antigas continua igual).
     """
-    if not isinstance(val, str) or "," not in val:
+    if not isinstance(val, str):
         return val
-    return val.replace(".", "").replace(",", ".")
+    if "," in val:
+        return val.replace(".", "").replace(",", ".")
+    if val.count(".") > 1:
+        return val.replace(".", "")
+    return val
 
 def _bronze_mais_recente(nome_fonte: str) -> Path:
     from django.conf import settings
