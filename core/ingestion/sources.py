@@ -368,6 +368,200 @@ FONTES: dict[str, FonteDados] = {
                 "Núcleo usado por todas as telas: identificação, situação, vigência, convenente e valores."
                 "Todas as variáveis são 1:1 com o instrumento, então reuni-las não duplica linhas."
             ),
-            opcoes_leitura={"sep": ",", "encoding": "UTF-8"},
+            opcoes_leitura={"sep": ",", "encoding": "UTF-8"},  # sep ',' (com todos os campos entre aspas): os campos de texto livre têm vírgulas e quebravam a leitura; exportado com aspas, a ',' dentro do texto fica protegida e não vira coluna extra.
+        ),
+    "grp_prestacao_contas": FonteDados(
+            nome="grp_prestacao_contas",
+            arquivo="grp/grp_prestacao_contas.csv",
+            formato="csv",
+            descricao=(
+                "Fase própria do ciclo de vida, vazia para instrumentos vigentes."
+                "Alimenta um painel específico de prestação de contas."
+                "Por ser 1:1, pode ser incorporada à consulta 01 sem risco, se preferir menos extrações."
+           ),
+           opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_planejamento_obras": FonteDados(
+            nome="grp_planejamento_obras",
+            arquivo="grp/grp_planejamento_obras.csv",
+            formato="csv",
+            descricao=(
+                "Só se aplica a instrumentos de obras."
+                "Separar evita 13 colunas quase sempre vazias no núcleo."
+                "Também é 1:1 e pode ser incorporada à 01"
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_proposta_marco_logico": FonteDados(
+            nome="grp_proposta_marco_logico",
+            arquivo="grp/grp_proposta_marco_logico.csv",
+            formato="csv",
+            descricao=(
+                "Textos longos do marco lógico: pesados, raramente filtrados e sujeitos a corte no Excel."
+                "Deve permanecer separada também na silver (texto longo e pouco consultado é um motivo legítimo para uma tabela 1:1). Exportar em CSV."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_concedente": FonteDados(
+            nome="grp_concedente",
+            arquivo="grp/grp_concedente.csv",
+            formato="csv",
+            descricao=(
+                "Origem da dimensão Concedente, cuja chave natural é o CNPJ"
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_emenda": FonteDados(
+            nome="grp_emenda",
+            arquivo="grp/grp_emenda.csv",
+            formato="csv",
+            descricao=(
+                "Elo central da DCGCE com as emendas parlamentares. Permite painéis por parlamentar, ano e situação da emenda."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_interveniente": FonteDados(
+            nome="grp_interveniente",
+            arquivo="grp/grp_interveniente.csv",
+            formato="csv",
+            descricao=(
+                "Identifica quem executa em nome do convenente, quando há interveniente (ver fl_interveniente_executor na 01)."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_unidade_executora": FonteDados(
+            nome="grp_unidade_executora",
+            arquivo="grp/grp_unidade_executora.csv",
+            formato="csv",
+            descricao=(
+                "Responde à pergunta 'quais as unidades executoras?'. Os códigos de órgão devem apontar para a dimensão única de UO/órgão."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_municipio_atendido": FonteDados(
+            nome="grp_municipio_atendido",
+            arquivo="grp/grp_municipio_atendido.csv",
+            formato="csv",
+            descricao=(
+                "Base para mapas e recortes territoriais. O código do município permite cruzar com IBGE."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_regiao_atendida": FonteDados(
+            nome="grp_regiao_atendida",
+            arquivo="grp/grp_regiao_atendida.csv",
+            formato="csv",
+            descricao=(
+                "Recorte por região. Atenção: o grão inclui o município da região, então nunca juntar com a 09 sem agregar antes."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_recurso_concedente": FonteDados(
+            nome="grp_recurso_concedente",
+            arquivo="grp/grp_recurso_concedente.csv",
+            formato="csv",
+            descricao=(
+                "Origem do recurso federal no orçamento estadual, por UO arrecadadora, com o órgão gestor."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_recurso_contrapartida": FonteDados(
+            nome="grp_recurso_contrapartida",
+            arquivo="grp/grp_recurso_contrapartida.csv",
+            formato="csv",
+            descricao=(
+                "Contrapartida financeira do estado por UO financiadora."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_dotacao_contrapartida": FonteDados(
+            nome="grp_dotacao_contrapartida",
+            arquivo="grp/grp_dotacao_contrapartida.csv",
+            formato="csv",
+            descricao=(
+                "Dotação orçamentária que suporta a contrapartida. Complementa a grp_recurso_contrapartida."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_acao_orcamentaria": FonteDados(
+            nome="grp_acao_orcamentaria",
+            arquivo="grp/grp_acao_orcamentaria.csv",
+            formato="csv",
+            descricao=(
+                "Vínculo com o orçamento estadual. É a ponte natural com SIAFI/SIGCON (ação + UO)."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_instrumento_financiado": FonteDados(
+            nome="grp_instrumento_financiado",
+            arquivo="grp/grp_instrumento_financiado.csv",
+            formato="csv",
+            descricao=(
+                "Responde à pergunta 'quais são os outros instrumentos financiados?'. Relaciona instrumentos entre si."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_item_executar": FonteDados(
+            nome="grp_item_executar",
+            arquivo="grp/grp_item_executar.csv",
+            formato="csv",
+            descricao=(
+                "Detalhe da despesa prevista. Maior volume do modelo: exportar em CSV. A fonte não tem ID de item, por isso todos os atributos marcados G são obrigatórios."
+            ),
+            opcoes_leitura={"sep": ",", "encoding": "UTF-8"},  # sep ',' (com todos os campos entre aspas): os campos de texto livre têm vírgulas e quebravam a leitura; exportado com aspas, a ',' dentro do texto fica protegida e não vira coluna extra.
+        ),
+    "grp_cronograma_desembolso": FonteDados(
+            nome="grp_cronograma_desembolso",
+            arquivo="grp/grp_cronograma_desembolso.csv",
+            formato="csv",
+            descricao=(
+                "Fluxo financeiro previsto. 'Mês Descritivo' e 'Mês Abreviado' foram excluídos porque derivam de 'Desembolso - Mês' e serão calculados em SQL."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_cronograma_fisico": FonteDados(
+            nome="grp_cronograma_fisico",
+            arquivo="grp/grp_cronograma_fisico.csv",
+            formato="csv",
+            descricao=(
+                "Execução física planejada. Atenção: os dados da meta se repetem em cada etapa dela; nunca somar vl_meta diretamente nesta tabela."
+            ),
+            opcoes_leitura={"sep": ",", "encoding": "UTF-8"},  # sep ',' (com todos os campos entre aspas): os campos de texto livre têm vírgulas e quebravam a leitura; exportado com aspas, a ',' dentro do texto fica protegida e não vira coluna extra.
+        ),
+    "grp_entrega_projeto": FonteDados(
+            nome="grp_entrega_projeto",
+            arquivo="grp/grp_entrega_projeto.csv",
+            formato="csv",
+            descricao=(
+                "Produtos do projeto no marco lógico."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_atividade_projeto": FonteDados(
+            nome="grp_atividade_projeto",
+            arquivo="grp/grp_atividade_projeto.csv",
+            formato="csv",
+            descricao=(
+                "Atividades do projeto no marco lógico."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_matriz_responsabilidade": FonteDados(
+            nome="grp_matriz_responsabilidade",
+            arquivo="grp/grp_matriz_responsabilidade.csv",
+            formato="csv",
+            descricao=(
+                " Quem responde por cada instrumento. Contém dados pessoais (LGPD): extrair apenas o necessário, nunca versionar o arquivo e restringir o acesso no painel."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
+        ),
+    "grp_tabela_uo": FonteDados(
+            nome="grp_tabela_uo",
+            arquivo="grp/grp_tabela_uo.csv",
+            formato="csv",
+            descricao=(
+                "Tabela que consta todas as UOs e seus respectivos nomes."
+            ),
+            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
         )
 }
