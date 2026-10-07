@@ -1,0 +1,19 @@
+fonte: grp_interveniente
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - interveniente_-_codigo
+  - interveniente_-_cnpj-capj
+  texto:
+  - interveniente_-_nome
+  - interveniente_-_sigla
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  interveniente_-_codigo: cd_interveniente
+  interveniente_-_nome: nm_interveniente
+  interveniente_-_sigla: sg_interveniente
+  interveniente_-_cnpj-capj: nr_cnpj_interveniente

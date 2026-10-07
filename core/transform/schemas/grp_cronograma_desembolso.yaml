@@ -1,0 +1,22 @@
+fonte: grp_cronograma_desembolso
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - parcela_desembolso
+  - origem_recurso_parcela
+  - desembolso_-_ano
+  - desembolso_-_mes
+  valor:
+  - valor_desembolso
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  parcela_desembolso: nr_parcela
+  origem_recurso_parcela: ds_origem_recurso_parcela
+  desembolso_-_ano: nr_ano_desembolso
+  desembolso_-_mes: nr_mes_desembolso
+  valor_desembolso: vl_desembolso

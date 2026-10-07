@@ -1,0 +1,41 @@
+fonte: grp_prestacao_contas
+gerado_em: '2026-10-02'
+colunas:
+  data:
+  - data_envio_prestacaocontas
+  - data_finalizacao_prestacaocontas
+  - data_limite_prestacaocontas
+  - data_limite_prestacaocontas_inicial
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - conclusao_objeto_s/n
+  - pendencia_contabilizacao_s/n
+  - prestacaocontas_finalizada_s/n
+  - prestacaocontas_justificativa_aprovacao
+  - prestacaocontas_justificativa_conclusao
+  - prestacaocontas_justificativa_naoobrigatoriedade
+  - prestacaocontas_obrigatoria_s/n
+  - prestacaocontas_situacao_aprovacao
+  - tipo_prestacaocontas_final
+  valor:
+  - prazo_prestacaocontas
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  conclusao_objeto_s/n: fl_conclusao_objeto
+  data_envio_prestacaocontas: dt_pc_envio
+  data_finalizacao_prestacaocontas: dt_pc_finalizacao
+  data_limite_prestacaocontas: dt_pc_limite
+  data_limite_prestacaocontas_inicial: dt_pc_limite_inicial
+  pendencia_contabilizacao_s/n: fl_pendencia_contabilizacao
+  prazo_prestacaocontas: qt_pc_prazo
+  prestacaocontas_finalizada_s/n: fl_pc_finalizada
+  prestacaocontas_justificativa_aprovacao: tx_pc_justificativa_aprovacao
+  prestacaocontas_justificativa_conclusao: tx_pc_justificativa_conclusao
+  prestacaocontas_justificativa_naoobrigatoriedade: tx_pc_justificativa_nao_obrigatoriedade
+  prestacaocontas_obrigatoria_s/n: fl_pc_obrigatoria
+  prestacaocontas_situacao_aprovacao: ds_pc_situacao_aprovacao
+  tipo_prestacaocontas_final: tp_pc_final

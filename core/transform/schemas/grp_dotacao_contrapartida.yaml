@@ -1,0 +1,18 @@
+fonte: grp_dotacao_contrapartida
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - dotacao_contrapartida
+  texto:
+  - situacao_dotacao_contrapartida
+  valor:
+  - valor_dotacao_contrapartida
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  dotacao_contrapartida: cd_dotacao_contrapartida
+  situacao_dotacao_contrapartida: ds_situacao_dotacao
+  valor_dotacao_contrapartida: vl_dotacao_contrapartida

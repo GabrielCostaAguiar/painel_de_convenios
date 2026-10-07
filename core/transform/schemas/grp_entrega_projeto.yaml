@@ -1,0 +1,23 @@
+fonte: grp_entrega_projeto
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - entrega_projeto
+  - indicadorproduto_entrega
+  - metaprazo_entrega
+  - criterio_aceitacao_entrega
+  - meioverificacao_entrega
+  - pressuposto_entrega
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  entrega_projeto: tx_entrega
+  indicadorproduto_entrega: tx_indicador_produto
+  metaprazo_entrega: tx_meta_prazo_entrega
+  criterio_aceitacao_entrega: tx_criterio_aceitacao_entrega
+  meioverificacao_entrega: tx_meio_verificacao_entrega
+  pressuposto_entrega: tx_pressuposto_entrega

@@ -1,0 +1,13 @@
+fonte: grp_atividade_projeto
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - atividade_projeto
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  atividade_projeto: tx_atividade

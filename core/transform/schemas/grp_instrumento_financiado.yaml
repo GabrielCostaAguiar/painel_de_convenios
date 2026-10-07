@@ -1,0 +1,18 @@
+fonte: grp_instrumento_financiado
+gerado_em: '2026-10-02'
+colunas:
+  valor:
+  - valor_instrumento_financiado
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - numero_instrumento_financiado
+  texto:
+  - tipo_instrumento_financiado
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  numero_instrumento_financiado: nr_instrumento_financiado
+  tipo_instrumento_financiado: tp_instrumento_financiado
+  valor_instrumento_financiado: vl_instrumento_financiado

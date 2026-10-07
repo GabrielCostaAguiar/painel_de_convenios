@@ -1,0 +1,33 @@
+fonte: grp_matriz_responsabilidade
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - unidadeadm_vinculacao_-_codigo
+  - responsavel_-_cpf-capf
+  texto:
+  - tipo_gestor/participante
+  - unidadeadm_vinculacao_-_nome
+  - unidadeadm_vinculacao_-_sigla
+  - responsavel_-_nome
+  - responsavel_-_nivelhierarquico
+  - responsavel_-_atribuicao
+  - responsavel_-_email
+  - responsavel_-_telefone
+  - responsavel_monitoramento_s/n
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  tipo_gestor/participante: tp_gestor_participante
+  unidadeadm_vinculacao_-_codigo: cd_unidade_adm_vinculacao
+  unidadeadm_vinculacao_-_nome: nm_unidade_adm_vinculacao
+  unidadeadm_vinculacao_-_sigla: sg_unidade_adm_vinculacao
+  responsavel_-_cpf-capf: nr_cpf_responsavel
+  responsavel_-_nome: nm_responsavel
+  responsavel_-_nivelhierarquico: ds_nivel_hierarquico
+  responsavel_-_atribuicao: ds_atribuicao
+  responsavel_-_email: ds_email_responsavel
+  responsavel_-_telefone: nr_telefone_responsavel
+  responsavel_monitoramento_s/n: fl_responsavel_monitoramento

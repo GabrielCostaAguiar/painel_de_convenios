@@ -1,0 +1,40 @@
+fonte: grp_item_executar
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - numero_catmas
+  - categoriaeconomica_-_codigo
+  - grupodespesa_-_codigo
+  - modalidade_-_codigo
+  - elementodespesa_-_codigo
+  - elementoitem_-_codigo
+  - beneficiario_-_cnpj-capj
+  texto:
+  - tipo_despesa_aexecutar
+  - descricao_item_aexecutar
+  - origem_recurso
+  - situacao_item_aexecutar
+  valor:
+  - quantidade_item_aexecutar
+  - valor_unitario_item_aexecutar
+  - valor_total_item_aexecutar
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  numero_catmas: cd_catmas
+  tipo_despesa_aexecutar: tp_despesa
+  categoriaeconomica_-_codigo: cd_categoria_economica
+  grupodespesa_-_codigo: cd_grupo_despesa
+  modalidade_-_codigo: cd_modalidade_aplicacao
+  elementodespesa_-_codigo: cd_elemento_despesa
+  elementoitem_-_codigo: cd_elemento_item
+  beneficiario_-_cnpj-capj: nr_cnpj_beneficiario
+  descricao_item_aexecutar: ds_item
+  origem_recurso: ds_origem_recurso
+  quantidade_item_aexecutar: qt_item
+  valor_unitario_item_aexecutar: vl_unitario_item
+  valor_total_item_aexecutar: vl_total_item
+  situacao_item_aexecutar: ds_situacao_item

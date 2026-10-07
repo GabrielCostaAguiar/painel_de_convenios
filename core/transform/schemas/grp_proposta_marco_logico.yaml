@@ -1,0 +1,45 @@
+fonte: grp_proposta_marco_logico
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - criterios_aceitacao_objetivogeral
+  - criterios_aceitacao_proposito
+  - indicadores_objetivogeral
+  - indicadores_proposito
+  - interesses_reciprocos_projeto
+  - metasprazo_objetivogeral
+  - metasprazo_proposito
+  - objetivogeral_projeto
+  - pressupostos_objetivogeral
+  - pressupostos_proposito
+  - problema_projeto
+  - proposito_projeto
+  - publico_alvo_projeto
+  - relacao_projeto_objetivo
+  - resultadoesperado_projeto
+  - verificacao_indicadores_objetivogeral
+  - verificacao_indicadores_proposito
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  criterios_aceitacao_objetivogeral: tx_criterios_aceitacao_objetivo_geral
+  criterios_aceitacao_proposito: tx_criterios_aceitacao_proposito
+  indicadores_objetivogeral: tx_indicadores_objetivo_geral
+  indicadores_proposito: tx_indicadores_proposito
+  interesses_reciprocos_projeto: tx_interesses_reciprocos
+  metasprazo_objetivogeral: tx_metas_prazo_objetivo_geral
+  metasprazo_proposito: tx_metas_prazo_proposito
+  objetivogeral_projeto: tx_objetivo_geral
+  pressupostos_objetivogeral: tx_pressupostos_objetivo_geral
+  pressupostos_proposito: tx_pressupostos_proposito
+  problema_projeto: tx_problema
+  proposito_projeto: tx_proposito
+  publico_alvo_projeto: tx_publico_alvo
+  relacao_projeto_objetivo: tx_relacao_projeto_objetivo
+  resultadoesperado_projeto: tx_resultado_esperado
+  verificacao_indicadores_objetivogeral: tx_verificacao_indicadores_objetivo_geral
+  verificacao_indicadores_proposito: tx_verificacao_indicadores_proposito

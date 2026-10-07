@@ -1,0 +1,17 @@
+fonte: grp_municipio_atendido
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - municipioatendido_-_codigo
+  texto:
+  - municipioatendido_-_nome
+  - unidadefederacao
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  municipioatendido_-_codigo: cd_municipio
+  municipioatendido_-_nome: nm_municipio
+  unidadefederacao: sg_uf

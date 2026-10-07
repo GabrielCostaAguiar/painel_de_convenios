@@ -1,0 +1,32 @@
+fonte: grp_recurso_contrapartida
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - unidorcamentaria_financiadora_-_codigo
+  - fonterecurso_-_codigo
+  - ipu_-_codigo
+  - orgaogestor_financiadora_-_codigo
+  texto:
+  - unidorcamentaria_financiadora_-_nome
+  - unidorcamentaria_financiadora_-_sigla
+  - situacao_contrapartida_financeira
+  - orgaogestor_financiadora_-_nome
+  - orgaogestor_financiadora_-_sigla
+  valor:
+  - valor_contrapartida_financeira
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  unidorcamentaria_financiadora_-_codigo: cd_uo_financiadora
+  unidorcamentaria_financiadora_-_nome: nm_uo_financiadora
+  unidorcamentaria_financiadora_-_sigla: sg_uo_financiadora
+  situacao_contrapartida_financeira: ds_situacao_contrapartida
+  fonterecurso_-_codigo: cd_fonte_recurso_contrapartida
+  ipu_-_codigo: cd_ipu_contrapartida
+  valor_contrapartida_financeira: vl_contrapartida_financeira
+  orgaogestor_financiadora_-_codigo: cd_orgao_gestor_financiadora
+  orgaogestor_financiadora_-_nome: nm_orgao_gestor_financiadora
+  orgaogestor_financiadora_-_sigla: sg_orgao_gestor_financiadora

@@ -1,0 +1,21 @@
+fonte: grp_emenda
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - emenda_-_numero
+  texto:
+  - emenda_-_ano
+  - emenda_-_parlamentar
+  - emenda_-_situacao
+  - emenda_-_tipo_transferencia
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  emenda_-_ano: nr_ano_emenda
+  emenda_-_numero: nr_emenda
+  emenda_-_parlamentar: nm_parlamentar
+  emenda_-_situacao: ds_situacao_emenda
+  emenda_-_tipo_transferencia: tp_transferencia_emenda

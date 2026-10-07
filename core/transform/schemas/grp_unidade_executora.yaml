@@ -1,0 +1,21 @@
+fonte: grp_unidade_executora
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - orgao_unidadeadm_-_codigo
+  - unidadeadm_-_codigo
+  texto:
+  - orgao_unidadeadm_-_nome
+  - orgao_unidadeadm_-_sigla
+  - unidadeadm_-_nome
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  orgao_unidadeadm_-_codigo: cd_orgao_unidade_adm
+  orgao_unidadeadm_-_nome: nm_orgao_unidade_adm
+  orgao_unidadeadm_-_sigla: sg_orgao_unidade_adm
+  unidadeadm_-_codigo: cd_unidade_adm
+  unidadeadm_-_nome: nm_unidade_adm

@@ -1,0 +1,11 @@
+fonte: grp_tabela_uo
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - unidadeorcam_-_codigo
+  texto:
+  - unidadeorcam_-_nome
+duvidoso: []
+renomear:
+  unidadeorcam_-_codigo: cd_uo
+  unidadeorcam_-_nome: nm_uo

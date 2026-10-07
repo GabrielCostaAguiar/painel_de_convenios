@@ -1,0 +1,23 @@
+fonte: grp_regiao_atendida
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - regiaoatendida_-_codigo
+  - municipioregiao_-_codigo
+  texto:
+  - regiaoatendida_-_nome
+  - regiaoatendida_-_situacao
+  - municipioregiao_-_nome
+  - municipioregao_-_uf
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  regiaoatendida_-_codigo: cd_regiao
+  regiaoatendida_-_nome: nm_regiao
+  regiaoatendida_-_situacao: ds_situacao_regiao
+  municipioregiao_-_codigo: cd_municipio_regiao
+  municipioregiao_-_nome: nm_municipio_regiao
+  municipioregao_-_uf: sg_uf_municipio_regiao  # typo na fonte GRP: "MunicípioRegão" (sem "i")

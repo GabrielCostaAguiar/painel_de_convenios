@@ -1,0 +1,35 @@
+fonte: grp_cronograma_fisico
+gerado_em: '2026-10-02'
+colunas:
+  data:
+  - meta_-_data_inicio
+  - etapa_-_data_inicio
+  - meta_-_data_termino
+  - etapa_-_data_termino
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - tipo_meta/etapa
+  - meta_-_especificacao
+  - etapa_-_especificacao
+  valor:
+  - meta_-_valor
+  - etapa_-_valor
+  - meta_-_duracao
+  - etapa_-_duracao
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  tipo_meta/etapa: tp_meta_etapa
+  meta_-_especificacao: tx_meta_especificacao
+  meta_-_data_inicio: dt_meta_inicio
+  meta_-_data_termino: dt_meta_termino
+  meta_-_duracao: qt_meta_duracao
+  meta_-_valor: vl_meta
+  etapa_-_especificacao: tx_etapa_especificacao
+  etapa_-_data_inicio: dt_etapa_inicio
+  etapa_-_data_termino: dt_etapa_termino
+  etapa_-_duracao: qt_etapa_duracao
+  etapa_-_valor: vl_etapa

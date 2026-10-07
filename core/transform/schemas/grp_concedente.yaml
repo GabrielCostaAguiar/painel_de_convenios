@@ -1,0 +1,17 @@
+fonte: grp_concedente
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - concedente_-_cnpj-capj
+  texto:
+  - concedente_-_nome
+  - concedente_-_esferaatuacao
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  concedente_-_nome: nm_concedente
+  concedente_-_esferaatuacao: ds_esfera_atuacao
+  concedente_-_cnpj-capj: nr_cnpj_concedente

@@ -1,0 +1,30 @@
+fonte: grp_acao_orcamentaria
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - codigo_acao
+  - unidorcamentaria_execucao_-_codigo
+  - orgaogestor_execucao_-_codigo
+  texto:
+  - unidorcamentaria_execucao_-_nome
+  - unidorcamentaria_execucao_-_sigla
+  - situacao_acao_orcamentaria
+  - orgaogestor_execucao_-_nome
+  - orgaogestor_execucao_-_sigla
+  valor:
+  - valor_execucao_orcamentaria
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  codigo_acao: cd_acao
+  unidorcamentaria_execucao_-_codigo: cd_uo_execucao
+  unidorcamentaria_execucao_-_nome: nm_uo_execucao
+  unidorcamentaria_execucao_-_sigla: sg_uo_execucao
+  situacao_acao_orcamentaria: ds_situacao_acao
+  valor_execucao_orcamentaria: vl_execucao_orcamentaria
+  orgaogestor_execucao_-_codigo: cd_orgao_gestor_execucao
+  orgaogestor_execucao_-_nome: nm_orgao_gestor_execucao
+  orgaogestor_execucao_-_sigla: sg_orgao_gestor_execucao

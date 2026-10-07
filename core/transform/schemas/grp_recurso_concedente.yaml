@@ -1,0 +1,32 @@
+fonte: grp_recurso_concedente
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  - unidorcamentaria_arrecadacao_-_codigo
+  - fonterecurso_-_codigo
+  - ipu_-_codigo
+  - orgaogestor_arrecadacao_-_codigo
+  texto:
+  - unidorcamentaria_arrecadacao_-_nome
+  - unidorcamentaria_arrecadacao_-_sigla
+  - situacao_recurso_concedente
+  - orgaogestor_arrecadacao_-_nome
+  - orgaogestor_arrecadacao_-_sigla
+  valor: 
+  - valor_recurso_concedente
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  unidorcamentaria_arrecadacao_-_codigo: cd_uo_arrecadacao
+  unidorcamentaria_arrecadacao_-_nome: nm_uo_arrecadacao
+  unidorcamentaria_arrecadacao_-_sigla: sg_uo_arrecadacao
+  situacao_recurso_concedente: ds_situacao_recurso_concedente
+  fonterecurso_-_codigo: cd_fonte_recurso
+  ipu_-_codigo: cd_ipu
+  valor_recurso_concedente: vl_recurso_concedente
+  orgaogestor_arrecadacao_-_codigo: cd_orgao_gestor_arrecadacao
+  orgaogestor_arrecadacao_-_nome: nm_orgao_gestor_arrecadacao
+  orgaogestor_arrecadacao_-_sigla: sg_orgao_gestor_arrecadacao

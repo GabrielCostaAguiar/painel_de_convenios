@@ -1,0 +1,37 @@
+fonte: grp_planejamento_obras
+gerado_em: '2026-10-02'
+colunas:
+  identificador:
+  - numero_instrumentogrp
+  - codigo_proposta
+  texto:
+  - competencia_execucao_obra
+  - desapropriacao_origem_recurso
+  - desapropriacao_providencias
+  - desapropriacao_providencias_s/n
+  - desapropriacao_s/n
+  - licenciamentoambiental_emobtencao_s/n
+  - licenciamentoambiental_s/n
+  - projetobasico_elaborado_s/n
+  - projetobasico_emelaboracao_s/n
+  - projetocomplementar_emelaboracao_s/n
+  - projetocomplementar_s/n
+  - titularidadeimovel_emregularizacao_s/n
+  - titularidadeimovel_s/n
+duvidoso: []
+renomear:
+  numero_instrumentogrp: nr_grp
+  codigo_proposta: cd_proposta
+  competencia_execucao_obra: ds_competencia_execucao_obra
+  desapropriacao_origem_recurso: ds_desapropriacao_origem_recurso
+  desapropriacao_providencias: tx_desapropriacao_providencias
+  desapropriacao_providencias_s/n: fl_desapropriacao_providencias
+  desapropriacao_s/n: fl_desapropriacao
+  licenciamentoambiental_emobtencao_s/n: fl_licenciamento_ambiental_em_obtencao
+  licenciamentoambiental_s/n: fl_licenciamento_ambiental
+  projetobasico_elaborado_s/n: fl_projeto_basico_elaborado
+  projetobasico_emelaboracao_s/n: fl_projeto_basico_em_elaboracao
+  projetocomplementar_emelaboracao_s/n: fl_projeto_complementar_em_elaboracao
+  projetocomplementar_s/n: fl_projeto_complementar
+  titularidadeimovel_emregularizacao_s/n: fl_titularidade_imovel_em_regularizacao
+  titularidadeimovel_s/n: fl_titularidade_imovel
