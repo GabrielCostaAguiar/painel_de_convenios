@@ -12,9 +12,9 @@ def get_grp_dados_qs(filtros: dict):
     (string; "" significa "sem filtro").
     Retorna QuerySet[NúmeroGRP] filtrado para a aba GRP (tela teste).
     """
-    from .models import DadosGrp
+    from .models import GrpGoldInstrumento
 
-    qs = DadosGrp.objects.all()
+    qs = GrpGoldInstrumento.objects.all()
 
     if filtros.get("nr_grp"):
         qs = qs.filter(nr_grp__icontains=filtros["nr_grp"])

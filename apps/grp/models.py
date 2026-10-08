@@ -412,11 +412,14 @@ class GrpInstrumento(models.Model):
     cd_tipo_instrumento_juridico = models.CharField(max_length=100, null=True, blank=True)  # Tipo InstrumentoJurídico - Código
     ds_tipo_instrumento_juridico = models.TextField(null=True, blank=True)  # Tipo InstrumentoJurídico - Descrição
     ds_situacao_instrumento = models.TextField(null=True, blank=True)  # Situação Instrumento
+    ds_status_instrumento = models.TextField(null=True, blank=True)     # Status Instrumento
     cd_proposta = models.CharField(max_length=30, unique=True, null=True, blank=True)  # Código Proposta
     tp_proposta = models.TextField(null=True, blank=True)  # Tipo Proposta
     nr_proposta_transferegov = models.CharField(max_length=100, null=True, blank=True)  # Número Proposta+Brasil
     ds_situacao_proposta = models.TextField(null=True, blank=True)  # Situação Proposta
     tx_objeto_projeto = models.TextField(null=True, blank=True)  # Objeto Projeto
+    ds_origem_instrumento = models.TextField(null=True, blank=True) # Origem Instrumento
+    ds_origem_proposta = models.TextField(null=True, blank=True) # Origem Proposta
 
     # --- Números SEI ---
     nr_sei_1 = models.CharField(max_length=100, null=True, blank=True)  # Número SEI 1
@@ -1068,3 +1071,61 @@ class GrpTabelaUo(models.Model):
 
     def __str__(self):
         return f"{self.cd_uo} — {self.nm_uo or '—'}"
+
+
+# ---------------------------------------------------------------------------
+# GRP - VIEWS GOLD - 
+# ---------------------------------------------------------------------------
+
+class GrpGoldInstrumento(models.Model):
+    """View que consolida os dados do instrumento GRP, incluindo informações de planejamento, execução, financeiro e partes envolvidas."""
+    nr_grp = models.CharField(max_length=10, primary_key=True)  # Número InstrumentoGRP
+    ds_tipo_instrumento_juridico = models.CharField(max_length=30, null=True, blank=True)  # Tipo Instrumento Jurídico
+    nr_instrumento = models.CharField(max_length=20, null=True, blank=True)  # Número Instrumento
+    nr_instrumento_transferegov = models.CharField(max_length=20, null=True, blank=True)  # Número Instrumento Transferência Gov
+    nm_projeto = models.TextField(null=True, blank=True)  # Nome do Projeto
+    tx_objeto_projeto = models.TextField(null=True, blank=True)  # Objeto do Projeto
+    nm_convenente = models.CharField(max_length=100, null=True, blank=True)  # Nome do Convenente
+    nm_concedente = models.CharField(max_length=100, null=True, blank=True)  # Nome do Concedente
+    ds_esfera_atuacao = models.CharField(max_length=100, null=True, blank=True)  # Esfera de Atuação
+    ds_situacao_instrumento = models.CharField(max_length=100, null=True, blank=True)  # Situação do Instrumento
+    ds_status_instrumento = models.CharField(max_length=100, null=True, blank=True)  # Status do Instrumento
+    ds_origem_instrumento = models.CharField(max_length=150, null=True, blank=True)  # Origem do Instrumento
+    dt_assinatura = models.DateField(null=True, blank=True)  # Data de Assinatura
+    dt_publicacao = models.DateField(null=True, blank=True)  # Data de Publicação
+    dt_vigencia_inicio = models.DateField(null=True, blank=True)  # Data de Início da Vigência
+    dt_vigencia_termino = models.DateField(null=True, blank=True)  # Data de Término da Vigência
+    dt_vigencia_termino_inicial = models.DateField(null=True, blank=True)  # Data de Término Inicial da Vigência
+    vl_rendimento_autorizado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)  # Valor do Rendimento Autorizado
+    vl_instrumento_concedente = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)  # Valor do Instrumento Concedente
+    vl_instrumento_contrapartida_fin = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)  # Valor da Contrapartida Financeira
+    vl_instrumento_total = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)  # Valor Total do Instrumento
+    
+    class Meta:
+        managed = False  # This model is managed by Django, but it represents a database view
+        db_table = "gold\".\"vw_instrumento"
+        verbose_name = "Instrumento (Gold)"
+
+    def __str__(self):
+        return self.nr_grp or "—"
+
+class GrpGoldRecursoConcedente(models.Model):
+    """View que consolida os dados de recursos do concedente
+    """
+    nr_grp = models.CharField(max_length=20, primary_key=True) # Número InstrumentoGRP
+    cd_uo_arrecadacao = models.CharField(max_length=10, null=True, blank=True)
+    nm_uo_arrecadacao = models.CharField(max_length=100, null=True, blank=True)
+    cd_fonte_recurso = models.CharField(max_length=6, null=True, blank=True)
+    cd_ipu = models.CharField(max_length=6, null=True, blank=True)
+    nm_concedente = models.CharField(max_length=100, null=True, blank=True)
+    nr_cnpj_concedente = models.CharField(max_length=20, null=True, blank=True)
+    vl_recurso_concedente = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    ds_situacao_recurso_concedente = models.CharField(max_length=500, null=True, blank=True)
+
+    class Meta:
+        managed = False  # This model is managed by Django, but it represents a database view
+        db_table = "gold\".\"vw_recurso_concedente"
+        verbose_name = "Recurso do Concedente (Gold)"
+
+    def __str__(self):
+        return self.nr_grp or "—"

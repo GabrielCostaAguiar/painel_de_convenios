@@ -93,8 +93,31 @@
     <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
   </div>
 
-  <div class="scroll-x">
+  <div class="tabela-container">
     <table>
+      <colgroup>
+            <col style="width: 150px">   <!-- Origem do Instrumento -->
+            <col style="width: 70px">    <!-- Nº GRP -->
+            <col style="width: 150px">   <!-- Tipo do Instrumento -->
+            <col style="width: 170px">   <!-- Nº Instrumento -->
+            <col style="width: 100px">   <!-- Nº União -->
+            <col style="width: 280px">   <!-- Nome do Projeto -->
+            <col style="width: 450px">   <!-- Objeto -->
+            <col style="width: 220px">   <!-- Convenente -->
+            <col style="width: 220px">   <!-- Concedente -->
+            <col style="width: 90px">    <!-- Esfera -->
+            <col style="width: 90px">   <!-- Situação -->
+            <col style="width: 170px">   <!-- Status -->
+            <col style="width: 120px">   <!-- Data de assinatura -->
+            <col style="width: 120px">   <!-- Data de publicação -->
+            <col style="width: 120px">   <!-- Inicio de vigência -->
+            <col style="width: 120px">   <!-- Término de vigência -->
+            <col style="width: 140px">   <!-- Rendimento (R$) -->
+            <col style="width: 140px">   <!-- Valor concedente (R$) -->
+            <col style="width: 140px">   <!-- Valor contrapartida (R$) -->
+            <col style="width: 140px">   <!-- Valor Total (R$) -->
+            <col style="width: 120px">   <!-- Término de vigência inicial -->
+      </colgroup>
       <thead>
         <tr>{% for col in colunas %}<th>{{ col }}</th>{% endfor %}</tr>
       </thead>

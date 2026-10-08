@@ -63,10 +63,13 @@ colunas:
   - nome_projeto
   - objeto_projeto
   - obtv_s/n
+  - origem_instrumento
+  - origem_proposta
   - proponente/convenentegrp_-_nome
   - relacao_projeto_acaoorcamentaria
   - situacao_instrumento
   - situacao_proposta
+  - status_instrumento
   - tipo_instrumentojuridico_-_descricao
   - tipo_proposta
   - tipo_proposta/instrumento
@@ -115,11 +118,14 @@ renomear:
   numero_sei_5: nr_sei_5
   objeto_projeto: tx_objeto_projeto
   obtv_s/n: fl_obtv
+  origem_instrumento: ds_origem_instrumento
+  origem_proposta: ds_origem_proposta
   proponente/convenentegrp_-_cnpj-capj: nr_cnpj_proponente
   proponente/convenentegrp_-_nome: nm_proponente
   relacao_projeto_acaoorcamentaria: tx_relacao_projeto_acao
   situacao_instrumento: ds_situacao_instrumento
   situacao_proposta: ds_situacao_proposta
+  status_instrumento: ds_status_instrumento
   tipo_instrumentojuridico_-_codigo: cd_tipo_instrumento_juridico
   tipo_instrumentojuridico_-_descricao: ds_tipo_instrumento_juridico
   tipo_proposta: tp_proposta
