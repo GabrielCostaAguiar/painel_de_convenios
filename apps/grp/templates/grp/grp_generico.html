@@ -3,11 +3,13 @@
 
 {% block content %}
 <div class="crumbs">Consulta <span>›</span> <b>GRP</b></div>
-<div class="page-h"><h1>Dados gerais</h1></div>
+<div class="page-h"><h1>{{ titulo }}</h1></div>
 
 {% include "grp/_subtabs_grp.html" %}
+{% include "grp/_abas_internas.html" %}
 
 <form method="get" action="{{ request.path }}">
+{% if aba_atual %}<input type="hidden" name="aba" value="{{ aba_atual }}">{% endif %}
 <div class="panel filters">
   <div class="filters-top">
     <div class="ttl">
@@ -15,7 +17,7 @@
       Filtros da consulta
     </div>
     <div class="filters-actions">
-      <a href="{{ request.path }}" class="btn ghost-danger">
+      <a href="{{ request.path }}{% if aba_atual %}?aba={{ aba_atual }}{% endif %}" class="btn ghost-danger">
         <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
         Limpar filtros
       </a>
@@ -72,7 +74,7 @@
         id="f-nr_grp"
         name="nr_grp"
         type="text"
-        placeholder="Digite o número do GRP"
+        placeholder="Um ou mais números GRP, separados por espaço"
         list="lista-nr_grp"
         value="{{ nr_grp_sel }}"
         autocomplete="off"
@@ -94,30 +96,12 @@
   </div>
 
   <div class="tabela-container">
-    <table>
+    <table{% if largura_total %} style="width: {{ largura_total }}px"{% endif %}>
+      {% if larguras %}
       <colgroup>
-            <col style="width: 150px">   <!-- Origem do Instrumento -->
-            <col style="width: 70px">    <!-- Nº GRP -->
-            <col style="width: 150px">   <!-- Tipo do Instrumento -->
-            <col style="width: 170px">   <!-- Nº Instrumento -->
-            <col style="width: 100px">   <!-- Nº União -->
-            <col style="width: 280px">   <!-- Nome do Projeto -->
-            <col style="width: 450px">   <!-- Objeto -->
-            <col style="width: 220px">   <!-- Convenente -->
-            <col style="width: 220px">   <!-- Concedente -->
-            <col style="width: 90px">    <!-- Esfera -->
-            <col style="width: 90px">   <!-- Situação -->
-            <col style="width: 170px">   <!-- Status -->
-            <col style="width: 120px">   <!-- Data de assinatura -->
-            <col style="width: 120px">   <!-- Data de publicação -->
-            <col style="width: 120px">   <!-- Inicio de vigência -->
-            <col style="width: 120px">   <!-- Término de vigência -->
-            <col style="width: 140px">   <!-- Rendimento (R$) -->
-            <col style="width: 140px">   <!-- Valor concedente (R$) -->
-            <col style="width: 140px">   <!-- Valor contrapartida (R$) -->
-            <col style="width: 140px">   <!-- Valor Total (R$) -->
-            <col style="width: 120px">   <!-- Término de vigência inicial -->
+        {% for w in larguras %}<col style="width: {{ w }}px">{% endfor %}
       </colgroup>
+      {% endif %}
       <thead>
         <tr>{% for col in colunas %}<th>{{ col }}</th>{% endfor %}</tr>
       </thead>

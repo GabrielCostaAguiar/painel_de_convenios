@@ -9,4 +9,5 @@ def grp_cronograma(request):
         get_grp_cronograma_qs(filtros),
         colunas=["Nº GRP", "Parcela", "Mês", "Ano", "Origem Recurso", "Vlr Desembolso"],
         campos=["nr_grp", "parcela_desembolso", "mes_desembolso", "ano_desembolso", "origem_recurso_parcela", "vl_desembolso"],
-        titulo="Cronograma de Desembolso", secao_sub="grp_cronograma", filtros=filtros)
+        titulo="Cronograma de Desembolso", secao_sub="grp_cronograma", filtros=filtros,
+        larguras=[90, 80, 70, 70, 200, 140])

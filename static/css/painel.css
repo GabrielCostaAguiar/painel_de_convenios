@@ -282,27 +282,13 @@ tbody td {
 
 tbody tr:hover { background: #fbf9f7 }
 
-/* Classe base mono: códigos, datas, valores */
 td.mono {
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12.5px;
   color: var(--ink);
-  white-space: nowrap;
-}
-
-/* Células que QUEBRAM linha (textos longos) */
-td.mono:nth-child(1),    /* Origem do Instrumento */
-td.mono:nth-child(3),    /* Tipo do Instrumento */
-td.mono:nth-child(6),    /* Nome do Projeto */
-td.mono:nth-child(7),    /* Objeto */
-td.mono:nth-child(8),    /* Convenente */
-td.mono:nth-child(9),    /* Concedente */
-td.mono:nth-child(11),   /* Situação */
-td.mono:nth-child(12) {  /* Status */
-    white-space: normal;
-    word-wrap: break-word;
-    font-family: 'IBM Plex Sans', system-ui, sans-serif;
-    color: var(--ink);
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 th.num, td.num { text-align: right }

@@ -1110,9 +1110,10 @@ class GrpGoldInstrumento(models.Model):
         return self.nr_grp or "—"
 
 class GrpGoldRecursoConcedente(models.Model):
-    """View que consolida os dados de recursos do concedente
-    """
-    nr_grp = models.CharField(max_length=20, primary_key=True) # Número InstrumentoGRP
+    """Recursos do concedente por instrumento (gold.vw_recurso_concedente).
+    Grão: instrumento x UO arrecadação x fonte x IPU x situação."""
+    id = models.BigIntegerField(primary_key=True)
+    nr_grp = models.CharField(max_length=20)
     cd_uo_arrecadacao = models.CharField(max_length=10, null=True, blank=True)
     nm_uo_arrecadacao = models.CharField(max_length=100, null=True, blank=True)
     cd_fonte_recurso = models.CharField(max_length=6, null=True, blank=True)
@@ -1123,9 +1124,79 @@ class GrpGoldRecursoConcedente(models.Model):
     ds_situacao_recurso_concedente = models.CharField(max_length=500, null=True, blank=True)
 
     class Meta:
-        managed = False  # This model is managed by Django, but it represents a database view
-        db_table = "gold\".\"vw_recurso_concedente"
+        managed = False  # view do Postgres: Django só lê, não cria nem migra
+        db_table = 'gold"."vw_recurso_concedente'
         verbose_name = "Recurso do Concedente (Gold)"
 
     def __str__(self):
-        return self.nr_grp or "—"
+        return f"{self.nr_grp} | UO {self.cd_uo_arrecadacao}"
+
+
+class GrpGoldRecursoContrapartida(models.Model):
+    """Recursos de contrapartida financeira (gold.vw_recurso_contrapartida).
+    Grão: instrumento x UO financiadora x fonte x IPU x situação."""
+    id = models.BigIntegerField(primary_key=True)
+    nr_grp = models.CharField(max_length=20)
+    cd_uo_financiadora = models.CharField(max_length=10, null=True, blank=True)
+    nm_uo_financiadora = models.CharField(max_length=100, null=True, blank=True)
+    cd_fonte_recurso_contrapartida = models.CharField(max_length=6, null=True, blank=True)
+    cd_ipu_contrapartida = models.CharField(max_length=2, null=True, blank=True)
+    vl_contrapartida_financeira = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    ds_situacao_contrapartida = models.CharField(max_length=15, null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_recurso_contrapartida'
+        verbose_name = "Recurso de Contrapartida (Gold)"
+
+    def __str__(self):
+        return f"{self.nr_grp} | UO {self.cd_uo_financiadora}"
+
+
+class GrpGoldAcaoOrcamentaria(models.Model):
+    """Ações orçamentárias de execução (gold.vw_acao_orcamentaria).
+    Grão: instrumento x ação x UO execução x situação."""
+    id = models.BigIntegerField(primary_key=True)
+    nr_grp = models.CharField(max_length=20)
+    cd_uo_execucao = models.CharField(max_length=10, null=True, blank=True)
+    nm_uo_execucao = models.CharField(max_length=100, null=True, blank=True)
+    cd_acao = models.CharField(max_length=10, null=True, blank=True)
+    ds_situacao_acao = models.CharField(max_length=15, null=True, blank=True)
+    vl_execucao_orcamentaria = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_acao_orcamentaria'
+        verbose_name = "Ação Orçamentária (Gold)"
+
+    def __str__(self):
+        return f"{self.nr_grp} | Ação {self.cd_acao}"
+
+
+class GrpGoldPlanoAplicacao(models.Model):
+    """Itens a executar do plano de aplicação (gold.vw_plano_aplicacao).
+    Grão: instrumento x item a executar."""
+    id = models.BigIntegerField(primary_key=True)
+    nr_grp = models.CharField(max_length=20)
+    nr_cnpj_beneficiario = models.CharField(max_length=20, null=True, blank=True)
+    cd_catmas = models.CharField(max_length=20, null=True, blank=True)
+    tp_despesa = models.CharField(max_length=20, null=True, blank=True)
+    cd_categoria_economica = models.CharField(max_length=2, null=True, blank=True)
+    cd_grupo_despesa = models.CharField(max_length=2, null=True, blank=True)
+    cd_modalidade_aplicacao = models.CharField(max_length=2, null=True, blank=True)
+    cd_elemento_despesa = models.CharField(max_length=3, null=True, blank=True)
+    cd_elemento_item = models.CharField(max_length=3, null=True, blank=True)
+    ds_item = models.TextField(null=True, blank=True)  # texto longo
+    ds_origem_recurso = models.CharField(max_length=200, null=True, blank=True)
+    ds_situacao_item = models.CharField(max_length=200, null=True, blank=True)
+    qt_item = models.DecimalField(max_digits=15, decimal_places=4, null=True, blank=True)  # confirmar tipo no banco
+    vl_unitario_item = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    vl_total_item = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_plano_aplicacao'
+        verbose_name = "Plano de Aplicação (Gold)"
+
+    def __str__(self):
+        return f"{self.nr_grp} | {self.cd_catmas}"

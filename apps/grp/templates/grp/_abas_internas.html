@@ -1,0 +1,8 @@
+{% if abas %}
+<div class="subtabs subtabs-2">
+  {% for chave, rotulo in abas %}
+    <a href="?aba={{ chave }}{% if qs_sem_aba %}&{{ qs_sem_aba }}{% endif %}"
+       class="subtab{% if chave == aba_atual %} active{% endif %}">{{ rotulo }}</a>
+  {% endfor %}
+</div>
+{% endif %}

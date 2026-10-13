@@ -10,4 +10,5 @@ def grp_recursos_contrapartida(request):
         get_grp_recursos_contrapartida_qs(filtros),
         colunas=["Nº GRP", "UO", "Fonte", "IPU", "Vlr Contrapartida"],
         campos=[ "nr_grp", "uo_cod", "fonte", "ipu", "vl_contrapartida_financeira"],
-        titulo="Recursos de Contrapartida", secao_sub="grp_recursos_contrapartida", filtros=filtros)
+        titulo="Recursos de Contrapartida", secao_sub="grp_recursos_contrapartida", filtros=filtros,
+        larguras=[90, 100, 100, 80, 140])

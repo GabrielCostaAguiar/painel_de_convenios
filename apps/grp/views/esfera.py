@@ -14,4 +14,5 @@ def grp_esfera(request):
         secao_sub="grp_esfera",
         filtros=filtros,
         filtro_nao_aplicavel=True,
+        larguras=[180, 300, 120],
     )
