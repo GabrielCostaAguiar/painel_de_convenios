@@ -1200,3 +1200,23 @@ class GrpGoldPlanoAplicacao(models.Model):
 
     def __str__(self):
         return f"{self.nr_grp} | {self.cd_catmas}"
+
+class ResultadoValidacao(models.Model):
+    """
+    Tabela para gerenciado pelo próprio Django do histórico de full refesh.
+    o banco só guarda a fotografia de hoje. O resultado dos testes é o seu histórico de qualidade,
+    e também é evidência para auditoria
+    """
+    execucao = models.UUIDField(db_index=True)
+    dt_execucao = models.DateTimeField(auto_now_add=True)
+    id_teste = models.CharField(max_length=20)
+    tabela = models.CharField(max_length=80)
+    descricao = models.TextField(null=True, blank=True)
+    severidade = models.CharField(max_length=6, choices=[("ERRO", "Erro"), ("ALERTA", "Alerta")])
+    status = models.CharField(max_length=6, choices=[("PASSOU", "Passou"), ("FALHOU", "Falhou")])          # "PASSOU" ou "FALHOU"
+    qt_falhas = models.IntegerField(null=True, blank=True)
+    amostra = models.JSONField(default=list)
+
+    class Meta:
+        db_table = "dq_resultado_validacao"
+        ordering = ["-dt_execucao", "id_teste"]
