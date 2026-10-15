@@ -32,7 +32,8 @@ def _filtrar_nr_grp_multiplo(qs, valor: str, campo: str = "nr_grp"):
     if len(termos) > _LIMITE_TERMOS:
         logger.warning(
             "nr_grp: %d termos recebidos, usando apenas os %d primeiros",
-            len(termos), _LIMITE_TERMOS,
+            len(termos),
+            _LIMITE_TERMOS,
         )
         termos = termos[:_LIMITE_TERMOS]
 
@@ -60,7 +61,6 @@ def get_grp_dados_qs(filtros: dict):
     return qs.order_by("nr_grp")
 
 
-
 # ---------------------------------------------------------------------------
 # GRP — sub-abas ligadas por nr_grp
 #
@@ -70,6 +70,7 @@ def get_grp_dados_qs(filtros: dict):
 # resolvidos em DadosGrp e aplicados como conjunto de nr_grp, para que o
 # recorte visto em cada sub-aba seja exatamente o da aba Dados.
 # ---------------------------------------------------------------------------
+
 
 def _grp_filtrar_por_nr_grp(qs, filtros: dict):
     """Aplica os filtros do GRP a qualquer QuerySet que tenha o campo nr_grp.
@@ -88,20 +89,24 @@ def _grp_filtrar_por_nr_grp(qs, filtros: dict):
             nr_instrumento__icontains=filtros["nr_instrumento"]
         )
     if filtros.get("uo_cod"):
-        dados = (dados if dados is not None else GrpGoldInstrumento.objects.all()).filter(
-            uo_cod=filtros["uo_cod"]
-        )
+        dados = (
+            dados if dados is not None else GrpGoldInstrumento.objects.all()
+        ).filter(uo_cod=filtros["uo_cod"])
     if dados is not None:
         qs = qs.filter(nr_grp__in=dados.values("nr_grp"))
 
     return qs
+
 
 def get_grp_cronograma_qs(filtros: dict):
     """QuerySet[CronogramaDesembolsoGrp] filtrado pelos filtros do GRP."""
     from .models import CronogramaDesembolsoGrp
 
     qs = _grp_filtrar_por_nr_grp(CronogramaDesembolsoGrp.objects.all(), filtros)
-    return qs.order_by("nr_grp", "ano_desembolso", "mes_desembolso", "parcela_desembolso")
+    return qs.order_by(
+        "nr_grp", "ano_desembolso", "mes_desembolso", "parcela_desembolso"
+    )
+
 
 def get_grp_recursos_contrapartida_qs(filtros: dict):
     """QuerySet[RecursosContrapartidaGrp] filtrado pelos filtros do GRP."""
@@ -110,12 +115,14 @@ def get_grp_recursos_contrapartida_qs(filtros: dict):
     qs = _grp_filtrar_por_nr_grp(RecursosContrapartidaGrp.objects.all(), filtros)
     return qs.order_by("nr_grp")
 
+
 def get_grp_recursos_concedente_qs(filtros: dict):
     """QuerySet[RecursosConcedenteGrp] filtrado pelos filtros do GRP."""
     from .models import RecursosConcedenteGrp
 
     qs = _grp_filtrar_por_nr_grp(RecursosConcedenteGrp.objects.all(), filtros)
     return qs.order_by("nr_grp")
+
 
 def get_grp_plano_aplicacao_qs(filtros: dict):
     """QuerySet[PlanoAplicacaoGrp] filtrado pelos filtros do GRP."""
@@ -124,12 +131,14 @@ def get_grp_plano_aplicacao_qs(filtros: dict):
     qs = _grp_filtrar_por_nr_grp(PlanoAplicacaoGrp.objects.all(), filtros)
     return qs.order_by("nr_grp")
 
+
 def get_grp_plano_aplicacao_detalhes_qs(filtros: dict):
     """QuerySet[PlanoAplicacaoGrpDetalhes] filtrado pelos filtros do GRP."""
     from .models import PlanoAplicacaoGrpDetalhes
 
     qs = _grp_filtrar_por_nr_grp(PlanoAplicacaoGrpDetalhes.objects.all(), filtros)
     return qs.order_by("nr_grp", "nr_catmas")
+
 
 def get_grp_esfera_qs(filtros: dict):
     """
@@ -144,6 +153,7 @@ def get_grp_esfera_qs(filtros: dict):
 
     return EsferaGrp.objects.all().order_by("concedente_cnpj")
 
+
 def get_grp_uo_qs(filtros: dict):
     """
     QuerySet[UoGrp] — sem filtro.
@@ -157,32 +167,45 @@ def get_grp_uo_qs(filtros: dict):
 
     return TabelaUoGrp.objects.all().order_by("uo_cod")
 
+
 # ---------------------------------------------------------------------------
 # GRP — Plano de Aplicação (camada gold)
 # Ordenação por "id" (gerado por ROW_NUMBER sobre o grão na view): é única,
 # então a paginação não repete nem pula linhas.
 # ---------------------------------------------------------------------------
 
+
 def get_grp_gold_plano_itens_qs(filtros: dict):
     """QuerySet[GrpGoldPlanoAplicacao] — itens a executar."""
     from .models import GrpGoldPlanoAplicacao
 
-    return _grp_filtrar_por_nr_grp(GrpGoldPlanoAplicacao.objects.all(), filtros).order_by("id")
+    return _grp_filtrar_por_nr_grp(
+        GrpGoldPlanoAplicacao.objects.all(), filtros
+    ).order_by("id")
+
 
 def get_grp_gold_recurso_concedente_qs(filtros: dict):
     """QuerySet[GrpGoldRecursoConcedente] — recursos do concedente."""
     from .models import GrpGoldRecursoConcedente
 
-    return _grp_filtrar_por_nr_grp(GrpGoldRecursoConcedente.objects.all(), filtros).order_by("id")
+    return _grp_filtrar_por_nr_grp(
+        GrpGoldRecursoConcedente.objects.all(), filtros
+    ).order_by("id")
+
 
 def get_grp_gold_recurso_contrapartida_qs(filtros: dict):
     """QuerySet[GrpGoldRecursoContrapartida] — contrapartida financeira."""
     from .models import GrpGoldRecursoContrapartida
 
-    return _grp_filtrar_por_nr_grp(GrpGoldRecursoContrapartida.objects.all(), filtros).order_by("id")
+    return _grp_filtrar_por_nr_grp(
+        GrpGoldRecursoContrapartida.objects.all(), filtros
+    ).order_by("id")
+
 
 def get_grp_gold_acao_orcamentaria_qs(filtros: dict):
     """QuerySet[GrpGoldAcaoOrcamentaria] — ações orçamentárias de execução."""
     from .models import GrpGoldAcaoOrcamentaria
 
-    return _grp_filtrar_por_nr_grp(GrpGoldAcaoOrcamentaria.objects.all(), filtros).order_by("id")
+    return _grp_filtrar_por_nr_grp(
+        GrpGoldAcaoOrcamentaria.objects.all(), filtros
+    ).order_by("id")

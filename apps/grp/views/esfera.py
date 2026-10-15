@@ -1,6 +1,7 @@
 from apps.grp.services import get_grp_esfera_qs
 from apps.grp.views._filtros import _grp_render, _ler_filtros_grp
 
+
 def grp_esfera(request):
     # EsferaGrp não tem nr_grp (liga por concedente_cnpj) — o filtro do GRP
     # viaja na URL para não se perder, mas não é aplicado aqui.

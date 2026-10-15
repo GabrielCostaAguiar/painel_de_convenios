@@ -16,23 +16,36 @@ class Command(BaseCommand):
         falhas_bloqueantes = []
 
         for teste in TESTES:
-            qt, amostra = self._rodar(teste["sql"])
+            if "funcao" in teste:
+                qt, amostra = teste["funcao"]()
+
+            else:
+                qt, amostra = self._rodar(teste["sql"])
             status = "PASSOU" if qt == 0 else "FALHOU"
             # 1. grave um ResultadoValidacao com os dados do teste
-            ResultadoValidacao.objects.create(execucao=execucao, 
-                                              id_teste=teste["id"], 
-                                              severidade=teste["severidade"],
-                                              tabela=teste["tabela"],
-                                              descricao=teste["descricao"],
-                                              status=status,
-                                              amostra=amostra,
-                                              qt_falhas=qt
-                                              )
+            ResultadoValidacao.objects.create(
+                execucao=execucao,
+                id_teste=teste["id"],
+                severidade=teste["severidade"],
+                tabela=teste["tabela"],
+                descricao=teste["descricao"],
+                status=status,
+                amostra=amostra,
+                qt_falhas=qt,
+            )
             if status == "FALHOU":
-                self.stdout.write(self.style.ERROR(f"{teste['id']} {teste['severidade']} Falhou: ({qt} linhas), {teste['descricao']}"))
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"{teste['id']} {teste['severidade']} {status}: ({qt} linhas), {teste['descricao']}"
+                    )
+                )
             else:
-                self.stdout.write(self.style.SUCCESS(f"{teste['id']} {teste['severidade']} Passou: ({qt} linhas), {teste['descricao']}"))
-            
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"{teste['id']} {teste['severidade']} {status}: ({qt} linhas), {teste['descricao']}"
+                    )
+                )
+
             # 2. se falhou e a severidade é ERRO, guarde o id em falhas_bloqueantes
             if status == "FALHOU" and teste["severidade"] == "ERRO":
                 falhas_bloqueantes.append(teste["id"])
@@ -53,7 +66,9 @@ class Command(BaseCommand):
 
             cabecalho = []
 
-            for coluna in colunas:                   # busque a amostra e transforme em lista de dicionários
+            for (
+                coluna
+            ) in colunas:  # busque a amostra e transforme em lista de dicionários
                 cabecalho.append(coluna[0])
 
             amostra = []

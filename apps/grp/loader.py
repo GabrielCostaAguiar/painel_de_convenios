@@ -123,16 +123,27 @@ def carregar_dados_grp(silver_path: Path | None = None) -> dict:
             situacao=_para_str(row["situacao_instrumento"]),
             dt_vigencia_inicial=_para_date(row["data_vigencia_instrumento_-_inicio"]),
             dt_vigencia_termino=_para_date(row["data_vigencia_instrumento_-_termino"]),
-            dt_vigenciainicial_termino=_para_date(row["data_vigenciainicial_instrumento_-_termino"]),
-            vl_instrumento_concedente_inicial=_para_decimal(row["valor_instrumento_-_concedente_inicial"]),
-            vl_instrumento_concedente=_para_decimal(row["valor_instrumento_-_concedente"]),
-            vl_instrumento_contrapartida_fin_inicial=_para_decimal(row["valor_instrumento_-_contrapartida_financeira_inicial"]),
-            vl_instrumento_contrapartida_fin=_para_decimal(row["valor_instrumento_-_contrapartida_financeira"]),
+            dt_vigenciainicial_termino=_para_date(
+                row["data_vigenciainicial_instrumento_-_termino"]
+            ),
+            vl_instrumento_concedente_inicial=_para_decimal(
+                row["valor_instrumento_-_concedente_inicial"]
+            ),
+            vl_instrumento_concedente=_para_decimal(
+                row["valor_instrumento_-_concedente"]
+            ),
+            vl_instrumento_contrapartida_fin_inicial=_para_decimal(
+                row["valor_instrumento_-_contrapartida_financeira_inicial"]
+            ),
+            vl_instrumento_contrapartida_fin=_para_decimal(
+                row["valor_instrumento_-_contrapartida_financeira"]
+            ),
             vl_instrumento_total=_para_decimal(row["valor_instrumento_-_total"]),
         )
         for _, row in df.iterrows()
     ]
     return _bulk_refresh(DadosGrp, objetos)
+
 
 def carregar_cronograma_desembolso_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_cronograma_desembolso_grp.parquet → model CronogramaDesembolsoGrp."""
@@ -146,11 +157,13 @@ def carregar_cronograma_desembolso_grp(silver_path: Path | None = None) -> dict:
             mes_desembolso=_para_str(row["desembolso_-_mes"]),
             ano_desembolso=_para_str(row["desembolso_-_ano"]),
             origem_recurso_parcela=_para_str(row["origem_recurso_parcela"]),
-            vl_desembolso=_para_decimal(row["valor_desembolso"])
+            vl_desembolso=_para_decimal(row["valor_desembolso"]),
         )
         for _, row in df.iterrows()
     ]
     return _bulk_refresh(CronogramaDesembolsoGrp, objetos)
+
+
 def carregar_recurso_contrapartida_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_recurso_contrapartida_grp.parquet → model RecursoContrapartidaGrp."""
     caminho = silver_path or _silver_path("dcgce_recursos_contrapartida_grp")
@@ -162,11 +175,14 @@ def carregar_recurso_contrapartida_grp(silver_path: Path | None = None) -> dict:
             fonte=_para_str(row["fonterecurso_-_codigo"]),
             nr_grp=_para_str(row["numero_instrumentogrp"]),
             ipu=_para_str(row["ipu_-_codigo"]),
-            vl_contrapartida_financeira=_para_decimal(row["valor_contrapartida_financeira"])
+            vl_contrapartida_financeira=_para_decimal(
+                row["valor_contrapartida_financeira"]
+            ),
         )
         for _, row in df.iterrows()
     ]
     return _bulk_refresh(RecursosContrapartidaGrp, objetos)
+
 
 def carregar_recurso_concedente_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_recurso_concedente_grp.parquet → model RecursoConcedenteGrp."""
@@ -179,11 +195,12 @@ def carregar_recurso_concedente_grp(silver_path: Path | None = None) -> dict:
             nr_grp=_para_str(row["numero_instrumentogrp"]),
             fonte=_para_str(row["fonterecurso_-_codigo"]),
             ipu=_para_str(row["ipu_-_codigo"]),
-            vl_concedente=_para_decimal(row["valor_recurso_concedente"])
+            vl_concedente=_para_decimal(row["valor_recurso_concedente"]),
         )
         for _, row in df.iterrows()
     ]
     return _bulk_refresh(RecursosConcedenteGrp, objetos)
+
 
 def carregar_plano_aplicacao_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_plano_aplicacao_grp.parquet → model PlanoAplicacaoGrp."""
@@ -204,6 +221,7 @@ def carregar_plano_aplicacao_grp(silver_path: Path | None = None) -> dict:
         for _, row in df.iterrows()
     ]
     return _bulk_refresh(PlanoAplicacaoGrp, objetos)
+
 
 def carregar_plano_aplicacao_grp_detalhes(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_plano_aplicacao_grp_detalhes.parquet → model PlanoAplicacaoGrpDetalhes."""
@@ -231,6 +249,7 @@ def carregar_plano_aplicacao_grp_detalhes(silver_path: Path | None = None) -> di
     ]
     return _bulk_refresh(PlanoAplicacaoGrpDetalhes, objetos)
 
+
 def carregar_esfera_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_esfera_grp.parquet → model EsferaGrp."""
     caminho = silver_path or _silver_path("dcgce_esfera_grp")
@@ -246,6 +265,7 @@ def carregar_esfera_grp(silver_path: Path | None = None) -> dict:
     ]
     return _bulk_refresh(EsferaGrp, objetos)
 
+
 def carregar_tabela_uo_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_tabela_uo_grp.xlsx → model TabelaUoGrp."""
     caminho = silver_path or _silver_path("dcgce_tabela_uo_grp")
@@ -260,14 +280,16 @@ def carregar_tabela_uo_grp(silver_path: Path | None = None) -> dict:
     ]
     return _bulk_refresh(TabelaUoGrp, objetos)
 
+
 # ---------------------------------------------------------------------------
 # Gold — ConvenioIntegrado (tabela G_/A_ completa)
 # ---------------------------------------------------------------------------
 
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Loader genérico para todas as tabelas do GRP
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def carregar_tabela_generica(nome_fonte: str, model) -> dict:
     """
@@ -287,9 +309,9 @@ def carregar_tabela_generica(nome_fonte: str, model) -> dict:
     df = _ler_parquet(caminho)
     colunas_parquet = set(df.columns)
     campos_model = {
-        field.name for field in model._meta.concrete_fields 
-        if field.name != "id"}
-    
+        field.name for field in model._meta.concrete_fields if field.name != "id"
+    }
+
     # 2. conferir: colunas do parquet == campos do model (sem o "id")
     sobra_parquet = colunas_parquet - campos_model
     sobra_model = campos_model - colunas_parquet
@@ -300,38 +322,78 @@ def carregar_tabela_generica(nome_fonte: str, model) -> dict:
             f"  no parquet mas não no model: {sobra_parquet}\n"
             f"  no model mas não no parquet: {sobra_model}"
         )
-    
+
     # 3. trocar os nulos do pandas por None
     df = df.astype(object).where(pd.notna(df), None)
 
     # 4. transformar cada linha num objeto do model
     df_lista = df.to_dict("records")
-    
+
     objetos = [model(**row) for row in df_lista]
 
     # 5. apagar o conteúdo atual e inserir os objetos (full refresh, numa transação) e devolver a quantidade inserida
     return _bulk_refresh(model, objetos)
 
 
-carregar_grp_instrumento = partial(carregar_tabela_generica, "grp_instrumento", GrpInstrumento)
-carregar_grp_concedente = partial(carregar_tabela_generica, "grp_concedente", GrpConcedente)
-carregar_grp_prestacao_contas = partial(carregar_tabela_generica, "grp_prestacao_contas", GrpPrestacaoContas)
-carregar_grp_planejamento_obras = partial(carregar_tabela_generica, "grp_planejamento_obras", GrpPlanejamentoObras)
-carregar_grp_proposta_marco_logico = partial(carregar_tabela_generica, "grp_proposta_marco_logico", GrpPropostaMarcoLogico)
+carregar_grp_instrumento = partial(
+    carregar_tabela_generica, "grp_instrumento", GrpInstrumento
+)
+carregar_grp_concedente = partial(
+    carregar_tabela_generica, "grp_concedente", GrpConcedente
+)
+carregar_grp_prestacao_contas = partial(
+    carregar_tabela_generica, "grp_prestacao_contas", GrpPrestacaoContas
+)
+carregar_grp_planejamento_obras = partial(
+    carregar_tabela_generica, "grp_planejamento_obras", GrpPlanejamentoObras
+)
+carregar_grp_proposta_marco_logico = partial(
+    carregar_tabela_generica, "grp_proposta_marco_logico", GrpPropostaMarcoLogico
+)
 carregar_grp_emenda = partial(carregar_tabela_generica, "grp_emenda", GrpEmenda)
-carregar_grp_interveniente = partial(carregar_tabela_generica, "grp_interveniente", GrpInterveniente)
-carregar_grp_unidade_executora = partial(carregar_tabela_generica, "grp_unidade_executora", GrpUnidadeExecutora)
-carregar_grp_municipio_atendido = partial(carregar_tabela_generica, "grp_municipio_atendido", GrpMunicipioAtendido)
-carregar_grp_regiao_atendida = partial(carregar_tabela_generica, "grp_regiao_atendida", GrpRegiaoAtendida)
-carregar_grp_recurso_concedente = partial(carregar_tabela_generica, "grp_recurso_concedente", GrpRecursoConcedente)
-carregar_grp_recurso_contrapartida = partial(carregar_tabela_generica, "grp_recurso_contrapartida", GrpRecursoContrapartida)
-carregar_grp_dotacao_contrapartida = partial(carregar_tabela_generica, "grp_dotacao_contrapartida", GrpDotacaoContrapartida)
-carregar_grp_acao_orcamentaria = partial(carregar_tabela_generica, "grp_acao_orcamentaria", GrpAcaoOrcamentaria)
-carregar_grp_instrumento_financiado = partial(carregar_tabela_generica, "grp_instrumento_financiado", GrpInstrumentoFinanciado)
-carregar_grp_item_executar = partial(carregar_tabela_generica, "grp_item_executar", GrpItemExecutar)
-carregar_grp_cronograma_desembolso = partial(carregar_tabela_generica, "grp_cronograma_desembolso", GrpCronogramaDesembolso)
-carregar_grp_cronograma_fisico = partial(carregar_tabela_generica, "grp_cronograma_fisico", GrpCronogramaFisico)
-carregar_grp_entrega_projeto = partial(carregar_tabela_generica, "grp_entrega_projeto", GrpEntregaProjeto)
-carregar_grp_atividade_projeto = partial(carregar_tabela_generica, "grp_atividade_projeto", GrpAtividadeProjeto)
-carregar_grp_matriz_responsabilidade = partial(carregar_tabela_generica, "grp_matriz_responsabilidade", GrpMatrizResponsabilidade)
+carregar_grp_interveniente = partial(
+    carregar_tabela_generica, "grp_interveniente", GrpInterveniente
+)
+carregar_grp_unidade_executora = partial(
+    carregar_tabela_generica, "grp_unidade_executora", GrpUnidadeExecutora
+)
+carregar_grp_municipio_atendido = partial(
+    carregar_tabela_generica, "grp_municipio_atendido", GrpMunicipioAtendido
+)
+carregar_grp_regiao_atendida = partial(
+    carregar_tabela_generica, "grp_regiao_atendida", GrpRegiaoAtendida
+)
+carregar_grp_recurso_concedente = partial(
+    carregar_tabela_generica, "grp_recurso_concedente", GrpRecursoConcedente
+)
+carregar_grp_recurso_contrapartida = partial(
+    carregar_tabela_generica, "grp_recurso_contrapartida", GrpRecursoContrapartida
+)
+carregar_grp_dotacao_contrapartida = partial(
+    carregar_tabela_generica, "grp_dotacao_contrapartida", GrpDotacaoContrapartida
+)
+carregar_grp_acao_orcamentaria = partial(
+    carregar_tabela_generica, "grp_acao_orcamentaria", GrpAcaoOrcamentaria
+)
+carregar_grp_instrumento_financiado = partial(
+    carregar_tabela_generica, "grp_instrumento_financiado", GrpInstrumentoFinanciado
+)
+carregar_grp_item_executar = partial(
+    carregar_tabela_generica, "grp_item_executar", GrpItemExecutar
+)
+carregar_grp_cronograma_desembolso = partial(
+    carregar_tabela_generica, "grp_cronograma_desembolso", GrpCronogramaDesembolso
+)
+carregar_grp_cronograma_fisico = partial(
+    carregar_tabela_generica, "grp_cronograma_fisico", GrpCronogramaFisico
+)
+carregar_grp_entrega_projeto = partial(
+    carregar_tabela_generica, "grp_entrega_projeto", GrpEntregaProjeto
+)
+carregar_grp_atividade_projeto = partial(
+    carregar_tabela_generica, "grp_atividade_projeto", GrpAtividadeProjeto
+)
+carregar_grp_matriz_responsabilidade = partial(
+    carregar_tabela_generica, "grp_matriz_responsabilidade", GrpMatrizResponsabilidade
+)
 carregar_grp_tabela_uo = partial(carregar_tabela_generica, "grp_tabela_uo", GrpTabelaUo)
