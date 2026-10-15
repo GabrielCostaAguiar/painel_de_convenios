@@ -4,11 +4,12 @@ colunas:
   identificador:
   - numero_instrumentogrp
   - codigo_proposta
-  texto:
+  inteiro:
   - parcela_desembolso
-  - origem_recurso_parcela
   - desembolso_-_ano
   - desembolso_-_mes
+  texto:
+  - origem_recurso_parcela
   valor:
   - valor_desembolso
 duvidoso: []

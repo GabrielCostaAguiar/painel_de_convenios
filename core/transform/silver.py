@@ -10,6 +10,7 @@ Pipeline (transformar_fonte):
   5. Conversão por categoria declarada no schema:
        data         → datetime64[us]      (errors="coerce" → NaT)
        valor        → float64             (errors="coerce" → NaN)
+       inteiro      → Int64               (errors="raise"; sentinelas → <NA>)
        identificador → StringDtype nullable (strip + remoção de artefato ".0")
        texto        → StringDtype nullable (strip)
   6. Relatório de qualidade (apenas log; nunca interrompe o fluxo)
@@ -25,7 +26,7 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .utils import limpar_colunas_padronizadas, normalizar_coluna
+from .utils import SENTINELAS, limpar_colunas_padronizadas, normalizar_coluna
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ SCHEMAS_DIR = Path(__file__).parent / "schemas"
 # ---------------------------------------------------------------------------
 # Helpers internos
 # ---------------------------------------------------------------------------
+
 
 def _limpar_id(val: str) -> str | None:
     """
@@ -48,6 +50,7 @@ def _limpar_id(val: str) -> str | None:
     if val.endswith(".0") and val[:-2].isdigit():
         return val[:-2]
     return val
+
 
 def _para_numero(val: str) -> str:
     """
@@ -64,8 +67,10 @@ def _para_numero(val: str) -> str:
         return val.replace(".", "")
     return val
 
+
 def _bronze_mais_recente(nome_fonte: str) -> Path:
     from django.conf import settings
+
     bronze_dir = Path(settings.DATA_DIR) / "bronze" / nome_fonte
     arquivos = sorted(bronze_dir.glob(f"{nome_fonte}_*.csv"))
     if not arquivos:
@@ -91,6 +96,7 @@ def _carregar_schema(nome_fonte: str) -> dict:
 # Validação de qualidade (apenas log)
 # ---------------------------------------------------------------------------
 
+
 def _validar(df: pd.DataFrame, nome_fonte: str) -> None:
     try:
         n, c = df.shape
@@ -109,6 +115,7 @@ def _validar(df: pd.DataFrame, nome_fonte: str) -> None:
 # ---------------------------------------------------------------------------
 # Ponto de entrada — transformação
 # ---------------------------------------------------------------------------
+
 
 def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFrame:
     """
@@ -130,6 +137,7 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
 
     cols_data = colunas.get("data", [])
     cols_valor = colunas.get("valor", [])
+    cols_inteiro = colunas.get("inteiro", [])
     cols_id = colunas.get("identificador", [])
 
     caminho = bronze_path if bronze_path is not None else _bronze_mais_recente(nome)
@@ -141,7 +149,10 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
 
     logger.info(
         "Silver '%s': %d → %d colunas, %d linhas",
-        nome, n_original, len(df.columns), len(df),
+        nome,
+        n_original,
+        len(df.columns),
+        len(df),
     )
 
     # --- datas ---
@@ -164,6 +175,20 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
         logger.info("  %-45s  NaN: %d", col, convertida.isna().sum())
         df[col] = convertida
 
+    # --- inteiros (ano, mês, parcela, duração) ---
+    # errors="raise" é proposital: valor não numérico deve quebrar, nunca virar
+    # nulo em silêncio. Sentinelas viram nulo antes, senão "-3" passaria como número.
+    logger.info("Inteiros:")
+    for col in cols_inteiro:
+        if col not in df.columns:
+            logger.warning("  Coluna inteiro '%s' ausente no Bronze de '%s'", col, nome)
+            continue
+        aparada = df[col].str.strip()
+        limpa = aparada.where(~aparada.isin(SENTINELAS))
+        convertida = pd.to_numeric(limpa, errors="raise").astype("Int64")
+        logger.info("  %-45s  <NA>: %d", col, convertida.isna().sum())
+        df[col] = convertida
+
     # --- identificadores ---
     logger.info("Identificadores:")
     for col in cols_id:
@@ -175,7 +200,7 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
         df[col] = convertida
 
     # --- texto: todas as colunas não tipadas acima ---
-    cols_tipadas = set(cols_data) | set(cols_valor) | set(cols_id)
+    cols_tipadas = set(cols_data) | set(cols_valor) | set(cols_inteiro) | set(cols_id)
     for col in df.columns:
         if col not in cols_tipadas:
             df[col] = df[col].str.strip().astype("string")
@@ -201,6 +226,7 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
 # Gravação Silver
 # ---------------------------------------------------------------------------
 
+
 def gravar_silver(nome: str, df: pd.DataFrame, destino: Path | None = None) -> Path:
     """
     Grava o DataFrame Silver em Parquet.
@@ -217,6 +243,7 @@ def gravar_silver(nome: str, df: pd.DataFrame, destino: Path | None = None) -> P
     """
     if destino is None:
         from django.conf import settings
+
         silver_dir = Path(settings.DATA_DIR) / "silver"
         silver_dir.mkdir(parents=True, exist_ok=True)
         destino = silver_dir / f"{nome}.parquet"

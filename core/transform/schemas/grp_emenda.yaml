@@ -5,8 +5,9 @@ colunas:
   - numero_instrumentogrp
   - codigo_proposta
   - emenda_-_numero
-  texto:
+  inteiro:
   - emenda_-_ano
+  texto:
   - emenda_-_parlamentar
   - emenda_-_situacao
   - emenda_-_tipo_transferencia
