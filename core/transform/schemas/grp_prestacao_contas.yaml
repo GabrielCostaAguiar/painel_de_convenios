@@ -9,6 +9,8 @@ colunas:
   identificador:
   - numero_instrumentogrp
   - codigo_proposta
+  inteiro:
+  - prazo_prestacaocontas
   texto:
   - conclusao_objeto_s/n
   - pendencia_contabilizacao_s/n
@@ -19,8 +21,6 @@ colunas:
   - prestacaocontas_obrigatoria_s/n
   - prestacaocontas_situacao_aprovacao
   - tipo_prestacaocontas_final
-  valor:
-  - prazo_prestacaocontas
 duvidoso: []
 renomear:
   numero_instrumentogrp: nr_grp

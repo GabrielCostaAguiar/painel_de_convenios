@@ -185,6 +185,12 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
             continue
         aparada = df[col].str.strip()
         limpa = aparada.where(~aparada.isin(SENTINELAS))
+        # Em colunas inteiras, "1.827" é milhar (1827), não decimal: o export do
+        # GRP usa ponto como separador de milhares. Só remove os pontos quando o
+        # valor casa exatamente com o padrão de milhar. Outros formatos seguem
+        # direto: "2020.0" vira 2020 e "1.5" quebra no astype("Int64").
+        milhar = limpa.str.fullmatch(r"\d{1,3}(\.\d{3})+", na=False)
+        limpa = limpa.where(~milhar, limpa.str.replace(".", "", regex=False))
         convertida = pd.to_numeric(limpa, errors="raise").astype("Int64")
         logger.info("  %-45s  <NA>: %d", col, convertida.isna().sum())
         df[col] = convertida

@@ -9,6 +9,9 @@ colunas:
   identificador:
   - numero_instrumentogrp
   - codigo_proposta
+  inteiro:
+  - meta_-_duracao
+  - etapa_-_duracao
   texto:
   - tipo_meta/etapa
   - meta_-_especificacao
@@ -16,8 +19,6 @@ colunas:
   valor:
   - meta_-_valor
   - etapa_-_valor
-  - meta_-_duracao
-  - etapa_-_duracao
 duvidoso: []
 renomear:
   numero_instrumentogrp: nr_grp
