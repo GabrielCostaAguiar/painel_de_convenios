@@ -1035,8 +1035,8 @@ class GrpEmenda(models.Model):
     cd_proposta = models.CharField(
         max_length=30, null=True, blank=True
     )  # Código Proposta
-    nr_ano_emenda = models.CharField(
-        max_length=100, null=True, blank=True
+    nr_ano_emenda = models.IntegerField(
+        null=True, blank=True
     )  # Emenda - Ano
     nr_emenda = models.CharField(
         max_length=100, null=True, blank=True
@@ -1489,17 +1489,17 @@ class GrpCronogramaDesembolso(models.Model):
     cd_proposta = models.CharField(
         max_length=30, null=True, blank=True
     )  # Código Proposta
-    nr_parcela = models.CharField(
-        max_length=100, null=True, blank=True
+    nr_parcela = models.IntegerField(
+        null=True, blank=True
     )  # Parcela Desembolso
     ds_origem_recurso_parcela = models.TextField(
         null=True, blank=True
     )  # Origem Recurso Parcela
-    nr_ano_desembolso = models.CharField(
-        max_length=100, null=True, blank=True
+    nr_ano_desembolso = models.IntegerField(
+        null=True, blank=True
     )  # Desembolso - Ano
-    nr_mes_desembolso = models.CharField(
-        max_length=100, null=True, blank=True
+    nr_mes_desembolso = models.IntegerField(
+        null=True, blank=True
     )  # Desembolso - Mês
     vl_desembolso = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True
