@@ -33,18 +33,14 @@ class Command(BaseCommand):
                 amostra=amostra,
                 qt_falhas=qt,
             )
+            mensagem = (
+                f"{teste['id']} {teste['severidade']} {status} "
+                f"[{teste['tabela']}]: ({qt} linhas), {teste['descricao']}"
+)
             if status == "FALHOU":
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"{teste['id']} {teste['severidade']} {status}: ({qt} linhas), {teste['descricao']}"
-                    )
-                )
+                self.stdout.write(self.style.ERROR(mensagem))
             else:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"{teste['id']} {teste['severidade']} {status}: ({qt} linhas), {teste['descricao']}"
-                    )
-                )
+                self.stdout.write(self.style.SUCCESS(mensagem))
 
             # 2. se falhou e a severidade é ERRO, guarde o id em falhas_bloqueantes
             if status == "FALHOU" and teste["severidade"] == "ERRO":
@@ -64,15 +60,8 @@ class Command(BaseCommand):
 
             colunas = cur.description
 
-            cabecalho = []
+            cabecalho = [coluna[0] for coluna in colunas] 
 
-            for (
-                coluna
-            ) in colunas:  # busque a amostra e transforme em lista de dicionários
-                cabecalho.append(coluna[0])
-
-            amostra = []
-            for linha in linhas:
-                amostra.append(dict(zip(cabecalho, linha)))
+            amostra = [dict(zip(cabecalho, linha)) for linha in linhas]
 
         return qt, amostra

@@ -11,6 +11,8 @@ Sao tabelas planas, ligadas entre si por nr_grp na consulta — nao ha nenhuma
 ForeignKey, nem entre elas nem para os models do SIGCON.
 """
 
+from django.core.serializers.json import DjangoJSONEncoder
+
 from django.db import models
 
 
@@ -1901,8 +1903,9 @@ class ResultadoValidacao(models.Model):
         max_length=6, choices=[("PASSOU", "Passou"), ("FALHOU", "Falhou")]
     )  # "PASSOU" ou "FALHOU"
     qt_falhas = models.IntegerField(null=True, blank=True)
-    amostra = models.JSONField(default=list)
+    amostra = models.JSONField(default=list, encoder=DjangoJSONEncoder)
 
     class Meta:
         db_table = "dq_resultado_validacao"
         ordering = ["-dt_execucao", "id_teste"]
+

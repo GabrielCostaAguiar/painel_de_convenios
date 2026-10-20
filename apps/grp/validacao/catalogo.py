@@ -2,7 +2,11 @@ from apps.grp.validacao.volumetria import (
     teste_volumetria,
 )
 from apps.grp.validacao.generico import (
-    sql_unicidade
+    sql_formato,
+    sql_nao_nulo,
+    sql_unicidade,
+    sql_valores_aceitos,
+    sql_sem_chave
 )
 
 
@@ -32,7 +36,11 @@ GRAOS = {
 
 GRAOS_EM_TRATAMENTO = {"grp_emenda", "grp_cronograma_fisico", "grp_tabela_uo"}
 
-
+CNPJS = [
+    ("grp_instrumento", "nr_cnpj_proponente"),
+    ("grp_instrumento", "nr_cnpj_convenente"),
+    
+]
 
 TESTES = [
     {
@@ -163,3 +171,111 @@ TESTES += [    {
     }
         for i, (tabela, colunas) in enumerate(GRAOS.items(), start=2)
 ]
+
+# --- T-D: completude ---
+# tabela_uo é dimensão (sem nr_grp); a matriz tem dados pessoais e a amostra
+# gravaria CPF e e-mail em dq_resultado_validacao
+SEM_NR_GRP = {"grp_tabela_uo", "grp_matriz_responsabilidade"}
+
+TESTES += [
+    {
+        "id": f"T-D{i:02d}",
+        "severidade": "ERRO",
+        "tabela": tabela,
+        "descricao": "nr_grp e/ou cd_proposta preenchidos",
+        "sql": sql_sem_chave(tabela),
+    }
+    for i, tabela in enumerate(
+        [t for t in GRAOS if t not in SEM_NR_GRP], start=3
+    )
+]
+
+TESTES += [
+    {
+    "id": "T-D22",
+    "severidade": "ERRO",
+    "tabela": "grp_tabela_uo",
+    "descricao": "cd_uo preenchido",
+    "sql": sql_nao_nulo("grp_tabela_uo", "cd_uo"),
+},
+]
+
+# --- T-E: formato e domínio ---
+CNPJS = [
+    ("grp_instrumento", "nr_cnpj_proponente"),
+    ("grp_instrumento", "nr_cnpj_convenente"),
+    ("grp_instrumento", "nr_cnpj_mandataria"),
+    ("grp_concedente", "nr_cnpj_concedente"),
+    ("grp_interveniente", "nr_cnpj_interveniente"),
+    ("grp_item_executar", "nr_cnpj_beneficiario"),
+]
+MUNICIPIOS = [
+    ("grp_municipio_atendido", "cd_municipio"),
+    ("grp_regiao_atendida", "cd_municipio_regiao"),
+]
+COLUNAS_UF = [
+    ("grp_municipio_atendido", "sg_uf"),
+    ("grp_regiao_atendida", "sg_uf_municipio_regiao"),
+]
+UFS = [
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+    "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+]
+COLUNAS_ANO = [
+    ("grp_emenda", "nr_ano_emenda"),
+    ("grp_cronograma_desembolso", "nr_ano_desembolso"),
+]
+
+TESTES_E = (
+    [
+        {
+            "severidade": "ERRO",
+            "tabela": t,
+            "descricao": f"{c}: CNPJ com 14 dígitos",
+            "sql": sql_formato(t, c, r"^\d{14}$"),
+        }
+        for t, c in CNPJS
+    ]
+    + [
+        {
+            "severidade": "ERRO",
+            "tabela": t,
+            "descricao": f"{c}: código de município com 7 dígitos",
+            "sql": sql_formato(t, c, r"^\d{7}$"),
+        }
+        for t, c in MUNICIPIOS
+    ]
+    + [
+        {
+            "severidade": "ERRO",
+            "tabela": t,
+            "descricao": f"{c}: UF válida",
+            "sql": sql_valores_aceitos(t, c, UFS),
+        }
+        for t, c in COLUNAS_UF
+    ]
+    + [
+        {
+            "severidade": "ERRO",
+            "tabela": "grp_cronograma_desembolso",
+            "descricao": "nr_mes_desembolso entre 0 e 12 (0 = mês não informado na fonte)",
+            "sql": sql_valores_aceitos(
+                "grp_cronograma_desembolso", "nr_mes_desembolso", range(0, 13)
+            ),
+        }
+    ]
+    + [
+        {
+            "severidade": "ALERTA",
+            "tabela": t,
+            "descricao": f"{c}: ano entre 2000 e 2035",
+            "sql": sql_valores_aceitos(t, c, range(2000, 2036)),
+        }
+        for t, c in COLUNAS_ANO
+    ]
+)
+
+for i, teste in enumerate(TESTES_E, start=1):
+    teste["id"] = f"T-E{i:02d}"
+
+TESTES += TESTES_E
