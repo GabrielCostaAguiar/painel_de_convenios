@@ -56,6 +56,9 @@ Regra: nenhuma falha é corrigida apagando ou alterando dado na silver; o tratam
 - **Pendência:** Aguardar confirmação com [SEF] qual nome é o vigente.
 - **Volta a ERRO quando:** o código tiver um único nome na fonte.
 
+## T-E13: grp_cronograma_desembolso
+- **Decisão:** Temos testes com anos antigos e por motivos de potencial do sistema o recorte de anos dessa tabela foi de 1950 a 2050
+
 ## Controle
 
 Estes três testes ficam em ALERTA com o número de falhas de hoje como linha de base

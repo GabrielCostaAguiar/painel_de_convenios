@@ -47,3 +47,16 @@ def sql_sem_chave(tabela):
         FROM {tabela}
         WHERE COALESCE(nr_grp, cd_proposta) IS NULL
 """
+
+def sql_orfaos(filha, col_filha, pai, col_pai):
+    """Linhas de 'filha' cujo valor em col_filha não existe em pai.col_pai."""
+    return f"""
+        SELECT f.*
+        FROM {filha} f
+        WHERE f.{col_filha} IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM {pai} p
+            WHERE p.{col_pai} = f.{col_filha}
+          )
+    """

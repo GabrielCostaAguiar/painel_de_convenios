@@ -6,7 +6,8 @@ from apps.grp.validacao.generico import (
     sql_nao_nulo,
     sql_unicidade,
     sql_valores_aceitos,
-    sql_sem_chave
+    sql_sem_chave,
+    sql_orfaos
 )
 
 
@@ -268,8 +269,8 @@ TESTES_E = (
         {
             "severidade": "ALERTA",
             "tabela": t,
-            "descricao": f"{c}: ano entre 2000 e 2035",
-            "sql": sql_valores_aceitos(t, c, range(2000, 2036)),
+            "descricao": f"{c}: ano entre 1950 e 2050",
+            "sql": sql_valores_aceitos(t, c, range(1950, 2050)),
         }
         for t, c in COLUNAS_ANO
     ]
@@ -279,3 +280,46 @@ for i, teste in enumerate(TESTES_E, start=1):
     teste["id"] = f"T-E{i:02d}"
 
 TESTES += TESTES_E
+
+# --- T-F: Caçador de órfãos ---
+
+TESTES += [
+    {
+        "id": f"T-F{i:02d}",
+        "severidade": "ERRO",
+        "tabela": tabela,
+        "descricao": "nr_grp existe em grp_instrumento",
+        "sql": sql_orfaos(filha=tabela, col_filha="nr_grp", pai="grp_instrumento", col_pai="nr_grp"),
+    }
+    for i, tabela in enumerate([t for t in GRAOS if t not in SEM_NR_GRP], start=1)
+]
+
+TESTES += [
+    {
+        "id": f"T-F{i:02d}",
+        "severidade": "ERRO",
+        "tabela": tabela,
+        "descricao": "cd_proposta existe em grp_instrumento",
+        "sql": sql_orfaos(filha=tabela, col_filha="cd_proposta", pai="grp_instrumento", col_pai="cd_proposta"),
+    }
+    for i, tabela in enumerate(
+        [t for t in GRAOS if t not in SEM_NR_GRP], start=20
+    )
+]
+
+UOS = [
+    ("grp_recurso_concedente", "cd_uo_arrecadacao"),
+    ("grp_acao_orcamentaria", "cd_uo_execucao"),
+    ("grp_recurso_contrapartida", "cd_uo_financiadora")
+]
+
+TESTES += [
+    {
+        "id": f"T-F{i:02d}",
+        "severidade": "ERRO",
+        "tabela": t,
+        "descricao": f"{c} existe em grp_tabela_uo",
+        "sql": sql_orfaos(filha=t, col_filha=c, pai="grp_tabela_uo", col_pai="cd_uo"),
+    }
+    for i, (t, c) in enumerate(UOS, start=39)
+]
