@@ -223,6 +223,11 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
 
     if mapa:  # só fontes com bloco 'renomear' (as novas)
         df = limpar_colunas_padronizadas(df)
+        antes = len(df)
+        df = df.dropna(how='all')
+        descartadas = antes - len(df)
+        logger.info("Linhas 100%% vazias descartadas em '%s': %d", nome, descartadas)
+
 
     _validar(df, nome)
     return df
