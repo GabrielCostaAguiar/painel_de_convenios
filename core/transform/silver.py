@@ -139,6 +139,7 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
     cols_valor = colunas.get("valor", [])
     cols_inteiro = colunas.get("inteiro", [])
     cols_id = colunas.get("identificador", [])
+    anular: dict[str, list[str]] = schema.get("anular", {})
 
     caminho = bronze_path if bronze_path is not None else _bronze_mais_recente(nome)
     df = pd.read_csv(caminho, dtype=str, keep_default_na=False)
@@ -202,6 +203,20 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
             logger.warning("  Coluna id '%s' ausente no Bronze de '%s'", col, nome)
             continue
         convertida = df[col].str.strip().apply(_limpar_id).astype("string")
+        # Bloco "anular" do YAML: lista explícita de valores que viram nulo só
+        # nesta coluna. Lista, não regex: o que sobrar fora do padrão precisa
+        # chegar ao banco para os testes de formato acusarem.
+        for valor in anular.get(col, []):
+            alvo = convertida == valor
+            n_anulados = int(alvo.sum())
+            logger.log(
+                logging.WARNING if n_anulados else logging.INFO,
+                "  %-45s  anulados %r: %d",
+                col,
+                valor,
+                n_anulados,
+            )
+            convertida = convertida.mask(alvo)
         logger.info("  %-45s  <NA>: %d", col, convertida.isna().sum())
         df[col] = convertida
 
@@ -224,10 +239,9 @@ def transformar_fonte(nome: str, bronze_path: Path | None = None) -> pd.DataFram
     if mapa:  # só fontes com bloco 'renomear' (as novas)
         df = limpar_colunas_padronizadas(df)
         antes = len(df)
-        df = df.dropna(how='all')
+        df = df.dropna(how="all")
         descartadas = antes - len(df)
         logger.info("Linhas 100%% vazias descartadas em '%s': %d", nome, descartadas)
-
 
     _validar(df, nome)
     return df

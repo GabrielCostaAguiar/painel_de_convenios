@@ -52,6 +52,7 @@ from .models import (
     GrpAtividadeProjeto,
     GrpMatrizResponsabilidade,
     GrpTabelaUo,
+    GrpConvenenteCnpj,
 )
 
 logger = logging.getLogger(__name__)
@@ -397,3 +398,6 @@ carregar_grp_matriz_responsabilidade = partial(
     carregar_tabela_generica, "grp_matriz_responsabilidade", GrpMatrizResponsabilidade
 )
 carregar_grp_tabela_uo = partial(carregar_tabela_generica, "grp_tabela_uo", GrpTabelaUo)
+carregar_grp_convenente_cnpj = partial(
+    carregar_tabela_generica, "grp_convenente_cnpj", GrpConvenenteCnpj
+)

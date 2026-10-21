@@ -72,6 +72,7 @@ _LOADERS_GRP = {
     "grp_atividade_projeto": loaders.carregar_grp_atividade_projeto,
     "grp_matriz_responsabilidade": loaders.carregar_grp_matriz_responsabilidade,
     "grp_tabela_uo": loaders.carregar_grp_tabela_uo,
+    "grp_convenente_cnpj": loaders.carregar_grp_convenente_cnpj,
 }
 
 FONTES_GRP = tuple(_LOADERS_GRP)

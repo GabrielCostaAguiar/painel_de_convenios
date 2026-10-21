@@ -1,0 +1,18 @@
+fonte: grp_convenente_cnpj
+gerado_em: '2026-10-21'
+colunas:
+  identificador:
+  - proponente/convenentegrp_-_cnpj-capj
+  texto:
+  - proponente/convenentegrp_-_nome
+duvidoso: []
+# Valores que viram nulo SÓ nesta coluna, por lista explícita (nunca por regex):
+# qualquer outro valor fora do padrão chega ao banco para o T-E14 acusar.
+# "N/A" já é anulado pelo SENTINELAS global; "S/C" existe como dado válido em
+# outras fontes (grp_tabela_uo.cd_uo), por isso não entra no SENTINELAS.
+anular:
+  proponente/convenentegrp_-_cnpj-capj:
+  - S/C
+renomear:
+  proponente/convenentegrp_-_cnpj-capj: nr_cnpj_convenente
+  proponente/convenentegrp_-_nome: nm_convenente

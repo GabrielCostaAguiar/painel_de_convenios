@@ -1037,9 +1037,7 @@ class GrpEmenda(models.Model):
     cd_proposta = models.CharField(
         max_length=30, null=True, blank=True
     )  # Código Proposta
-    nr_ano_emenda = models.IntegerField(
-        null=True, blank=True
-    )  # Emenda - Ano
+    nr_ano_emenda = models.IntegerField(null=True, blank=True)  # Emenda - Ano
     nr_emenda = models.CharField(
         max_length=100, null=True, blank=True
     )  # Emenda - Número
@@ -1491,18 +1489,12 @@ class GrpCronogramaDesembolso(models.Model):
     cd_proposta = models.CharField(
         max_length=30, null=True, blank=True
     )  # Código Proposta
-    nr_parcela = models.IntegerField(
-        null=True, blank=True
-    )  # Parcela Desembolso
+    nr_parcela = models.IntegerField(null=True, blank=True)  # Parcela Desembolso
     ds_origem_recurso_parcela = models.TextField(
         null=True, blank=True
     )  # Origem Recurso Parcela
-    nr_ano_desembolso = models.IntegerField(
-        null=True, blank=True
-    )  # Desembolso - Ano
-    nr_mes_desembolso = models.IntegerField(
-        null=True, blank=True
-    )  # Desembolso - Mês
+    nr_ano_desembolso = models.IntegerField(null=True, blank=True)  # Desembolso - Ano
+    nr_mes_desembolso = models.IntegerField(null=True, blank=True)  # Desembolso - Mês
     vl_desembolso = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True
     )  # Valor Desembolso
@@ -1696,6 +1688,32 @@ class GrpTabelaUo(models.Model):
 
     def __str__(self):
         return f"{self.cd_uo} — {self.nm_uo or '—'}"
+
+
+# ---------------------------------------------------------------------------
+# GRP — Convenentes de convênio com CNPJ (consulta grp_convenente_cnpj)
+# Ponte da premissa P5: liga o CNPJ do convenente do instrumento a uma UO,
+# pela view gold.vw_depara_convenente_uo (chave = nome normalizado).
+# Grão: 1 linha por convenente (nome + CNPJ). Prioridade: Must
+# ---------------------------------------------------------------------------
+class GrpConvenenteCnpj(models.Model):
+    """Convenentes de convênio com CNPJ e nome. Ponte entre o CNPJ do convenente do instrumento e a UO (P5)."""
+
+    nr_cnpj_convenente = models.CharField(
+        max_length=14, db_index=True, null=True, blank=True
+    )  # Proponente/ConvenenteGRP - CNPJ-CAPJ
+    nm_convenente = models.TextField(
+        null=True, blank=True
+    )  # Proponente/ConvenenteGRP - Nome
+
+    class Meta:
+        db_table = "grp_convenente_cnpj"
+        verbose_name = "Convenente CNPJ GRP"
+        verbose_name_plural = "Convenente CNPJ GRP"
+        ordering = ["nm_convenente"]
+
+    def __str__(self):
+        return f"{self.nr_cnpj_convenente or '—'} — {self.nm_convenente or '—'}"
 
 
 # ---------------------------------------------------------------------------
@@ -1908,4 +1926,3 @@ class ResultadoValidacao(models.Model):
     class Meta:
         db_table = "dq_resultado_validacao"
         ordering = ["-dt_execucao", "id_teste"]
-
