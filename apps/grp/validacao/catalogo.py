@@ -421,3 +421,18 @@ TESTES += [
     }
     for i, (t, c) in enumerate(UOS, start=39)
 ]
+
+TESTES += [
+    {
+        "id": "T-F42",
+        "severidade": "ALERTA",
+        "tabela": "grp_instrumento_financiado",
+        "descricao": "nr_instrumento_financiado existe em grp_instrumento, porém não existe registro nessa tabela ainda",
+        "sql": sql_orfaos(
+            filha="grp_instrumento_financiado",
+            col_filha="nr_instrumento_financiado",
+            pai="grp_instrumento",
+            col_pai="nr_grp",
+        ),
+    },
+]
