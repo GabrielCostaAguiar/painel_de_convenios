@@ -269,40 +269,6 @@ TESTES += [
     },
 ]
 
-# --- grp_convenente_cnpj (ponte da premissa P5) ---
-# Ids fixos: a fonte não entra em GRAOS nem em SEM_NR_GRP porque esses blocos
-# numeram os ids pela posição, e isso mudaria ids que já têm histórico.
-TESTES += [
-    {
-        "id": "T-C23",
-        "severidade": "ERRO",
-        "tabela": "grp_convenente_cnpj",
-        "descricao": "Grão: uma linha por nr_cnpj_convenente (ignora os sem CNPJ)",
-        # SQL próprio: o GROUP BY juntaria os nulos num grupo só e acusaria
-        # uma duplicata falsa.
-        "sql": """
-            SELECT nr_cnpj_convenente, COUNT(*) AS qt
-            FROM grp_convenente_cnpj
-            WHERE nr_cnpj_convenente IS NOT NULL
-            GROUP BY nr_cnpj_convenente
-            HAVING COUNT(*) > 1
-        """,
-    },
-    {
-        "id": "T-D23",
-        "severidade": "ALERTA",
-        "tabela": "grp_convenente_cnpj",
-        "descricao": "nr_cnpj_convenente preenchido (linha de base: 31 sem CNPJ, entes estaduais com N/A ou S/C no GRP)",
-        "sql": sql_nao_nulo("grp_convenente_cnpj", "nr_cnpj_convenente"),
-    },
-    {
-        "id": "T-C24",
-        "severidade": "ALERTA",
-        "tabela": "gold.vw_depara_convenente_uo",
-        "descricao": "De-para: uma linha por nr_cnpj_convenente (um nome não pode casar com duas UOs)",
-        "sql": sql_unicidade("gold.vw_depara_convenente_uo", ["nr_cnpj_convenente"]),
-    },
-]
 
 # --- T-E: formato e domínio ---
 CNPJS = [
@@ -409,17 +375,6 @@ for i, teste in enumerate(TESTES_E, start=1):
 
 TESTES += TESTES_E
 
-# Bloco próprio, fora de CNPJS: acrescentar o par lá renumeraria os T-E07 a T-E13.
-# sql_formato ignora nulos, então só acusa formato errado de verdade.
-TESTES += [
-    {
-        "id": "T-E14",
-        "severidade": "ERRO",
-        "tabela": "grp_convenente_cnpj",
-        "descricao": "nr_cnpj_convenente: CNPJ com 14 dígitos",
-        "sql": sql_formato("grp_convenente_cnpj", "nr_cnpj_convenente", r"^\d{14}$"),
-    },
-]
 
 # --- T-F: Caçador de órfãos ---
 
@@ -480,41 +435,6 @@ TESTES += [
             col_filha="nr_instrumento_financiado",
             pai="grp_instrumento",
             col_pai="nr_grp",
-        ),
-    },
-]
-
-# --- P5: convenente do instrumento -> UO ---
-TESTES += [
-    {
-        "id": "T-F43",
-        "severidade": "ALERTA",
-        "tabela": "grp_instrumento",
-        "descricao": "nr_cnpj_convenente tem UO no de-para gold.vw_depara_convenente_uo (P5)",
-        # SQL próprio (não é sql_orfaos): o CNPJ pode existir na view e mesmo
-        # assim estar SEM_UO; o que importa é ter cd_uo preenchido.
-        "sql": """
-            SELECT i.nr_grp, i.nr_cnpj_convenente, i.nm_convenente
-            FROM grp_instrumento i
-            WHERE i.nr_cnpj_convenente IS NOT NULL
-              AND NOT EXISTS (
-                SELECT 1
-                FROM gold.vw_depara_convenente_uo d
-                WHERE d.nr_cnpj_convenente = i.nr_cnpj_convenente
-                  AND d.cd_uo IS NOT NULL
-              )
-        """,
-    },
-    {
-        "id": "T-F44",
-        "severidade": "ALERTA",
-        "tabela": "grp_instrumento",
-        "descricao": "nr_cnpj_convenente existe em grp_convenente_cnpj (cobertura da consulta de convenentes)",
-        "sql": sql_orfaos(
-            filha="grp_instrumento",
-            col_filha="nr_cnpj_convenente",
-            pai="grp_convenente_cnpj",
-            col_pai="nr_cnpj_convenente",
         ),
     },
 ]

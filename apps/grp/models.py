@@ -1691,32 +1691,6 @@ class GrpTabelaUo(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# GRP — Convenentes de convênio com CNPJ (consulta grp_convenente_cnpj)
-# Ponte da premissa P5: liga o CNPJ do convenente do instrumento a uma UO,
-# pela view gold.vw_depara_convenente_uo (chave = nome normalizado).
-# Grão: 1 linha por convenente (nome + CNPJ). Prioridade: Must
-# ---------------------------------------------------------------------------
-class GrpConvenenteCnpj(models.Model):
-    """Convenentes de convênio com CNPJ e nome. Ponte entre o CNPJ do convenente do instrumento e a UO (P5)."""
-
-    nr_cnpj_convenente = models.CharField(
-        max_length=14, db_index=True, null=True, blank=True
-    )  # Proponente/ConvenenteGRP - CNPJ-CAPJ
-    nm_convenente = models.TextField(
-        null=True, blank=True
-    )  # Proponente/ConvenenteGRP - Nome
-
-    class Meta:
-        db_table = "grp_convenente_cnpj"
-        verbose_name = "Convenente CNPJ GRP"
-        verbose_name_plural = "Convenente CNPJ GRP"
-        ordering = ["nm_convenente"]
-
-    def __str__(self):
-        return f"{self.nr_cnpj_convenente or '—'} — {self.nm_convenente or '—'}"
-
-
-# ---------------------------------------------------------------------------
 # GRP - VIEWS GOLD -
 # ---------------------------------------------------------------------------
 

@@ -61,58 +61,7 @@ Regra: nenhuma falha é corrigida apagando ou alterando dado na silver; o tratam
 
 ## Premissa P5: convenente do instrumento x UO
 
-- **Objetivo:** ligar o CNPJ do convenente de cada instrumento (grp_instrumento.nr_cnpj_convenente) a uma UO.
-- **Por que a chave é o nome:** não existe consulta no GRP que traga UO e CNPJ juntos. A
-  consulta nova grp_convenente_cnpj traz só nome e CNPJ do convenente, e a grp_tabela_uo
-  traz só código e nome da UO. A única chave comum entre as duas é o nome.
-- **Como funciona o casamento:** a view gold.vw_depara_convenente_uo
-  (apps/grp/sql/gold/003_gold_depara_convenente_uo.sql) normaliza o nome dos dois lados:
-  maiúsculas, sem acento (translate, sem extensão do Postgres), sem espaços nas pontas e
-  com espaços repetidos reduzidos a um. Nome normalizado igual = vínculo `AUTOMATICO`. Sem par =
-  `SEM_UO`, com cd_uo nulo (a linha não é descartada).
-- **Ajustes manuais:** a CTE `ajuste_manual` da view mapeia nome normalizado do convenente
-  para cd_uo, tem prioridade sobre o casamento automático e gera `MANUAL`. Começa vazia. O
-  SQL traz um comentário mostrando como acrescentar um ajuste (VALUES, com o nome já
-  normalizado), e depois é só reaplicar o arquivo.
-- **Convenentes sem CNPJ ficam fora da view:** sem chave, não servem ao de-para CNPJ x UO.
-  São 31 linhas na grp_convenente_cnpj (o GRP grava `N/A` ou `S/C` no lugar do CNPJ): entes
-  estaduais como Cemig, Copasa, Companhia de Gás, Encargos Gerais do Estado, Reserva de
-  Contingência e secretarias antigas. O CSV traz 113 linhas; a silver tem 112, porque a linha
-  em que nome e CNPJ são `N/A` fica 100% vazia e é descartada. O `N/A` vira nulo pelo
-  SENTINELAS global. O `S/C` vira nulo por uma lista explícita no YAML da fonte
-  (bloco `anular`), só na coluna do CNPJ, porque `S/C` é dado válido em outras fontes.
-  A lista é explícita, não um regex: qualquer outro formato errado chega ao banco e o T-E14 acusa.
-- **Convenente com dois CNPJs:** a SECRETARIA DE ESTADO DE JUSTIÇA E SEGURANÇA PÚBLICA aparece
-  com dois CNPJs válidos. É legítimo: duas linhas na view, cada uma com o seu CNPJ,
-  podendo apontar para a mesma UO. Não é falha do T-C24.
-- **Pendência na grp_tabela_uo:** existe uma linha com cd_uo = 'S/C' e nome 'S/C', presente em
-  todos os bronzes. Não foi alterada, e fica para decisão futura. Pôr `S/C` no SENTINELAS global a apagaria.
-
-### Resultado da primeira execução (21/10/2026)
-
-- **Convenentes com CNPJ:** 81. Na view, 86 linhas: 73 CNPJs `AUTOMATICO`, 8 `SEM_UO` e nenhum `MANUAL`.
-- **Ambíguos (T-C24, ALERTA, 5 CNPJs):** o mesmo nome existe em duas UOs diferentes na
-  grp_tabela_uo, e o CNPJ vira duas linhas: Secretaria de Estado de Esportes (10281 e 10671),
-  de Desenvolvimento Econômico (10221 e 10461), de Comunicação Social (10711 e 10712),
-  Companhia de Desenvolvimento Econômico de Minas Gerais (50011 e 50012) e Agência Reguladora de
-  Transportes (10302 e 20471). Decisão sobre a UO vigente: [definir com a área de negócio];
-  o ajuste manual resolve cada caso.
-- **SEM_UO (8 CNPJs):** quase todos por diferença de grafia. Nome mais próximo da grp_tabela_uo:
-  - Agência de Desenvolvimento da Região Metropolitana do Vale do Aço: o nome da fonte vem sem o "Ê" ("AGNCIA").
-  - DER-MG: "Departamento de Estradas de Rodagem" x "Departamento de Edificações e Estradas de Rodagem".
-  - Encargos Gerais do Estado Secretaria de Estado de Fazenda: falta o hífen.
-  - Escola de Saúde Pública: falta "do Estado de Minas Gerais".
-  - Minas Gerais Administração e Serviços SA e Minas Gerais Participações SA: "S.A" na tabela de UO.
-  - Secretaria de Estado de Infraestrutura, Mobilidade e Parcerias: vírgula.
-  - Ministério Público do Estado de Minas Gerais: sem sugestão confiável; o mais próximo é o Fundo Especial do Ministério Público, que é outra UO.
-- **T-F43 (ALERTA):** falhou com 570 instrumentos de 5 convenentes, todos já na view como
-  `SEM_UO` (de 4.691 instrumentos com CNPJ de convenente). Os maiores: 18715615000160 (269),
-  18715581000103 Infraestrutura, Mobilidade e Parcerias (195), 17309790000194 DER-MG (98),
-  08715327000151 Escola de Saúde Pública (4) e 15438067000180 Agência do Vale do Aço (4).
-  Cinco ajustes manuais resolveriam o caso.
-- **T-F44 (ALERTA):** passou. Todo CNPJ de convenente dos instrumentos existe na grp_convenente_cnpj.
-- **T-D23 (ALERTA):** 31 linhas sem CNPJ, linha de base. Uma alta indica falha nova.
-- **T-C23 e T-E14 (ERRO):** passaram. O T-F43 deixou de ser bloqueado.
+O de-para CNPJ × UO (premissa P5) não é implementado como tabela intermediária. A ligação entre instrumentos e UOs é feita diretamente por nr_grp, pelas tabelas grp_recurso_concedente, grp_recurso_contrapartida e grp_acao_orcamentaria. A grp_tabela_uo serve como dimensão de apoio para filtros e nomes de órgãos.
 
 ## Controle
 

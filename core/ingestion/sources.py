@@ -564,13 +564,4 @@ FONTES: dict[str, FonteDados] = {
             ),
             opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
         ),
-    "grp_convenente_cnpj": FonteDados(
-            nome="grp_convenente_cnpj",
-            arquivo="grp/grp_convenente_cnpj.csv",
-            formato="csv",
-            descricao=(
-                "Convenentes de convênio com CNPJ e nome. Ponte da premissa P5: liga o CNPJ do convenente de cada instrumento a uma UO, pelo nome (não há consulta que traga UO e CNPJ juntos)."
-            ),
-            opcoes_leitura={"sep": ";", "encoding": "UTF-8", "header": 0},  # sep ';': padrão do export do GRP (Excel pt-BR) — a ',' é o separador decimal dos valores (ex.: 133.829,20), então não pode separar colunas. header=0: a 1ª linha do arquivo traz os nomes das colunas (é o default do pandas, deixado explícito para documentar o layout).
-        )
 }
