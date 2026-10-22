@@ -438,3 +438,164 @@ TESTES += [
         ),
     },
 ]
+
+# --- T-G: Contador implacável ---
+# --- Reconciliação entre tabelas, CTE, COALESCE, tolerância
+
+TESTES += [
+    {
+        "id": "T-G01",
+        "severidade": "ALERTA",
+        "tabela": "grp_recurso_concedente",
+        "descricao": "Valores fecham entre grp_recurso_concedente e grp_intrumento",
+        "sql": """
+            WITH recurso AS (
+            SELECT nr_grp, SUM(vl_recurso_concedente) AS vl_soma
+            FROM grp_recurso_concedente
+            GROUP BY nr_grp
+        )
+            SELECT i.nr_grp,
+                i.ds_status_instrumento,
+                i.vl_instrumento_concedente,
+                r.vl_soma,
+                i.vl_instrumento_concedente - COALESCE(r.vl_soma, 0) AS diferenca
+            FROM grp_instrumento i
+            LEFT JOIN recurso r ON r.nr_grp = i.nr_grp
+            WHERE i.nr_grp IS NOT NULL
+            AND ABS(i.vl_instrumento_concedente - COALESCE(r.vl_soma, 0)) > 0.01    
+""",
+    },
+    {
+        "id": "T-G02",
+        "severidade": "ALERTA",
+        "tabela": "grp_recurso_contrapartida",
+        "descricao": "Soma de vl_contrapartida_financeira (grp_recurso_contrapartida) fecha com vl_instrumento_contrapartida_fin; divergências em instrumentos vencidos são esperadas",
+        "sql": """
+            WITH recurso_contrapartida AS (
+            SELECT nr_grp, SUM(vl_contrapartida_financeira) AS vl_soma
+            FROM grp_recurso_contrapartida
+            GROUP BY nr_grp
+            )
+            SELECT i.nr_grp,
+                i.vl_instrumento_contrapartida_fin,
+                r.vl_soma,
+                i.vl_instrumento_contrapartida_fin - COALESCE(r.vl_soma, 0) AS diferenca
+            FROM grp_instrumento i
+            LEFT JOIN recurso_contrapartida r ON r.nr_grp = i.nr_grp
+            WHERE i.nr_grp IS NOT NULL
+            AND ABS(i.vl_instrumento_contrapartida_fin - COALESCE(r.vl_soma, 0)) > 0.01
+        """,
+    },
+    {
+        "id": "T-G03",
+        "severidade": "ALERTA",
+        "tabela": "grp_cronograma_desembolso",
+        "descricao": "Soma de vl_desembolso (grp_cronograma_desembolso) fecha com vl_instrumento_concedente + vl_instrumento_contrapartida_fin; contrapartida não financeira e executado não entram no desembolso",
+        "sql": """
+            WITH desembolso AS (
+            SELECT nr_grp, SUM(vl_desembolso ) AS vl_soma
+            FROM grp_cronograma_desembolso
+            GROUP BY nr_grp
+            )
+            SELECT i.nr_grp,
+                i.ds_status_instrumento,
+                i.vl_instrumento_concedente + i.vl_instrumento_contrapartida_fin AS valor_desembolso_instrumento,
+                r.vl_soma,
+                i.vl_instrumento_concedente + i.vl_instrumento_contrapartida_fin - COALESCE(r.vl_soma, 0) AS diferenca
+            FROM grp_instrumento i
+            LEFT JOIN desembolso r ON r.nr_grp = i.nr_grp
+            WHERE i.nr_grp IS NOT NULL
+            AND ABS(i.vl_instrumento_concedente + i.vl_instrumento_contrapartida_fin - COALESCE(r.vl_soma, 0)) > 0.01
+""",
+    },
+    {
+        "id": "T-G04",
+        "severidade": "ALERTA",
+        "tabela": "grp_instrumento",
+        "descricao": "vl_instrumento_total = concedente + contrapartida_fin + contrapartida_nao_fin; 2 divergências conhecidas: campo faltando na fonte (reportado) e erro no banco de origem (reportado)",
+        "sql": """
+            SELECT nr_grp,
+                vl_instrumento_total,
+                COALESCE(vl_instrumento_concedente, 0)
+                    + COALESCE(vl_instrumento_contrapartida_fin, 0)
+                    + COALESCE(vl_instrumento_contrapartida_nao_fin, 0) AS vl_soma_partes,
+                vl_instrumento_total
+                    - COALESCE(vl_instrumento_concedente, 0)
+                    - COALESCE(vl_instrumento_contrapartida_fin, 0)
+                    - COALESCE(vl_instrumento_contrapartida_nao_fin, 0) AS diferenca
+            FROM grp_instrumento
+            WHERE nr_grp IS NOT NULL
+            AND ABS(
+                    vl_instrumento_total
+                    - COALESCE(vl_instrumento_concedente, 0)
+                    - COALESCE(vl_instrumento_contrapartida_fin, 0)
+                    - COALESCE(vl_instrumento_contrapartida_nao_fin, 0)
+                ) > 0.01
+        """,
+    },
+    {
+        "id": "T-G05",
+        "severidade": "ALERTA",
+        "tabela": "grp_instrumento",
+        "descricao": "fl_emenda_parlamentar coerente com grp_emenda (ambos os sentidos)",
+        "sql": """
+            SELECT i.nr_grp, i.fl_emenda_parlamentar,
+                'flag TRUE sem emenda na tabela' AS motivo
+            FROM grp_instrumento i
+            WHERE i.nr_grp IS NOT NULL
+            AND i.fl_emenda_parlamentar IS TRUE
+            AND NOT EXISTS (
+                SELECT 1 FROM grp_emenda e WHERE e.nr_grp = i.nr_grp
+            )
+            UNION ALL
+            SELECT i.nr_grp, i.fl_emenda_parlamentar,
+                'emenda na tabela com flag FALSE ou NULL' AS motivo
+            FROM grp_instrumento i
+            WHERE i.nr_grp IS NOT NULL
+            AND i.fl_emenda_parlamentar IS NOT TRUE
+            AND EXISTS (
+                SELECT 1 FROM grp_emenda e WHERE e.nr_grp = i.nr_grp
+            )
+        """,
+    },
+    {
+        "id": "T-G06",
+        "severidade": "ALERTA",
+        "tabela": "grp_item_executar",
+        "descricao": "vl_total_item ≈ qt_item × vl_unitario_item; diferenças grandes indicam possível agregação silenciosa pelo BusinessObjects",
+        "sql": """
+            SELECT nr_grp,
+                cd_catmas,
+                qt_item,
+                vl_unitario_item,
+                qt_item * vl_unitario_item AS vl_calculado,
+                vl_total_item,
+                vl_total_item - qt_item * vl_unitario_item AS diferenca
+            FROM grp_item_executar
+            WHERE ABS(vl_total_item - qt_item * vl_unitario_item) > 0.01
+        """,
+    },
+    {
+    "id": "T-G07",
+    "severidade": "ALERTA",
+    "tabela": "grp_cronograma_fisico",
+    "descricao": "Soma de vl_etapa por meta ≈ vl_meta; metas sem etapas registradas aparecem como divergência (comportamento esperado no GRP)",
+    "sql": """
+        WITH etapas_por_meta AS (
+            SELECT nr_grp,
+                   tx_meta_especificacao,
+                   MAX(vl_meta)     AS vl_meta,
+                   SUM(vl_etapa)    AS vl_soma_etapas
+            FROM grp_cronograma_fisico
+            GROUP BY nr_grp, tx_meta_especificacao
+        )
+        SELECT nr_grp,
+               tx_meta_especificacao,
+               vl_meta,
+               vl_soma_etapas,
+               vl_meta - COALESCE(vl_soma_etapas, 0) AS diferenca
+        FROM etapas_por_meta
+        WHERE ABS(vl_meta - COALESCE(vl_soma_etapas, 0)) > 0.01
+    """,
+},
+]
