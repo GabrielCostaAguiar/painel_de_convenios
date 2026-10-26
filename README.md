@@ -558,6 +558,67 @@ O painel usa tema escuro, Chart.js para gráficos e filtro por ano na URL (`?ano
 
 ---
 
+## 15. Qualidade de dados
+
+O GRP possui um portão de qualidade automatizado que valida a integridade dos dados após cada carga.
+
+### Como rodar
+
+```powershell
+# Validação isolada (precisa de banco com dados carregados)
+python manage.py validar_grp
+
+# Pipeline completo: carga + validação com portão
+python manage.py pipeline_grp
+
+# Testes unitários (sem banco, sem data/)
+python -m pytest tests/test_silver_grp.py tests/test_catalogo_validacao.py tests/test_generico.py tests/test_validar_grp.py tests/test_pipeline_grp.py -v
+```
+
+### Como ler o resultado
+
+A saída do terminal mostra cada teste com status PASSOU/FALHOU. Para consultar a execução mais recente com falhas:
+
+```sql
+SELECT id_teste, tabela, qt_falhas, descricao
+FROM dq_resultado_validacao
+WHERE status = 'FALHOU'
+ORDER BY execucao DESC, id_teste;
+```
+
+### Severidade
+
+| Tipo | Comportamento |
+|---|---|
+| **ERRO** | Bloqueia o pipeline (`exit 1`). A gold não é atualizada. |
+| **ALERTA** | Registra a divergência e segue. Não bloqueia. |
+
+### O que fazer diante de uma falha
+
+1. Classificar: erro da fonte (dado errado na origem), erro da nossa silver (transformação incorreta) ou regra do teste errada.
+2. **Nunca alterar nem apagar dado de origem** — corrigir na transformação ou ajustar o teste.
+3. Registrar a decisão em [`docs/qualidade_dados.md`](docs/qualidade_dados.md).
+
+### Como acrescentar um teste novo
+
+Edite `apps/grp/validacao/catalogo.py`. Adicione a entrada **no final do bloco** correspondente à família de testes. Um `id` nunca é reaproveitado para outra regra. IDs fixos são reservados para testes avulsos que não pertencem a nenhum gerador.
+
+### Famílias de testes
+
+| Família | Prefixo | O que valida |
+|---|---|---|
+| Volumetria | T-A | Contagem parquet = contagem banco |
+| Schema | T-B | Tipos das colunas no banco (prefixo → tipo) |
+| Grão | T-C | Unicidade da chave primária declarada |
+| Completude | T-D | Campos obrigatórios preenchidos (nr_grp, cd_proposta) |
+| Formato e domínio | T-E | CNPJ 14 dígitos, UF válida, mês 0–12, ano 1950–2050 |
+| Integridade referencial | T-F | Chaves estrangeiras existem na tabela pai |
+| Reconciliação | T-G | Somas e totais batem entre tabelas relacionadas |
+
+Documentação detalhada: [`docs/qualidade_dados.md`](docs/qualidade_dados.md).
+
+---
+
 ## Contato
 
 DCGCE / SEPLAG-MG — Diretoria Central de Gestão de Convênios e Contratos Externos.
