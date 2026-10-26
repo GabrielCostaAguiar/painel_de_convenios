@@ -124,6 +124,35 @@ class TestDatas:
         df = _transformar(fonte_teste)
         assert pd.isna(df["dt_teste"].iloc[4])
 
+    def test_dayfirst_isolado(self, tmp_path, monkeypatch):
+        """Data ambígua como ÚNICA da coluna: sem datas não-ambíguas, o pandas
+        não consegue inferir o formato e depende exclusivamente de dayfirst."""
+        schema = {
+            "fonte": "fonte_dayfirst",
+            "gerado_em": "2026-10-26",
+            "colunas": {"data": ["col_data"]},
+            "duvidoso": [],
+            "renomear": {},
+        }
+        schema_dir = tmp_path / "schemas"
+        schema_dir.mkdir()
+        with (schema_dir / "fonte_dayfirst.yaml").open("w", encoding="utf-8") as f:
+            yaml.dump(schema, f, allow_unicode=True)
+
+        csv = tmp_path / "fonte_dayfirst_20261026.csv"
+        csv.write_text("col_data\n05/03/2026\n", encoding="utf-8")
+
+        import core.transform.silver as silver_mod
+
+        monkeypatch.setattr(silver_mod, "SCHEMAS_DIR", schema_dir)
+
+        from core.transform.silver import transformar_fonte
+
+        df = transformar_fonte("fonte_dayfirst", bronze_path=csv)
+        ts = df["col_data"].iloc[0]
+        assert ts.month == 3, f"Esperado março (3), obteve mês {ts.month}"
+        assert ts.day == 5, f"Esperado dia 5, obteve dia {ts.day}"
+
 
 # --- Inteiros (7 casos, dtype Int64) ---
 
@@ -286,12 +315,8 @@ class TestFlags:
         df = _transformar(fonte_teste)
         assert df["fl_teste"].iloc[4] == True  # noqa: E712
 
-    @pytest.mark.xfail(
-        reason="Valor inesperado em fl_ levanta ValueError (correto — não silencia lixo). "
-        "O teste documenta que a validação acontece.",
-        strict=True,
-    )
-    def test_valor_inesperado_levanta_erro(self, tmp_path, monkeypatch):
+    def _fonte_flag(self, tmp_path, monkeypatch, valor):
+        """Helper: cria fonte com uma única linha na coluna fl_flag."""
         schema = {
             "fonte": "fonte_flag",
             "gerado_em": "2026-10-26",
@@ -305,13 +330,24 @@ class TestFlags:
             yaml.dump(schema, f, allow_unicode=True)
 
         csv = tmp_path / "fonte_flag_20261026.csv"
-        csv.write_text("col_flag\nTALVEZ\n", encoding="utf-8")
+        csv.write_text(f"col_flag\n{valor}\n", encoding="utf-8")
 
         import core.transform.silver as silver_mod
 
         monkeypatch.setattr(silver_mod, "SCHEMAS_DIR", schema_dir)
+        return csv
 
+    def test_valor_inesperado_levanta_erro(self, tmp_path, monkeypatch):
+        csv = self._fonte_flag(tmp_path, monkeypatch, "TALVEZ")
         from core.transform.silver import transformar_fonte
 
-        df = transformar_fonte("fonte_flag", bronze_path=csv)
-        assert df["fl_flag"].iloc[0] == True  # noqa: E712
+        with pytest.raises(ValueError, match="fl_flag"):
+            transformar_fonte("fonte_flag", bronze_path=csv)
+
+    def test_minusculo_sim_levanta_erro(self, tmp_path, monkeypatch):
+        """'sim' em minúsculo não está no MAPA_BOOLEANO (case-sensitive)."""
+        csv = self._fonte_flag(tmp_path, monkeypatch, "sim")
+        from core.transform.silver import transformar_fonte
+
+        with pytest.raises(ValueError, match="fl_flag"):
+            transformar_fonte("fonte_flag", bronze_path=csv)
