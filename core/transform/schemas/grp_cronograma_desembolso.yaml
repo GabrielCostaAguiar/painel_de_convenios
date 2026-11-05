@@ -10,6 +10,7 @@ colunas:
   - desembolso_-_mes
   texto:
   - origem_recurso_parcela
+  - desembolso_-_mes_-_descritivo
   valor:
   - valor_desembolso
 duvidoso: []
@@ -20,4 +21,6 @@ renomear:
   origem_recurso_parcela: ds_origem_recurso_parcela
   desembolso_-_ano: nr_ano_desembolso
   desembolso_-_mes: nr_mes_desembolso
+  desembolso_-_mes_descritivo: ds_mes_desembolso
   valor_desembolso: vl_desembolso
+

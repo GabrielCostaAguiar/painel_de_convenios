@@ -429,52 +429,6 @@ class PlanoAplicacaoGrpDetalhes(models.Model):
     def __str__(self) -> str:
         return f"{self.nr_grp or '—'} — {self.descricao_item or '—'}"
 
-
-class EsferaGrp(models.Model):
-    """
-    Fonte: data/silver/dcgce_esfera.parquet
-    Carga: full refresh via loader dedicado.
-    Ligação: concedente_cnpj → Convenio.concedente_cnpj
-    """
-
-    # --- identificação ---
-    concedente_nome = models.CharField(
-        "Nome do Concedente",
-        max_length=255,
-        null=True,
-        blank=True,
-    )
-    concedente_cnpj = models.CharField(
-        "CNPJ do Concedente",
-        max_length=50,
-        db_index=True,
-        null=True,
-        blank=True,
-    )
-    concedente_esfera = models.CharField(
-        "Esfera",
-        max_length=255,
-        null=True,
-        blank=True,
-    )
-
-    # --- controle de carga ---
-    atualizado_em = models.DateTimeField("Atualizado em", auto_now=True)
-
-    class Meta:
-        # A tabela ja existia sob o label "convenios"; o model mudou de app,
-        # ela nao. Sem db_table explicito o Django procuraria grp_esferagrp.
-        db_table = "convenios_esferagrp"
-        verbose_name = "Esfera do Concedente"
-        verbose_name_plural = "Esferas dos Concedentes"
-        indexes = [
-            models.Index(fields=["concedente_cnpj"], name="esfera_concedente_cnpj_idx"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.concedente_cnpj or '—'} — {self.concedente_esfera or '—'}"
-
-
 class CronogramaDesembolsoGrp(models.Model):
     """
     Fonte: data/silver/dcgce_cronograma_desembolso_grp.parquet
@@ -1481,7 +1435,7 @@ class GrpItemExecutar(models.Model):
 # Grão: instrumento x parcela x origem do recurso. Prioridade: Must
 # ---------------------------------------------------------------------------
 class GrpCronogramaDesembolso(models.Model):
-    """Fluxo financeiro previsto. 'Mês Descritivo' e 'Mês Abreviado' foram excluídos porque derivam de 'Desembolso - Mês' e ser"""
+    """Fluxo financeiro previsto. 'Mês Abreviado' foram excluídos porque derivam de 'Desembolso - Mês' e ser"""
 
     nr_grp = models.CharField(
         max_length=20, db_index=True, null=True, blank=True
@@ -1495,6 +1449,9 @@ class GrpCronogramaDesembolso(models.Model):
     )  # Origem Recurso Parcela
     nr_ano_desembolso = models.IntegerField(null=True, blank=True)  # Desembolso - Ano
     nr_mes_desembolso = models.IntegerField(null=True, blank=True)  # Desembolso - Mês
+    ds_mes_desembolso = models.CharField(
+        max_length=50, null=True, blank=True
+    )  # Desembolso - Mês - Descritivo
     vl_desembolso = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True
     )  # Valor Desembolso
@@ -1748,6 +1705,9 @@ class GrpGoldInstrumento(models.Model):
     vl_instrumento_contrapartida_fin = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True
     )  # Valor da Contrapartida Financeira
+    vl_instrumento_contrapartida_nao_fin = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )  # Valor da Contrapartida Não Financeira
     vl_instrumento_total = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True
     )  # Valor Total do Instrumento

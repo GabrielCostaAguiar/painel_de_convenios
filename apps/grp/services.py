@@ -11,6 +11,9 @@ from functools import reduce
 
 from django.db.models import Q
 
+from apps.grp import models
+from apps.grp.models import GrpCronogramaFisico
+
 logger = logging.getLogger(__name__)
 
 _LIMITE_TERMOS = 200
@@ -100,13 +103,23 @@ def _grp_filtrar_por_nr_grp(qs, filtros: dict):
 
 def get_grp_cronograma_qs(filtros: dict):
     """QuerySet[CronogramaDesembolsoGrp] filtrado pelos filtros do GRP."""
-    from .models import CronogramaDesembolsoGrp
+    from .models import GrpCronogramaDesembolso
 
-    qs = _grp_filtrar_por_nr_grp(CronogramaDesembolsoGrp.objects.all(), filtros)
+    qs = _grp_filtrar_por_nr_grp(GrpCronogramaDesembolso.objects.all(), filtros)
     return qs.order_by(
-        "nr_grp", "ano_desembolso", "mes_desembolso", "parcela_desembolso"
+        "nr_grp", "nr_parcela", "nr_mes_desembolso", "nr_ano_desembolso", "ds_origem_recurso_parcela", "vl_desembolso"
     )
 
+def get_grp_cronograma_fisico_qs(filtros: dict):
+    """QuerySet[CronogramaFisicoGrp] filtrado pelos filtros do GRP."""
+    from .models import GrpCronogramaFisico
+
+    qs = _grp_filtrar_por_nr_grp(GrpCronogramaFisico.objects.all(), filtros)
+    return qs.order_by(
+        "nr_grp", "cd_proposta", "tp_meta_etapa", "tx_meta_especificacao", "dt_meta_inicio", "dt_meta_termino",
+        "qt_meta_duracao", "vl_meta", "tx_etapa_especificacao", "dt_etapa_inicio", "dt_etapa_termino", "qt_etapa_duracao",
+        "vl_etapa"
+    )
 
 def get_grp_recursos_contrapartida_qs(filtros: dict):
     """QuerySet[RecursosContrapartidaGrp] filtrado pelos filtros do GRP."""
@@ -140,19 +153,87 @@ def get_grp_plano_aplicacao_detalhes_qs(filtros: dict):
     return qs.order_by("nr_grp", "nr_catmas")
 
 
-def get_grp_esfera_qs(filtros: dict):
+def get_grp_emenda_qs(filtros: dict):
     """
-    QuerySet[EsferaGrp] — sem filtro.
+    QuerySet[EmendaGrp] — sem filtro.
 
-    EsferaGrp não tem nr_grp: ela é uma tabela de domínio ligada por
-    concedente_cnpj (→ Convenio.concedente_cnpj) e não há caminho para
-    nr_grp dentro das tabelas do GRP. A sub-aba sempre mostra tudo; a view
-    sinaliza no template que o filtro não se aplica aqui.
+    GrpEmenda para instrumentos que são financiados por emendas parlamentares. 
     """
-    from .models import EsferaGrp
+    from .models import GrpEmenda
+    qs = _grp_filtrar_por_nr_grp(GrpEmenda.objects.all(), filtros)
+    return qs.order_by("nr_grp", "cd_proposta", "nr_emenda", "nr_ano_emenda")
 
-    return EsferaGrp.objects.all().order_by("concedente_cnpj")
+def get_municipios_atendidos_qs(filtros: dict):
+    """
+    QuerySet[MunicipiosAtendidosGrp] — sem filtro.
 
+    MunicipiosAtendidosGrp para instrumentos que são financiados por emendas parlamentares. 
+    """
+    from .models import GrpMunicipioAtendido
+    qs = _grp_filtrar_por_nr_grp(GrpMunicipioAtendido.objects.all(), filtros)
+    return qs.order_by("nr_grp", "cd_proposta", "nm_municipio", "cd_municipio", "sg_uf")
+
+def get_regioes_atendidas_qs(filtros: dict):
+    """
+    QuerySet[RegioesAtendidasGrp] — sem filtro.
+
+    RegioesAtendidasGrp para instrumentos que são financiados por emendas parlamentares. 
+    """
+    from .models import GrpRegiaoAtendida
+    qs = _grp_filtrar_por_nr_grp(GrpRegiaoAtendida.objects.all(), filtros)
+    return qs.order_by("nr_grp", "cd_proposta", "nm_regiao", "cd_regiao", "ds_situacao_regiao", "nm_municipio_regiao",
+                       "cd_municipio_regiao", "sg_uf_municipio_regiao")
+
+def get_grp_prestacao_contas_qs(filtros: dict):
+    """
+    QuerySet[PrestacaoContasGrp] — sem filtro.
+
+    PrestacaoContasGrp para instrumentos que são financiados por emendas parlamentares. 
+    """
+    from .models import GrpPrestacaoContas
+    qs = _grp_filtrar_por_nr_grp(GrpPrestacaoContas.objects.all(), filtros)
+    return qs.order_by("nr_grp", "cd_proposta", "fl_pc_obrigatoria", 
+                        "tx_pc_justificativa_nao_obrigatoriedade", 
+                        "qt_pc_prazo",
+                        "dt_pc_limite",
+                        "dt_pc_limite_inicial",
+                        "tp_pc_final",
+                        "dt_pc_envio",
+                        "fl_conclusao_objeto",
+                        "tx_pc_justificativa_conclusao",
+                        "fl_pc_finalizada",
+                        "fl_pendencia_contabilizacao", 
+                        "dt_pc_finalizacao", 
+                        "tx_pc_justificativa_aprovacao", 
+                        "ds_pc_situacao_aprovacao")
+
+def get_grp_instrumento_financiado_qs(filtros: dict):
+    """
+    QuerySet[InstrumentoFinanciadoGrp] — sem filtro.
+
+    InstrumentoFinanciadoGrp para instrumentos que são financiados por emendas parlamentares. 
+    """
+    from .models import GrpInstrumentoFinanciado
+    qs = _grp_filtrar_por_nr_grp(GrpInstrumentoFinanciado.objects.all(), filtros)
+    return qs.order_by("nr_grp",
+                "cd_proposta",
+                "nr_instrumento_financiado",
+                "tp_instrumento_financiado",
+                "vl_instrumento_financiado")
+
+def get_grp_unidades_administrativas_qs(filtros: dict):
+    """
+    QuerySet[UnidadeAdministrativaGrp] — sem filtro.
+
+    UnidadeAdministrativaGrp para instrumentos que são financiados por emendas parlamentares. 
+    """
+    from .models import GrpUnidadeExecutora
+    qs = _grp_filtrar_por_nr_grp(GrpUnidadeExecutora.objects.all(), filtros)
+    return qs.order_by("nr_grp",
+                "cd_proposta",
+                "sg_orgao_unidade_adm",
+                "cd_unidade_adm",
+                "nm_unidade_adm")
 
 def get_grp_uo_qs(filtros: dict):
     """

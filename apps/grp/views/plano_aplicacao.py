@@ -3,6 +3,8 @@ from apps.grp.services import (
     get_grp_gold_recurso_concedente_qs,
     get_grp_gold_recurso_contrapartida_qs,
     get_grp_gold_acao_orcamentaria_qs,
+    get_grp_instrumento_financiado_qs,
+    get_grp_unidades_administrativas_qs,
 )
 from apps.grp.views._filtros import _ler_filtros_grp, _grp_render
 
@@ -71,7 +73,7 @@ ABAS_PLANO = {
             "ds_situacao_recurso_concedente",
             "vl_recurso_concedente",
         ],
-        "larguras": [90, 200, 160, 130, 200, 80, 80, 130, 130],
+        "larguras": [90, 200, 160, 130, 300, 80, 80, 130, 130],
     },
     "contrapartida": {
         "rotulo": "Contrapartida",
@@ -94,7 +96,7 @@ ABAS_PLANO = {
             "ds_situacao_contrapartida",
             "vl_contrapartida_financeira",
         ],
-        "larguras": [90, 140, 200, 80, 80, 130, 130],
+        "larguras": [90, 140, 300, 80, 80, 130, 130],
     },
     "acao": {
         "rotulo": "Ações orçamentárias",
@@ -115,7 +117,46 @@ ABAS_PLANO = {
             "ds_situacao_acao",
             "vl_execucao_orcamentaria",
         ],
-        "larguras": [90, 100, 130, 200, 130, 130],
+        "larguras": [90, 100, 130, 300, 130, 130],
+    },
+    "instrumento_financiado": {
+        "rotulo": "Instrumentos financiados",
+        "qs": get_grp_instrumento_financiado_qs,
+        "colunas": [
+            "Nº GRP",
+            "Código da proposta",
+            "Nº do instrumento financiado",
+            "Tipo do instrumento financiado",
+            "Valor do instrumento financiado (R$)",
+        ],
+        "campos": [
+            "nr_grp",
+            "cd_proposta",
+            "nr_instrumento_financiado",
+            "tp_instrumento_financiado",
+            "vl_instrumento_financiado",
+        ],
+        "larguras": [90, 150, 200, 200, 200],
+    },
+    "unidades_administrativas": {
+        "rotulo": "Unidades administrativas",
+        "qs": get_grp_unidades_administrativas_qs,
+        "colunas": [
+            "Nº GRP",
+            "Código da proposta",
+            "Sigla da unidade administrativa",
+            "Código da unidade administrativa",
+            "Nome da unidade administrativa",
+            
+        ],
+        "campos": [
+            "nr_grp",
+            "cd_proposta",
+            "sg_orgao_unidade_adm",
+            "cd_unidade_adm",
+            "nm_unidade_adm",
+        ],
+        "larguras": [90, 120, 150, 150, 300],
     },
 }
 ABA_PADRAO = "itens"

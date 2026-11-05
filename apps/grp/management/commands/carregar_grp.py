@@ -47,7 +47,6 @@ _LOADERS_GRP = {
     "dcgce_recursos_concedente_grp": loaders.carregar_recurso_concedente_grp,
     "dcgce_plano_aplicacao_grp": loaders.carregar_plano_aplicacao_grp,
     "dcgce_plano_aplicacao_grp_detalhes": loaders.carregar_plano_aplicacao_grp_detalhes,
-    "dcgce_esfera_grp": loaders.carregar_esfera_grp,
     "dcgce_tabela_uo_grp": loaders.carregar_tabela_uo_grp,
     # --- fontes novas (Modelo de Extração GRP v1.2) ---
     "grp_instrumento": loaders.carregar_grp_instrumento,

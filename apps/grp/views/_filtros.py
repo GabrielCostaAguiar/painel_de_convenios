@@ -15,6 +15,10 @@ def _fmt_valor(v):
 
 
 def _formatar_celula(campo, valor):
+    if campo.startswith("fl_"):
+        if valor is None:
+            return None
+        return "Sim" if valor else "Não"
     if campo.startswith("vl_"):
         return _fmt_valor(valor)
     if campo.startswith("dt_"):

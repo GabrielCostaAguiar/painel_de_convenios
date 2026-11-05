@@ -15,21 +15,9 @@ urlpatterns = [
     path("grp/", views.grp_instrumentos, name="grp_dados"),
     path("grp/dados/", views.grp_instrumentos, name="grp_instrumentos"),
     path("grp/cronograma/", views.grp_cronograma, name="grp_cronograma"),
-    path(
-        "grp/recursos_contrapartida/",
-        views.grp_recursos_contrapartida,
-        name="grp_recursos_contrapartida",
-    ),
-    path(
-        "grp/recursos_concedente/",
-        views.grp_recursos_concedente,
-        name="grp_recursos_concedente",
-    ),
     path("grp/plano_aplicacao/", views.grp_plano_aplicacao, name="grp_plano_aplicacao"),
-    path(
-        "grp/plano_aplicacao_detalhes/",
-        views.grp_plano_aplicacao_detalhes,
-        name="grp_plano_aplicacao_detalhes",
-    ),
-    path("grp/esfera/", views.grp_esfera, name="grp_esfera"),
-]
+    path("grp/emenda/", views.grp_emenda, name="grp_emenda"),
+    path("grp/regioes_atendidas/", views.grp_regioes_atendidas, name="grp_regioes_atendidas"),
+    path("grp/prestacao_contas/", views.grp_prestacao_contas, name="grp_prestacao_contas"),
+]   
+    

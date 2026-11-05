@@ -43,6 +43,7 @@ def grp_instrumentos(request):
         "Rendimento (R$)",
         "Valor concedente (R$)",
         "Valor contrapartida (R$)",
+        "Valor contrapartida não financeira (R$)",
         "Valor Total (R$)",
         "Término de vigência inicial",
     ]
@@ -66,6 +67,7 @@ def grp_instrumentos(request):
         "vl_rendimento_autorizado",
         "vl_instrumento_concedente",
         "vl_instrumento_contrapartida_fin",
+        "vl_instrumento_contrapartida_nao_fin",
         "vl_instrumento_total",
         "dt_vigencia_termino_inicial",
     ]
@@ -85,7 +87,7 @@ def grp_instrumentos(request):
         220,
         100,
         90,
-        170,
+        210,
         120,
         120,
         120,
@@ -93,6 +95,7 @@ def grp_instrumentos(request):
         140,
         140,
         160,
+        180,
         140,
         150,
     ]

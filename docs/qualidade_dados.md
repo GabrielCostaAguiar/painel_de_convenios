@@ -80,6 +80,10 @@ Revertido junto com a fonte grp_convenente_cnpj. Ver seção P5.
 ### T-E13: grp_cronograma_desembolso — faixa de anos
 - **Decisão:** a faixa foi ampliada para 1950–2050 para abarcar convênios históricos
   legítimos e desembolsos futuros de longo prazo. O teste permanece como ALERTA.
+  Percebemos que existe em 'Desembolso - Mês' o mês 0
+significa Janeiro, deve usar a tipificação do python/Java
+onde o 1º começa em 0, acrescentei direto do BO a coluna
+'Desembolso - Mês Descritivo' e mantive o cod do mês.
 
 ---
 
@@ -105,15 +109,15 @@ o descarte.
 
 Linha de base da primeira execução. Todos com severidade ALERTA.
 
-| Teste | Tabela | Falhas | Linha de base |
-|---|---|---|---|
-| T-G01 | grp_recurso_concedente | 9 linhas | 9 |
-| T-G02 | grp_recurso_contrapartida | 3 linhas | 3 |
-| T-G03 | grp_cronograma_desembolso | 39 linhas | 39 |
-| T-G04 | grp_instrumento | 2 linhas | 2 |
-| T-G05 | grp_instrumento | 13 linhas | 13 |
-| T-G06 | grp_item_executar | 2019 linhas | 2019 |
-| T-G07 | grp_cronograma_fisico | 4452 linhas | 4452 |
+| Teste |           Tabela          |    Falhas   | Linha de base |
+|-------|---------------------------|-------------|---------------|
+| T-G01 | grp_recurso_concedente    | 9 linhas    | 9             |
+| T-G02 | grp_recurso_contrapartida | 3 linhas    | 3             |
+| T-G03 | grp_cronograma_desembolso | 39 linhas   | 39            |
+| T-G04 | grp_instrumento           | 2 linhas    | 2             |
+| T-G05 | grp_instrumento           | 13 linhas   | 13            |
+| T-G06 | grp_item_executar         | 2019 linhas | 2019          |
+| T-G07 | grp_cronograma_fisico     | 4452 linhas | 4452          |
 
 ### T-G01: recurso concedente × valor concedente do instrumento
 

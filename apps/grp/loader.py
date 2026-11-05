@@ -23,7 +23,6 @@ from functools import partial
 from .models import (
     CronogramaDesembolsoGrp,
     DadosGrp,
-    EsferaGrp,
     GrpTabelaUo,
     PlanoAplicacaoGrp,
     PlanoAplicacaoGrpDetalhes,
@@ -248,23 +247,6 @@ def carregar_plano_aplicacao_grp_detalhes(silver_path: Path | None = None) -> di
         for _, row in df.iterrows()
     ]
     return _bulk_refresh(PlanoAplicacaoGrpDetalhes, objetos)
-
-
-def carregar_esfera_grp(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_esfera_grp.parquet → model EsferaGrp."""
-    caminho = silver_path or _silver_path("dcgce_esfera_grp")
-    df = _ler_parquet(caminho)
-
-    objetos = [
-        EsferaGrp(
-            concedente_nome=_para_str(row["concedente_-_nome"]),
-            concedente_cnpj=_para_str(row["concedente_-_cnpj-capj"]),
-            concedente_esfera=_para_str(row["concedente_-_esferaatuacao"]),
-        )
-        for _, row in df.iterrows()
-    ]
-    return _bulk_refresh(EsferaGrp, objetos)
-
 
 def carregar_tabela_uo_grp(silver_path: Path | None = None) -> dict:
     """Fonte: dcgce_tabela_uo_grp.xlsx → model TabelaUoGrp."""

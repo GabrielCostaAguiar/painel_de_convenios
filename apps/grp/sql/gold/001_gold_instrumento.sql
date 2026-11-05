@@ -30,6 +30,7 @@ SELECT i.nr_grp,
     i.vl_rendimento_autorizado,
     i.vl_instrumento_concedente,
     i.vl_instrumento_contrapartida_fin,
+    i.vl_instrumento_contrapartida_nao_fin,
     i.vl_instrumento_total
 FROM grp_instrumento i
 LEFT JOIN concedente_agg c ON i.nr_grp = c.nr_grp;
