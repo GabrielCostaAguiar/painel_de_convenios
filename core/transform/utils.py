@@ -30,22 +30,47 @@ SENTINELAS = {"N/A", "-3", ""}
 MAPA_BOOLEANO = {"SIM": True, "NÃO": False, "NAO": False}
 
 
-def limpar_colunas_padronizadas(df):
+def valores_sentinela(coluna: str, overrides: dict | None) -> set:
+    """
+    Valores que viram nulo para `coluna`: a lista do bloco YAML 'sentinelas:'
+    para essa coluna, se declarada: senão, SENTINELAS (o padrão do projeto).
+    Declarar 'sentinelas:' substitui a lista inteira para a coluna — não soma
+    com o padrão.
+    """
+    if overrides and coluna in overrides:
+        return set(overrides[coluna])
+    return SENTINELAS
+
+
+def limpar_colunas_padronizadas(df, booleanos: dict | None = None):
     """
     Limpeza da silver para fontes com nomes finais (bloco 'renomear').
-    Usa os prefixos da convenção para decidir o que fazer em cada coluna.
-    """
-    # 1 e 2: textos -> tira espaços nas pontas e troca sentinelas por nulo
-    for col in df.select_dtypes(include=["object", "string"]).columns:
-        df[col] = df[col].map(lambda v: v.strip() if isinstance(v, str) else v)
-        df[col] = df[col].where(~df[col].isin(SENTINELAS))
 
-    # 3: flags -> SIM/NÃO viram True/False (nulo continua nulo)
-    for col in [c for c in df.columns if c.startswith("fl_")]:
+    O trim de texto roda sempre, para toda coluna texto/string (idempotente —
+    a nulagem de sentinela em si já aconteceu antes do renomear, ver
+    core/transform/silver.py). Os flags usam o prefixo 'fl_' da convenção,
+    com MAPA_BOOLEANO como padrão; `booleanos` (bloco YAML 'booleanos:',
+    chaves = nomes finais de coluna) sobrescreve o de-para por coluna —
+    usado quando a fonte tem vocabulário SIM/NÃO diferente do GRP.
+    """
+    for col in df.select_dtypes(include=["object", "string"]).columns:
+        # .astype("string") no final é obrigatorio, nao cosmetico: .map()
+        # devolve dtype "string" quando ha pelo menos um valor de string real
+        # no resultado, mas degrada pra "object" quando a coluna inteira ja
+        # virou <NA> (ex.: sentinela nulada antes do renomear) - sem o cast
+        # explicito, a mesma fonte grava parquet com dtype diferente so por
+        # causa do CONTEUDO da coluna, nao da logica.
+        df[col] = df[col].map(lambda v: v.strip() if isinstance(v, str) else v).astype("string")
+
+    colunas_flag = {c for c in df.columns if c.startswith("fl_")} | set((booleanos or {}))
+    for col in colunas_flag:
+        if col not in df.columns:
+            continue
+        mapa = (booleanos or {}).get(col, MAPA_BOOLEANO)
         valores = df[col].dropna().unique()
-        estranhos = set(valores) - set(MAPA_BOOLEANO)
+        estranhos = set(valores) - set(mapa)
         if estranhos:
             raise ValueError(f"Valores inesperados na flag '{col}': {estranhos}")
-        df[col] = df[col].map(MAPA_BOOLEANO).astype("boolean")
+        df[col] = df[col].map(mapa).astype("boolean")
 
     return df

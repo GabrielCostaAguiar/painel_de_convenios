@@ -190,6 +190,52 @@ são tocados agora, só documentados:
    pasta (está no escopo "pode alterar"), mas não vou tocar no conteúdo,
    só confirmar que nada do motor Silver passa a depender dele.
 
+## Fase 2 — executada
+
+Implementados em `core/transform/silver.py`/`utils.py`: `sentinelas:` (generaliza
+o antigo `anular:`, agora para qualquer coluna tipada, chaves = nomes BRUTOS),
+`booleanos:` (chaves = nomes FINAIS, com fallback para a convenção `fl_` +
+`MAPA_BOOLEANO`), `descartar:`, `descartar_linhas_se_nulo:`, `grao:` (só loga
+ALERTA), `derivadas:` (registro `FUNCOES_DERIVADAS`, hoje só `montar_siafi_uo`),
+`desdobrar:` (gera uma segunda saída, acessível via `transformar_fonte_completo`)
+e `quarentena:` (idem). `dropna(how="all")` deixou de depender de `renomear:`
+não vazio — roda sempre, nos dois pontos (bruto e pós-tipagem). Removida
+também a deduplicação de linhas 100% idênticas como regra geral.
+
+`transformar_fonte` manteve o contrato público exato (devolve só a tabela
+principal) — quem precisa de quarentena/desdobramento usa a nova
+`transformar_fonte_completo`, que devolve os três resultados possíveis.
+
+**Divergência deliberada da ordem da especificação:** tipagem (`colunas.*`)
+continua rodando ANTES do `renomear:`, com `sentinelas:` usando nomes BRUTOS
+— mudar isso exigiria reescrever as chaves de `colunas` nos 22 YAMLs do GRP.
+Os blocos novos (exceto `sentinelas`) rodam DEPOIS do renomear, com nomes
+FINAIS, na ordem da especificação. Documentado no docstring do módulo.
+
+**Achado durante a regressão do GRP:** ao mover a nulagem de sentinela do
+pós-renomear (`limpar_colunas_padronizadas`, um `.where()` cego sobre toda
+coluna texto/string) para o pré-renomear (`sentinelas:`, já tipado), o
+`.map()` de limpeza de espaços que sobrou em `limpar_colunas_padronizadas`
+passou a degradar para dtype `object` em vez de `string` sempre que a coluna
+ficava 100% nula ANTES de chegar lá (pandas 3 preserva `StringDtype` via
+`.map()` só quando o resultado tem pelo menos um valor de string real, não
+só `<NA>`). Corrigido com um `.astype("string")` explícito no final do loop.
+Isso por sua vez revelou que a saída ORIGINAL do GRP já misturava, por
+acidente, duas variantes de `StringDtype` (`na_value=nan` vs `na_value=<NA>`)
+dependendo de qual caminho do código tocou a coluna por último — sem
+diferença de valor nenhuma (confirmado coluna a coluna com `.equals()` contra
+o motor antigo, incluindo nas 21 fontes GRP). A linha de base de hashes
+(`docs/_baseline_grp_silver.json`) foi **regerada** para refletir a saída
+agora uniforme (sempre `na_value=<NA>`); a regressão passou a vigiar a partir
+daqui.
+
+Testes novos em `tests/test_silver_grp.py` (15 casos): `sentinelas` (override
+vs. padrão global), `booleanos` (override vs. erro em valor fora do mapa),
+`descartar` (coluna presente/ausente), `descartar_linhas_se_nulo`, `grao`
+(ALERTA sem remover), `derivadas` (`siafi_uo`), dedup de linhas idênticas,
+`quarentena` (destino divergente vs. sem divergência) e `desdobrar` (uma
+linha por célula preenchida, null não gera linha).
+
 ## Resumo para o checkpoint
 
 - [x] Motor do GRP mapeado (`silver.py`, `utils.py`, `chaves.py`, `readers.py`, `bronze.py`)
