@@ -42,29 +42,30 @@ def _ler_filtros_grp(get_params):
 from django.core.paginator import Paginator
 from django.shortcuts import render
 
-from apps.grp.models import DadosGrp
+from apps.grp.models import GrpInstrumento, GrpTabelaUo
 from core.web import paginas_visiveis
 
 
 def _grp_listas():
-    """Opções dos campos de filtro do GRP — sempre vindas de DadosGrp."""
+    """Opções dos campos de filtro do GRP — uo_cod vem de GrpTabelaUo (cd_uo),
+    nr_instrumento/nr_grp vêm de GrpInstrumento."""
     return {
         "uos": (
-            DadosGrp.objects.exclude(uo_cod="")
-            .exclude(uo_cod=None)
-            .values_list("uo_cod", flat=True)
+            GrpTabelaUo.objects.exclude(cd_uo="")
+            .exclude(cd_uo=None)
+            .values_list("cd_uo", flat=True)
             .distinct()
-            .order_by("uo_cod")
+            .order_by("cd_uo")
         ),
         "nr_instrumentos": (
-            DadosGrp.objects.exclude(nr_instrumento="")
+            GrpInstrumento.objects.exclude(nr_instrumento="")
             .exclude(nr_instrumento=None)
             .values_list("nr_instrumento", flat=True)
             .distinct()
             .order_by("nr_instrumento")
         ),
         "nr_grps": (
-            DadosGrp.objects.exclude(nr_grp="")
+            GrpInstrumento.objects.exclude(nr_grp="")
             .exclude(nr_grp=None)
             .values_list("nr_grp", flat=True)
             .distinct()

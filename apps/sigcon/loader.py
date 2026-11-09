@@ -45,13 +45,6 @@ from .models import (
     ProrrogacaoOficio,
     TermoAditivo,
     UnidadesExecutoras,
-    DadosGrp,
-    CronogramaDesembolsoGrp,
-    RecursosContrapartidaGrp,
-    RecursosConcedenteGrp,
-    PlanoAplicacaoGrp,
-    PlanoAplicacaoGrpDetalhes,
-    EsferaGrp,
 )
 
 logger = logging.getLogger(__name__)

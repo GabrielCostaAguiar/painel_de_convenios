@@ -48,10 +48,10 @@ python manage.py carregar_unidades_executoras
 python manage.py carregar_controle_sei
 python manage.py carregar_relacionamento --construir   # Gold ConvenioIntegrado (needs chaves_convenio, siafi2, dcgce_convenio/codigo_convenio/geral/plano_trabalho/esfera silver)
 
-# GRP (em teste) — as 7 tabelas de uma vez, ou fontes escolhidas.
+# GRP (em teste) — as tabelas de uma vez, ou fontes escolhidas.
 # Fora do rodar_pipeline por padrão: ver PIPELINE_INCLUIR_GRP abaixo.
 python manage.py carregar_grp
-python manage.py carregar_grp --fonte dcgce_esfera_grp --fonte dcgce_dados_grp
+python manage.py carregar_grp --fonte grp_instrumento --fonte grp_concedente
 
 # Generate YAML schema for a new source (then manually review the YAML before running rodar_silver)
 python manage.py gerar_schemas <nome_fonte>
@@ -93,7 +93,7 @@ cross-cutting suites, and `<app>/tests/` for what belongs to one app:
 | `tests/test_r4.py` | 2 | idempotent load, ORM read |
 | `tests/test_settings_prod.py` | 17 | production settings, loaded in a subprocess |
 | `apps/convenios/tests/test_excecoes_comandos.py` | 14 | expected vs. unexpected errors in the load commands |
-| `apps/convenios/tests/test_carregar_grp.py` | 14 | `carregar_grp` and the optional GRP pipeline stage |
+| `apps/grp/tests/test_carregar_grp.py` | 14 | `carregar_grp` and the optional GRP pipeline stage |
 | `apps/dashboard/tests/test_ordenacao.py` | 20 | deterministic ordering of the paginated screens |
 
 No test touches real data — they use in-memory DataFrames, temporary Parquet files or

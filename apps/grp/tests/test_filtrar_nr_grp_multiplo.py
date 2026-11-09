@@ -10,12 +10,12 @@ import logging
 import pytest
 from django.db.models import QuerySet
 
-from apps.grp.models import DadosGrp
+from apps.grp.models import GrpInstrumento
 from apps.grp.services import _filtrar_nr_grp_multiplo
 
 
 def _qs() -> QuerySet:
-    return DadosGrp.objects.all()
+    return GrpInstrumento.objects.all()
 
 
 def _sql(qs: QuerySet) -> str:

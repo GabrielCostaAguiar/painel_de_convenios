@@ -70,8 +70,8 @@ def get_grp_dados_qs(filtros: dict):
 # As 6 sub-abas abaixo reaproveitam os mesmos 3 filtros da aba Dados
 # (nr_grp, nr_instrumento, uo_cod), com as MESMAS chaves de querystring.
 # Só `nr_grp` existe em todas as tabelas; `nr_instrumento` e `uo_cod` são
-# resolvidos em DadosGrp e aplicados como conjunto de nr_grp, para que o
-# recorte visto em cada sub-aba seja exatamente o da aba Dados.
+# resolvidos em GrpGoldInstrumento e aplicados como conjunto de nr_grp, para
+# que o recorte visto em cada sub-aba seja exatamente o da aba Dados.
 # ---------------------------------------------------------------------------
 
 
@@ -102,7 +102,7 @@ def _grp_filtrar_por_nr_grp(qs, filtros: dict):
 
 
 def get_grp_cronograma_qs(filtros: dict):
-    """QuerySet[CronogramaDesembolsoGrp] filtrado pelos filtros do GRP."""
+    """QuerySet[GrpCronogramaDesembolso] filtrado pelos filtros do GRP."""
     from .models import GrpCronogramaDesembolso
 
     qs = _grp_filtrar_por_nr_grp(GrpCronogramaDesembolso.objects.all(), filtros)
@@ -120,38 +120,6 @@ def get_grp_cronograma_fisico_qs(filtros: dict):
         "qt_meta_duracao", "vl_meta", "tx_etapa_especificacao", "dt_etapa_inicio", "dt_etapa_termino", "qt_etapa_duracao",
         "vl_etapa"
     )
-
-def get_grp_recursos_contrapartida_qs(filtros: dict):
-    """QuerySet[RecursosContrapartidaGrp] filtrado pelos filtros do GRP."""
-    from .models import RecursosContrapartidaGrp
-
-    qs = _grp_filtrar_por_nr_grp(RecursosContrapartidaGrp.objects.all(), filtros)
-    return qs.order_by("nr_grp")
-
-
-def get_grp_recursos_concedente_qs(filtros: dict):
-    """QuerySet[RecursosConcedenteGrp] filtrado pelos filtros do GRP."""
-    from .models import RecursosConcedenteGrp
-
-    qs = _grp_filtrar_por_nr_grp(RecursosConcedenteGrp.objects.all(), filtros)
-    return qs.order_by("nr_grp")
-
-
-def get_grp_plano_aplicacao_qs(filtros: dict):
-    """QuerySet[PlanoAplicacaoGrp] filtrado pelos filtros do GRP."""
-    from .models import PlanoAplicacaoGrp
-
-    qs = _grp_filtrar_por_nr_grp(PlanoAplicacaoGrp.objects.all(), filtros)
-    return qs.order_by("nr_grp")
-
-
-def get_grp_plano_aplicacao_detalhes_qs(filtros: dict):
-    """QuerySet[PlanoAplicacaoGrpDetalhes] filtrado pelos filtros do GRP."""
-    from .models import PlanoAplicacaoGrpDetalhes
-
-    qs = _grp_filtrar_por_nr_grp(PlanoAplicacaoGrpDetalhes.objects.all(), filtros)
-    return qs.order_by("nr_grp", "nr_catmas")
-
 
 def get_grp_emenda_qs(filtros: dict):
     """
@@ -234,20 +202,6 @@ def get_grp_unidades_administrativas_qs(filtros: dict):
                 "sg_orgao_unidade_adm",
                 "cd_unidade_adm",
                 "nm_unidade_adm")
-
-def get_grp_uo_qs(filtros: dict):
-    """
-    QuerySet[UoGrp] — sem filtro.
-
-    UoGrp não tem nr_grp: ela é uma tabela de domínio ligada por uo_cod
-    (→ Convenio.uo_cod) e não há caminho para nr_grp dentro das tabelas do
-    GRP. A sub-aba sempre mostra tudo; a view sinaliza no template que o
-    filtro não se aplica aqui.
-    """
-    from .models import TabelaUoGrp
-
-    return TabelaUoGrp.objects.all().order_by("uo_cod")
-
 
 # ---------------------------------------------------------------------------
 # GRP — Plano de Aplicação (camada gold)

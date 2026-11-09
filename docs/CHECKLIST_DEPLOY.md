@@ -140,8 +140,8 @@ sem depender de uma confirmação que ainda não veio.
 As telas do GRP estão **em teste**. Os dados delas são carregados por um comando próprio:
 
 ```bash
-python manage.py carregar_grp                         # as 7 tabelas
-python manage.py carregar_grp --fonte dcgce_esfera_grp  # só uma
+python manage.py carregar_grp                            # todas as tabelas
+python manage.py carregar_grp --fonte grp_instrumento     # só uma
 ```
 
 `PIPELINE_INCLUIR_GRP` continua `False` de propósito: uma falha ou a ausência de um

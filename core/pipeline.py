@@ -80,13 +80,28 @@ CARGAS_ORM = [
 # esta ligado - ver _fontes_silver(). Ficam separadas de FONTES_SILVER para o
 # comportamento padrao do pipeline nao mudar.
 FONTES_SILVER_GRP = [
-    "dcgce_dados_grp",
-    "dcgce_cronograma_desembolso_grp",
-    "dcgce_recursos_contrapartida_grp",
-    "dcgce_recursos_concedente_grp",
-    "dcgce_plano_aplicacao_grp",
-    "dcgce_plano_aplicacao_grp_detalhes",
-    "dcgce_esfera_grp",
+    "grp_instrumento",
+    "grp_concedente",
+    "grp_prestacao_contas",
+    "grp_planejamento_obras",
+    "grp_proposta_marco_logico",
+    "grp_emenda",
+    "grp_interveniente",
+    "grp_unidade_executora",
+    "grp_municipio_atendido",
+    "grp_regiao_atendida",
+    "grp_recurso_concedente",
+    "grp_recurso_contrapartida",
+    "grp_dotacao_contrapartida",
+    "grp_acao_orcamentaria",
+    "grp_instrumento_financiado",
+    "grp_item_executar",
+    "grp_cronograma_desembolso",
+    "grp_cronograma_fisico",
+    "grp_entrega_projeto",
+    "grp_atividade_projeto",
+    "grp_matriz_responsabilidade",
+    "grp_tabela_uo",
 ]
 
 # Carga das tabelas do GRP, tambem opcional (mesmo setting).

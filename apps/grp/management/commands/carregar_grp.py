@@ -1,11 +1,7 @@
 """
 Management command: carregar_grp
 
-Full refresh das 7 tabelas do GRP a partir dos Parquets Silver.
-
-Os models, migrações, schemas, services e telas do GRP já existiam, mas os
-loaders `carregar_*_grp()` não eram chamados por nenhum comando — só dava para
-popular as telas abrindo um shell Python. Este comando fecha essa lacuna.
+Full refresh das tabelas do GRP a partir dos Parquets Silver.
 
 O GRP ainda está **em teste**: por isso ele entra na CLI mas fica FORA do
 `rodar_pipeline` por padrão. Uma falha ou ausência de arquivo GRP não pode
@@ -18,8 +14,8 @@ Pré-requisito por fonte:
 
 Uso:
     python manage.py carregar_grp
-    python manage.py carregar_grp --fonte dcgce_esfera_grp
-    python manage.py carregar_grp --fonte dcgce_dados_grp --fonte dcgce_esfera_grp
+    python manage.py carregar_grp --fonte grp_instrumento
+    python manage.py carregar_grp --fonte grp_instrumento --fonte grp_concedente
 """
 
 import logging
@@ -37,18 +33,10 @@ logger = logging.getLogger(__name__)
 # Sobre a ordem: os models do GRP não têm nenhuma ForeignKey entre si — são
 # tabelas planas ligadas por nr_grp na consulta, não por integridade
 # referencial. Então a ordem não afeta a consistência do banco. Mantemos
-# dcgce_dados_grp primeiro por ser a tabela "mãe" do conjunto (é dela que as
+# grp_instrumento primeiro por ser a tabela "mãe" do conjunto (é dela que as
 # telas tiram a lista de instrumentos), de modo que uma carga interrompida
 # deixe o painel num estado mais útil.
 _LOADERS_GRP = {
-    "dcgce_dados_grp": loaders.carregar_dados_grp,
-    "dcgce_cronograma_desembolso_grp": loaders.carregar_cronograma_desembolso_grp,
-    "dcgce_recursos_contrapartida_grp": loaders.carregar_recurso_contrapartida_grp,
-    "dcgce_recursos_concedente_grp": loaders.carregar_recurso_concedente_grp,
-    "dcgce_plano_aplicacao_grp": loaders.carregar_plano_aplicacao_grp,
-    "dcgce_plano_aplicacao_grp_detalhes": loaders.carregar_plano_aplicacao_grp_detalhes,
-    "dcgce_tabela_uo_grp": loaders.carregar_tabela_uo_grp,
-    # --- fontes novas (Modelo de Extração GRP v1.2) ---
     "grp_instrumento": loaders.carregar_grp_instrumento,
     "grp_concedente": loaders.carregar_grp_concedente,
     "grp_prestacao_contas": loaders.carregar_grp_prestacao_contas,
@@ -79,7 +67,7 @@ FONTES_GRP = tuple(_LOADERS_GRP)
 class Command(BaseCommand):
     help = (
         "Full refresh das tabelas do GRP a partir dos Parquets Silver. "
-        "Sem argumentos, carrega as 8; use --fonte para escolher."
+        "Sem argumentos, carrega todas; use --fonte para escolher."
     )
 
     def add_arguments(self, parser):
