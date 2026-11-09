@@ -493,11 +493,13 @@ class TestDescartar:
 
 class TestDescartarLinhasSeNulo:
     def test_linha_com_nulo_na_coluna_e_removida(self, tmp_path, monkeypatch):
+        # Chave BRUTA (pré-renomear): o bloco roda antes da tipagem — ver
+        # core/transform/silver.py.
         schema = {
             "fonte": "fonte_obrigatoria",
             "colunas": {"identificador": ["col_chave"]},
             "renomear": {"col_chave": "cd_chave", "col_outro": "cd_outro"},
-            "descartar_linhas_se_nulo": ["cd_chave"],
+            "descartar_linhas_se_nulo": ["col_chave"],
         }
         csv = _criar_fonte(
             tmp_path, monkeypatch, "fonte_obrigatoria", schema,

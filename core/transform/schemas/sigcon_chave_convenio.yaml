@@ -1,0 +1,24 @@
+fonte: sigcon_chave_convenio
+descricao: >
+  Ponte ETL: mapeia cd_convenio_sequencial → SIAFI+UO. Grão: 1 linha por
+  convênio (cd_convenio_sequencial).
+grao:
+- cd_convenio_sequencial
+colunas:
+  identificador:
+  - convenio_codigo
+  - convenio_codigo_sequencial
+  - convenio_numero_sequencial_siafi
+  - unidade_orcamentaria_codigo
+sentinelas:
+  convenio_codigo: ['-', '00', '000']
+  convenio_numero_sequencial_siafi: ['0']
+renomear:
+  convenio_codigo: nr_convenio  # R
+  convenio_codigo_sequencial: cd_convenio_sequencial  # PK
+  convenio_numero_sequencial_siafi: nr_siafi
+  unidade_orcamentaria_codigo: cd_uo
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]

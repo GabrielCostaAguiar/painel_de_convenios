@@ -1,0 +1,23 @@
+fonte: sigcon_unidade_executora
+descricao: >
+  Unidades executoras do SIGCON-MG. Grão: convênio (siafi_uo) x unidade
+  executora — relação 1:N, ≈12 unidades por convênio em média. Única fonte
+  SIGCON com header=0 (ver core/ingestion/sources.py).
+grao:
+- siafi_uo
+- cd_unidade_executora
+colunas:
+  identificador:
+  - unidade_orcamentaria_codigo
+  - convenio_numero_sequencial_siafi
+  - convenio_codigo
+  - unidade_executora
+renomear:
+  unidade_orcamentaria_codigo: cd_uo
+  convenio_numero_sequencial_siafi: nr_siafi
+  convenio_codigo: nr_convenio  # R
+  unidade_executora: cd_unidade_executora
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]

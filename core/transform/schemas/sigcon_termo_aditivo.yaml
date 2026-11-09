@@ -1,0 +1,43 @@
+fonte: sigcon_termo_aditivo
+descricao: >
+  Termos aditivos do SIGCON-MG. Grão: 1 linha por termo aditivo
+  (cd_termo_aditivo).
+grao:
+- cd_termo_aditivo
+colunas:
+  data:
+  - termo_aditivo_data_assinatura
+  - termo_aditivo_data_inicio_vigencia
+  - termo_aditivo_data_termino_vigencia
+  data_hora:
+  - data_termo_aditivo
+  valor:
+  - valor_aditado_concedente_contratado
+  - valor_aditado_proponente_contratado
+  inteiro:
+  - termo_aditivo_ano
+  identificador:
+  - termo_aditivo_codigo_sequencial
+  texto:
+  - termo_aditivo_justificativa
+  - tipo_termo_aditivo
+sentinelas:
+  termo_aditivo_justificativa: ['null']
+renomear:
+  termo_aditivo_codigo_sequencial: cd_termo_aditivo  # PK
+  termo_aditivo_numero_termo_aditivo: nr_termo_aditivo
+  termo_aditivo_ano: nr_ano_termo_aditivo
+  termo_aditivo_data_assinatura: dt_assinatura
+  termo_aditivo_data_inicio_vigencia: dt_vigencia_inicio
+  termo_aditivo_data_termino_vigencia: dt_vigencia_termino
+  termo_aditivo_justificativa: tx_justificativa
+  tipo_termo_aditivo: tp_termo_aditivo
+  data_termo_aditivo: dh_registro
+  valor_aditado_concedente_contratado: vl_aditivo_concedente
+  valor_aditado_proponente_contratado: vl_aditivo_proponente
+# Colunas descartadas: redundantes com as já renomeadas acima (mesma
+# informação em formato diferente no export do BO).
+descartar:
+- termo_aditivo_alteracao
+- termo_aditivo_tipo
+- quantidade_termo_aditivo

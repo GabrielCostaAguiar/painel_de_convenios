@@ -8,25 +8,30 @@ Pipeline (transformar_fonte / _transformar):
   3. Normalização de nomes para snake_case sem acentos
   4. Carregamento do schema YAML em core/transform/schemas/<nome>.yaml
   5. Descarte de linhas 100% vazias e de linhas que repetem o cabeçalho como dado
-  6. Conversão por categoria declarada no schema (chaves = nomes BRUTOS,
+  6. 'descartar_linhas_se_nulo:' (chaves = nomes BRUTOS) — remove linhas com
+     "" em alguma das colunas listadas, ANTES de qualquer tipagem. Existe
+     neste ponto (e não depois do renomear) para descartar blocos
+     desalinhados do relatório do BO antes que uma coluna 'inteiro' do
+     mesmo bloco quebre a conversão numérica com texto de cabeçalho vazado
+     na linha errada (ex.: tabela 07 do Modelo de Extração)
+  7. Conversão por categoria declarada no schema (chaves = nomes BRUTOS,
      pré-renomear — mesma convenção do bloco 'colunas'):
-       data          → datetime64[us]       (errors="coerce" → NaT)
+       data          → datetime64[us], hora zerada (errors="coerce" → NaT)
+       data_hora     → datetime64[us], mantém a hora (errors="coerce" → NaT)
        valor         → float64              (errors="coerce" → NaN)
        inteiro       → Int64                (errors="raise"; sentinelas → <NA>)
        identificador → StringDtype nullable (strip + remoção de artefato ".0")
        texto         → StringDtype nullable (strip)
      'sentinelas:' (chaves = nomes BRUTOS) sobrescreve, por coluna, o conjunto
      global SENTINELAS usado nessa etapa.
-  7. Renomeação (bloco 'renomear': bruto → final)
-  8. 'desdobrar:' — gera a saída longa (outro DataFrame) a partir de colunas
+  8. Renomeação (bloco 'renomear': bruto → final)
+  9. 'desdobrar:' — gera a saída longa (outro DataFrame) a partir de colunas
      ainda presentes neste ponto (mistura de nomes finais e brutos ainda não
      descartados)
-  9. 'descartar:' — remove colunas (nomes finais) após o desdobramento
-  10. Limpeza de texto (strip) e 'booleanos:' (chaves = nomes FINAIS;
+  10. 'descartar:' — remove colunas (nomes finais) após o desdobramento
+  11. Limpeza de texto (strip) e 'booleanos:' (chaves = nomes FINAIS;
       default = convenção de prefixo fl_ + MAPA_BOOLEANO)
-  11. 'derivadas:' — colunas calculadas por função registrada (nomes finais)
-  12. 'descartar_linhas_se_nulo:' — remove linhas com nulo em alguma das
-      colunas listadas (nomes finais)
+  12. 'derivadas:' — colunas calculadas por função registrada (nomes finais)
   13. Descarte de linhas 100% vazias (idempotente com o passo 5; cobre linhas
       que só ficaram vazias depois da tipagem — ex.: todas as datas inválidas)
   14. Remoção de linhas 100% idênticas (dedup), com log
@@ -39,13 +44,14 @@ Pipeline (transformar_fonte / _transformar):
 
 Divergência deliberada da ordem descrita na especificação (que pede
 renomear → desdobrar → descartar → sentinelas → tipos → booleanos →
-derivadas): aqui a tipagem (passo 6) roda ANTES do renomear, igual já
-funcionava para o GRP antes desta generalização — mudar a ordem exigiria
-reescrever as chaves de 'colunas' nos 22 YAMLs do GRP para nomes finais, o
-que violaria a regra de saída idêntica do GRP. 'sentinelas:' por isso usa
-nomes BRUTOS (mesma convenção de 'colunas'); 'booleanos:', 'derivadas:',
-'descartar:', 'descartar_linhas_se_nulo:', 'grao:' e 'quarentena:' usam
-nomes FINAIS, por rodarem depois do renomear.
+derivadas → descartar linhas): aqui a tipagem (passo 7) roda ANTES do
+renomear, igual já funcionava para o GRP antes desta generalização — mudar
+a ordem exigiria reescrever as chaves de 'colunas' nos 22 YAMLs do GRP para
+nomes finais, o que violaria a regra de saída idêntica do GRP.
+'descartar_linhas_se_nulo:' também roda antes (ver passo 6, motivo acima).
+'sentinelas:' usa nomes BRUTOS (mesma convenção de 'colunas'); 'booleanos:',
+'derivadas:', 'descartar:' e 'grao:'/'quarentena:' usam nomes FINAIS, por
+rodarem depois do renomear.
 
 Gravação (gravar_silver):
   - Formato: Parquet (preserva datetime, float e StringDtype sem reinterpretação)
@@ -149,11 +155,14 @@ def _descartar_linhas_vazias(df: pd.DataFrame, nome: str, estagio: str) -> pd.Da
 
 def _descartar_linhas_repetem_cabecalho(df: pd.DataFrame, nome: str) -> pd.DataFrame:
     """Alguns exports (ex.: relatórios paginados do BO) repetem a linha de
-    cabeçalho como dado no meio do arquivo. Descarta linhas cujo valor em
-    TODAS as colunas é igual ao próprio nome da coluna."""
+    cabeçalho como dado no meio do arquivo — com o texto original ("Plano
+    Trabalho Código"), não o nome normalizado da coluna ("plano_trabalho_codigo").
+    Descarta linhas cujo valor em TODAS as colunas, depois de normalizado do
+    mesmo jeito que o nome da coluna, é igual ao próprio nome da coluna."""
     if df.empty:
         return df
-    mascara = (df.astype(str) == pd.Series(df.columns, index=df.columns)).all(axis=1)
+    normalizado = df.astype(str).map(normalizar_coluna)
+    mascara = (normalizado == pd.Series(df.columns, index=df.columns)).all(axis=1)
     if mascara.any():
         logger.info("Linhas que repetem o cabeçalho descartadas em '%s': %d", nome, int(mascara.sum()))
         df = df.loc[~mascara]
@@ -245,6 +254,14 @@ def _aplicar_derivadas(df: pd.DataFrame, regras: dict, nome: str) -> pd.DataFram
 
 
 def _descartar_linhas_se_nulo(df: pd.DataFrame, colunas: list[str], nome: str) -> pd.DataFrame:
+    """
+    Roda sobre as colunas BRUTAS (pré-tipagem/renomear), tratando "" como
+    nulo — nesse ponto do pipeline nada foi convertido ainda, então um bronze
+    com keep_default_na=False só tem string, nunca NaN de verdade. Isso é
+    proposital: existe pra descartar blocos desalinhados do relatório do BO
+    (ex.: tabela 07) ANTES que uma coluna 'inteiro' do mesmo bloco quebre a
+    conversão numérica com texto de cabeçalho vazado na linha errada.
+    """
     presentes = [c for c in colunas if c in df.columns]
     ausentes = set(colunas) - set(presentes)
     if ausentes:
@@ -252,7 +269,8 @@ def _descartar_linhas_se_nulo(df: pd.DataFrame, colunas: list[str], nome: str) -
     if not presentes:
         return df
     antes = len(df)
-    df = df.dropna(subset=presentes)
+    vazio = (df[presentes] == "").any(axis=1)
+    df = df.loc[~vazio]
     descartadas = antes - len(df)
     if descartadas:
         logger.info("Linhas descartadas por nulo em %s ('%s'): %d", presentes, nome, descartadas)
@@ -367,6 +385,7 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
     colunas: dict[str, list[str]] = schema.get("colunas", {})
 
     cols_data = colunas.get("data", [])
+    cols_data_hora = colunas.get("data_hora", [])
     cols_valor = colunas.get("valor", [])
     cols_inteiro = colunas.get("inteiro", [])
     cols_id = colunas.get("identificador", [])
@@ -389,12 +408,25 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
 
     df = _descartar_linhas_vazias(df, nome, "bruto")
     df = _descartar_linhas_repetem_cabecalho(df, nome)
+    if schema.get("descartar_linhas_se_nulo"):
+        df = _descartar_linhas_se_nulo(df, schema["descartar_linhas_se_nulo"], nome)
 
-    # --- datas ---
+    # --- datas (só data, sem hora: datetime vindo do Excel passa direto,
+    # mas a parte de hora é zerada — "data" guarda só a data) ---
     logger.info("Datas:")
     for col in cols_data:
         if col not in df.columns:
             logger.warning("  Coluna data '%s' ausente no Bronze de '%s'", col, nome)
+            continue
+        convertida = pd.to_datetime(df[col], errors="coerce", dayfirst=True).dt.normalize()
+        logger.info("  %-45s  NaT: %d", col, convertida.isna().sum())
+        df[col] = convertida
+
+    # --- data_hora (mantém a hora, quando houver) ---
+    logger.info("Datas com hora:")
+    for col in cols_data_hora:
+        if col not in df.columns:
+            logger.warning("  Coluna data_hora '%s' ausente no Bronze de '%s'", col, nome)
             continue
         convertida = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
         logger.info("  %-45s  NaT: %d", col, convertida.isna().sum())
@@ -447,7 +479,7 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
         df[col] = convertida
 
     # --- texto: todas as colunas não tipadas acima ---
-    cols_tipadas = set(cols_data) | set(cols_valor) | set(cols_inteiro) | set(cols_id)
+    cols_tipadas = set(cols_data) | set(cols_data_hora) | set(cols_valor) | set(cols_inteiro) | set(cols_id)
     for col in df.columns:
         if col not in cols_tipadas:
             limpa = df[col].str.strip()
@@ -477,10 +509,6 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
     # --- derivadas (colunas calculadas por função registrada) ---
     if schema.get("derivadas"):
         df = _aplicar_derivadas(df, schema["derivadas"], nome)
-
-    # --- descartar linhas com nulo em colunas obrigatórias ---
-    if schema.get("descartar_linhas_se_nulo"):
-        df = _descartar_linhas_se_nulo(df, schema["descartar_linhas_se_nulo"], nome)
 
     df = _descartar_linhas_vazias(df, nome, "pós-tipagem")
 

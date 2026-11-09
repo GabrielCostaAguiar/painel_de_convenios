@@ -1,0 +1,21 @@
+fonte: sigcon_chave_termo_aditivo
+descricao: >
+  Ponte ETL: mapeia cd_termo_aditivo → SIAFI+UO+cd_plano_trabalho. Grão:
+  1 linha por termo aditivo (cd_termo_aditivo).
+grao:
+- cd_termo_aditivo
+colunas:
+  identificador:
+  - convenio_numero_sequencial_siafi
+  - termo_aditivo_codigo_sequencial
+  - unidade_orcamentaria_codigo
+  - plano_trabalho_codigo
+renomear:
+  convenio_numero_sequencial_siafi: nr_siafi
+  termo_aditivo_codigo_sequencial: cd_termo_aditivo  # PK
+  unidade_orcamentaria_codigo: cd_uo
+  plano_trabalho_codigo: cd_plano_trabalho  # FK -> 03
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]

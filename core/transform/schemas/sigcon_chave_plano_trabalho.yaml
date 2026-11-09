@@ -1,0 +1,22 @@
+fonte: sigcon_chave_plano_trabalho
+descricao: >
+  Ponte ETL: mapeia cd_plano_trabalho → SIAFI+UO. Grão: 1 linha por
+  convênio (siafi_uo).
+grao:
+- siafi_uo
+colunas:
+  identificador:
+  - conveno_codigo_plano_trabalho
+  - convenio_numero_sequencial_siafi
+  - unidade_orcamentaria_codigo
+sentinelas:
+  conveno_codigo_plano_trabalho: ['0']
+  convenio_numero_sequencial_siafi: ['0']
+renomear:
+  conveno_codigo_plano_trabalho: cd_plano_trabalho  # FK -> 03
+  convenio_numero_sequencial_siafi: nr_siafi
+  unidade_orcamentaria_codigo: cd_uo
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]

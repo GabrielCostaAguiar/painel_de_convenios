@@ -1,5 +1,11 @@
 fonte: controle_sei
-gerado_em: '2026-06-11'
+descricao: >
+  Controle interno DCGCE do nº SEI por convênio. Grão: 1 linha por processo
+  SEI (nr_sei). As colunas de documento (Instrumento, TA n, Prorrogação de
+  Ofício) alimentam a tabela derivada controle_sei_documento via
+  'desdobrar:' e são descartadas desta tabela principal.
+grao:
+- nr_sei
 colunas:
   identificador:
   - no_sei
@@ -7,27 +13,62 @@ colunas:
   - "no_proposta_(siconv)"
   texto:
   - obs
-  - instrumento
-  - instrumento_2
-  - instrumento_3
-  - ta_1
-  - ta_2
-  - ta_3
-  - ta_4
-  - ta_5
-  - ta_6
-  - ta_7
-  - ta_8
-  - ta_9
-  - ta_10
-  - ta_11
-  - ta_12
-  - ta_13
-  - ta_16
-  - ta_17
-  - ta_20
-  - ta_21
-  - ta_22
-  - prorrogacao_de_oficio
-  - "monitorar?"
-duvidoso:
+renomear:
+  no_sei: nr_sei  # PK
+  "no_siafi_(sigcon)": nr_siafi  # FK
+  "no_proposta_(siconv)": nr_proposta_siconv
+  obs: tx_observacao
+  "monitorar?": fl_monitorar
+booleanos:
+  fl_monitorar:
+    Sim: true
+    Não: false
+desdobrar:
+  chave: [nr_sei]
+  valor: nr_documento_sei
+  mapa:
+  - {coluna: instrumento, tp_documento: Instrumento, nr_ordem: 1}
+  - {coluna: instrumento_2, tp_documento: Instrumento, nr_ordem: 2}
+  - {coluna: instrumento_3, tp_documento: Instrumento, nr_ordem: 3}
+  - {coluna: ta_1, tp_documento: Termo Aditivo, nr_ordem: 1}
+  - {coluna: ta_2, tp_documento: Termo Aditivo, nr_ordem: 2}
+  - {coluna: ta_3, tp_documento: Termo Aditivo, nr_ordem: 3}
+  - {coluna: ta_4, tp_documento: Termo Aditivo, nr_ordem: 4}
+  - {coluna: ta_5, tp_documento: Termo Aditivo, nr_ordem: 5}
+  - {coluna: ta_6, tp_documento: Termo Aditivo, nr_ordem: 6}
+  - {coluna: ta_7, tp_documento: Termo Aditivo, nr_ordem: 7}
+  - {coluna: ta_8, tp_documento: Termo Aditivo, nr_ordem: 8}
+  - {coluna: ta_9, tp_documento: Termo Aditivo, nr_ordem: 9}
+  - {coluna: ta_10, tp_documento: Termo Aditivo, nr_ordem: 10}
+  - {coluna: ta_11, tp_documento: Termo Aditivo, nr_ordem: 11}
+  - {coluna: ta_12, tp_documento: Termo Aditivo, nr_ordem: 12}
+  - {coluna: ta_13, tp_documento: Termo Aditivo, nr_ordem: 13}
+  - {coluna: ta_16, tp_documento: Termo Aditivo, nr_ordem: 16}
+  - {coluna: ta_17, tp_documento: Termo Aditivo, nr_ordem: 17}
+  - {coluna: ta_20, tp_documento: Termo Aditivo, nr_ordem: 20}
+  - {coluna: ta_21, tp_documento: Termo Aditivo, nr_ordem: 21}
+  - {coluna: ta_22, tp_documento: Termo Aditivo, nr_ordem: 22}
+  - {coluna: prorrogacao_de_oficio, tp_documento: Prorrogação de Ofício, nr_ordem: 1}
+descartar:
+- instrumento
+- instrumento_2
+- instrumento_3
+- ta_1
+- ta_2
+- ta_3
+- ta_4
+- ta_5
+- ta_6
+- ta_7
+- ta_8
+- ta_9
+- ta_10
+- ta_11
+- ta_12
+- ta_13
+- ta_16
+- ta_17
+- ta_20
+- ta_21
+- ta_22
+- prorrogacao_de_oficio

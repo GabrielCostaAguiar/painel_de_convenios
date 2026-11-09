@@ -1,0 +1,41 @@
+fonte: sigcon_declaracao_contrapartida
+descricao: >
+  Declarações de contrapartida do SIGCON-MG. Grão: 1 linha por declaração
+  (cd_declaracao_contrapartida).
+grao:
+- cd_declaracao_contrapartida
+colunas:
+  data:
+  - declaracao_contrapartida_data_emissao
+  - declaracao_contrapartida_data_parecer_aprovacao
+  data_hora:
+  - declaracao_contrapartida_data_completa_emissao
+  - declaracao_contrapartida_data_completa_parecer_aprovacao
+  inteiro:
+  - declaracao_contrapartida_ano
+  identificador:
+  - declaracao_contrapartida_codigo
+  - declaracao_contrapartida_codigo_nota_tecnica
+  - declaracao_contrapartida_matricula_aprovacao
+  texto:
+  - declaracao_contrapartida_status
+  - declaracao_contrapartida_observacao
+  - declaracao_contrapartida_codigo_parecer_aprovacao
+  - declaracao_contrapartida_observacao_aprovacao
+  - declaracao_contrapartida_momento
+sentinelas:
+  declaracao_contrapartida_observacao: ['null', 'NULL']
+renomear:
+  declaracao_contrapartida_codigo: cd_declaracao_contrapartida  # PK
+  declaracao_contrapartida_data_completa_emissao: dh_emissao
+  declaracao_contrapartida_data_emissao: dt_emissao  # R — mesma data de dh_emissao, sem hora
+  declaracao_contrapartida_ano: nr_ano_declaracao
+  declaracao_contrapartida_status: ds_status_declaracao
+  declaracao_contrapartida_codigo_nota_tecnica: cd_nota_tecnica
+  declaracao_contrapartida_observacao: tx_observacao
+  declaracao_contrapartida_codigo_parecer_aprovacao: ds_parecer_aprovacao
+  declaracao_contrapartida_data_completa_parecer_aprovacao: dh_parecer_aprovacao
+  declaracao_contrapartida_data_parecer_aprovacao: dt_parecer_aprovacao  # R
+  declaracao_contrapartida_observacao_aprovacao: tx_observacao_aprovacao
+  declaracao_contrapartida_matricula_aprovacao: cd_matricula_aprovacao  # LGPD
+  declaracao_contrapartida_momento: ds_momento

@@ -1,0 +1,64 @@
+fonte: sigcon_plano_aplicacao
+descricao: >
+  Plano de aplicação do SIGCON-MG. Grão: plano de trabalho x classificação
+  orçamentária x ano de exercício.
+grao:
+- cd_plano_trabalho
+- cd_uo
+- cd_funcao
+- cd_subfuncao
+- cd_programa
+- cd_identificador_projeto_atividade
+- cd_projeto_atividade
+- cd_subprojeto_subatividade
+- cd_categoria_economica
+- cd_grupo_despesa
+- cd_modalidade_aplicacao
+- cd_elemento_despesa
+- cd_identificador_orcamento
+- cd_fonte_recurso
+- cd_procedencia
+- nr_ano_exercicio
+colunas:
+  valor:
+  - valor_concedente
+  - valor_proponente
+  inteiro:
+  - ano_exercicio_programa_trabalho
+  identificador:
+  - codigo_plano_trabalho
+  - codigo_unidade_orcamentaria
+  - funcao_codigo
+  - subfuncao_codigo
+  - programa_codigo
+  - identificador_projeto_atividade_codigo
+  - projeto_atividade_codigo
+  - subprojeto_subatividade_codigo
+  - categoria_economica_despesa_codigo
+  - grupo_despesa_codigo
+  - modalidade_aplicacao_codigo
+  - elemento_despesa_codigo
+  - identificador_orcamento_codigo
+  - fonte_recurso_codigo
+  - procedencia_codigo
+  - funcional_programatica_formatado
+renomear:
+  codigo_plano_trabalho: cd_plano_trabalho  # FK -> 03
+  codigo_unidade_orcamentaria: cd_uo
+  funcao_codigo: cd_funcao
+  subfuncao_codigo: cd_subfuncao
+  programa_codigo: cd_programa
+  identificador_projeto_atividade_codigo: cd_identificador_projeto_atividade
+  projeto_atividade_codigo: cd_projeto_atividade
+  subprojeto_subatividade_codigo: cd_subprojeto_subatividade
+  categoria_economica_despesa_codigo: cd_categoria_economica
+  grupo_despesa_codigo: cd_grupo_despesa
+  modalidade_aplicacao_codigo: cd_modalidade_aplicacao
+  elemento_despesa_codigo: cd_elemento_despesa
+  identificador_orcamento_codigo: cd_identificador_orcamento
+  fonte_recurso_codigo: cd_fonte_recurso
+  procedencia_codigo: cd_procedencia
+  funcional_programatica_formatado: cd_funcional_programatica
+  ano_exercicio_programa_trabalho: nr_ano_exercicio
+  valor_concedente: vl_aplicacao_concedente
+  valor_proponente: vl_aplicacao_proponente

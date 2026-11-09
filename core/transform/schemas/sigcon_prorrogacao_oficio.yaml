@@ -1,0 +1,26 @@
+fonte: sigcon_prorrogacao_oficio
+descricao: >
+  Prorrogações de ofício do SIGCON-MG. Grão: 1 linha por prorrogação
+  (cd_prorrogacao_oficio).
+grao:
+- cd_prorrogacao_oficio
+colunas:
+  data:
+  - prorrogacao_oficio_data_inicio_vigencia
+  - prorrogacao_oficio_data_termino_vigencia
+  - prorrogacao_oficio_data_envio
+  - prorrogacao_oficio_data_parecer
+  - prorrogacao_oficio_data_publicacao
+  identificador:
+  - prorrogacao_oficio_codigo
+  - prorrogacao_oficio_codigo_convenio
+renomear:
+  prorrogacao_oficio_codigo: cd_prorrogacao_oficio  # PK
+  # cd_convenio_sequencial é o código sequencial do convênio (02/11), não o
+  # número SIAFI.
+  prorrogacao_oficio_codigo_convenio: cd_convenio_sequencial  # FK
+  prorrogacao_oficio_data_inicio_vigencia: dt_vigencia_inicio
+  prorrogacao_oficio_data_termino_vigencia: dt_vigencia_termino
+  prorrogacao_oficio_data_envio: dt_envio
+  prorrogacao_oficio_data_parecer: dt_parecer
+  prorrogacao_oficio_data_publicacao: dt_publicacao

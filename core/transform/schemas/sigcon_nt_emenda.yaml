@@ -1,0 +1,28 @@
+fonte: sigcon_nt_emenda
+descricao: >
+  Notas técnicas de emendas parlamentares do SIGCON-MG. Grão: 1 linha por
+  plano de trabalho (cd_plano_trabalho) — vale só para valores não nulos;
+  as ~216 linhas do sentinela ficam com cd_plano_trabalho nulo e não entram
+  na verificação de unicidade.
+grao:
+- cd_plano_trabalho
+colunas:
+  identificador:
+  - unidade_orcamentaria_codigo
+  - plano_trabalho_codigo
+  - nt_emenda_no
+  texto:
+  - nt_emenda_nome
+sentinelas:
+  plano_trabalho_codigo: ['99999999']
+  unidade_orcamentaria_codigo: ['9999']
+renomear:
+  unidade_orcamentaria_codigo: cd_uo
+  plano_trabalho_codigo: cd_plano_trabalho  # FK -> 03
+  nt_emenda_no: nr_emenda
+  nt_emenda_nome: nm_parlamentar
+  nota_tecnica_emenda_parlamentar_federal_situacao: fl_emenda_parlamentar_federal
+booleanos:
+  fl_emenda_parlamentar_federal:
+    Sim: true
+    Não: false

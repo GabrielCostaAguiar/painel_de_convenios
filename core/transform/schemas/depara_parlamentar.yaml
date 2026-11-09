@@ -1,0 +1,13 @@
+fonte: depara_parlamentar
+descricao: >
+  De-para de nomes de parlamentares. Grão: 1 linha por grafia de origem
+  (ds_parlamentar_origem).
+grao:
+- ds_parlamentar_origem
+colunas:
+  texto:
+  - de
+  - para
+renomear:
+  de: ds_parlamentar_origem  # PK
+  para: nm_parlamentar

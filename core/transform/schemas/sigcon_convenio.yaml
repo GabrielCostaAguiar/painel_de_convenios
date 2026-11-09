@@ -1,0 +1,50 @@
+fonte: sigcon_convenio
+descricao: >
+  Convênios do SIGCON-MG. Grão: 1 linha por convênio (siafi_uo).
+grao:
+- siafi_uo
+colunas:
+  data:
+  - data_inicio_vigencia
+  - data_termino_vigencia
+  - data_real_convenio
+  valor:
+  - valor_inicial_concedente_contratado
+  - valor_total_aditado_concedente_contratado
+  - valor_concedente
+  - valor_inicial_proponente_contratado
+  - valor_total_aditado_proponente_contratado
+  - valor_proponente
+  - valor_total_convenio
+  identificador:
+  - convenio_codigo
+  - convenio_numero_sequencial_siafi
+  - unidade_orcamentaria_codigo
+  texto:
+  - situacao
+# Por coluna BRUTA (pré-renomear): substitui o conjunto global de sentinelas.
+sentinelas:
+  convenio_codigo: ['-', '00', '000']
+  convenio_numero_sequencial_siafi: ['0']
+renomear:
+  convenio_codigo: nr_convenio
+  convenio_numero_sequencial_siafi: nr_siafi
+  unidade_orcamentaria_codigo: cd_uo
+  situacao: ds_situacao_convenio
+  data_inicio_vigencia: dt_vigencia_inicio
+  data_termino_vigencia: dt_vigencia_termino_inicial
+  data_real_convenio: dt_vigencia_termino
+  valor_inicial_concedente_contratado: vl_convenio_concedente_inicial
+  valor_total_aditado_concedente_contratado: vl_convenio_concedente_aditado
+  valor_concedente: vl_convenio_concedente
+  valor_inicial_proponente_contratado: vl_convenio_proponente_inicial
+  valor_total_aditado_proponente_contratado: vl_convenio_proponente_aditado
+  valor_proponente: vl_convenio_proponente
+  valor_total_convenio: vl_convenio_total
+# siafi_uo = nr_siafi || cd_uo. 4 linhas sem SIAFI ficam com siafi_uo nulo
+# (montar_siafi_uo já devolve <NA> quando algum dos dois lados é nulo) — não
+# são descartadas, só ficam fora do grão verificado.
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]

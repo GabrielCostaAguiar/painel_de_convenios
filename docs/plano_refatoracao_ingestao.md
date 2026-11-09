@@ -236,6 +236,54 @@ vs. padrão global), `booleanos` (override vs. erro em valor fora do mapa),
 `quarentena` (destino divergente vs. sem divergência) e `desdobrar` (uma
 linha por célula preenchida, null não gera linha).
 
+## Fase 4 — executada
+
+`git mv` + reescrita completa dos 16 YAMLs renomeados, mais `siconv_convenio.yaml`
+e `controle_sei.yaml` (mesmo nome, reescritos no lugar). Rodei `rodar_ingestao`
++ `rodar_silver` para as 20 fontes contra os arquivos reais em `data/raw/` —
+todas geram Silver sem erro.
+
+**Duas capacidades novas no motor, descobertas rodando contra dados reais
+(não previstas na Fase 2):**
+
+1. **`colunas.data_hora`** — a especificação pede a distinção "`data` guarda
+   só a data, `data_hora` mantém a hora" (várias colunas `dh_*` nas tabelas
+   02-07), mas a Fase 2 só implementou `data` (sem truncar a hora). Adicionado
+   `data_hora` como categoria própria; `data` agora trunca para meia-noite
+   (`.dt.normalize()`). Testado sem regressão no GRP (3 fontes usam `data`,
+   nenhuma carrega hora real).
+2. **`descartar_linhas_se_nulo:` passou a rodar ANTES da tipagem**, usando
+   nomes BRUTOS — não depois do renomear como a Fase 2 original implementou.
+   Achado ao rodar `sigcon_cronograma_desembolso` contra o arquivo real: o
+   bloco desalinhado do relatório do BO (linha 29993) tem o texto solto
+   "Plano Trabalho Código" caindo na coluna `mes_cronograma_desembolso`
+   (declarada `inteiro`) — a conversão numérica (`errors="raise"`, proposital)
+   quebra antes de qualquer `descartar_linhas_se_nulo` pós-renomear rodar.
+   Resolvido fazendo esse bloco rodar logo depois do descarte de linhas
+   vazias/cabeçalho repetido, operando em "" (ainda não há NaN nesse ponto).
+   Documentado no docstring do módulo.
+
+**DIVERGÊNCIA encontrada e corrigida (`sigcon_chave_siconv`):** o valor real
+da coluna `siconv` tem `"N?o"` (não `"Não"`) — artefato de um caractere que a
+exportação não conseguiu codificar, não erro de digitação. Adicionado ao
+`booleanos.fl_siconv` como variante aceita de `False`, com comentário no YAML.
+
+**DIVERGÊNCIA encontrada e corrigida no motor (não na fonte):** a detecção
+de "linha que repete o cabeçalho" (Fase 2) comparava o valor da célula contra
+o nome JÁ normalizado da coluna (`plano_trabalho_codigo`), mas o texto que
+vaza nas linhas desalinhadas é o cabeçalho ORIGINAL ("Plano Trabalho
+Código"). Corrigido normalizando a célula com a mesma função antes de
+comparar (`normalizar_coluna`).
+
+Nenhuma outra divergência contra a seção 9 da especificação — as 20 fontes
+geraram Silver com as colunas, sentinelas e de-paras exatamente como
+documentado.
+
+**Pendente para a Fase 6 (validação com números reais):** confirmar as
+contagens esperadas (ex.: 29.992 linhas em sigcon_cronograma_desembolso,
+~1.878 chaves em depara_siafi, 4 valores distintos em sigcon_concedente.ds_esfera)
+e rodar os testes V1-V16 da especificação.
+
 ## Resumo para o checkpoint
 
 - [x] Motor do GRP mapeado (`silver.py`, `utils.py`, `chaves.py`, `readers.py`, `bronze.py`)

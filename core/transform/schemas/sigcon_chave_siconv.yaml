@@ -1,0 +1,38 @@
+fonte: sigcon_chave_siconv
+descricao: >
+  Ponte de relacionamento SIGCON↔SICONV. Grão: 1 linha por convênio
+  (siafi_uo). Encoding latin-1 (arquivo não é UTF-8) — ver sources.py.
+grao:
+- siafi_uo
+colunas:
+  identificador:
+  - unidade_orcamentaria_codigo
+  - convenio_numero_sequencial_siafi
+  - codigo_siconv
+  texto:
+  - plano_trabalho_tipo_siafi
+  - situacao
+sentinelas:
+  situacao: ['0']
+  codigo_siconv: ['0']
+  convenio_numero_sequencial_siafi: ['0']
+  siconv: ['?']
+renomear:
+  plano_trabalho_tipo_siafi: tp_instrumento_siafi
+  unidade_orcamentaria_codigo: cd_uo
+  convenio_numero_sequencial_siafi: nr_siafi
+  situacao: ds_situacao_convenio
+  codigo_siconv: nr_convenio_siconv  # FK -> 19 (siconv_convenio)
+  siconv: fl_siconv
+booleanos:
+  # "N?o" é um artefato real do arquivo (não é erro de digitação do YAML):
+  # o '?' substitui um caractere que a exportação não conseguiu codificar.
+  fl_siconv:
+    Sim: true
+    Nao: false
+    Não: false
+    'N?o': false
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]

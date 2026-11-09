@@ -1,0 +1,54 @@
+fonte: sigcon_convenio_geral
+descricao: >
+  Dados gerais do SIGCON-MG. Grão: 1 linha por convênio (cd_convenio_sequencial).
+grao:
+- cd_convenio_sequencial
+colunas:
+  data:
+  - convenio_data_de_publicacao
+  - convenio_data_controle_sccg_convenio
+  - convenio_data_assinatura_convenio
+  data_hora:
+  - convenio_data_alteracao_sccg
+  - convenio_data_de_cadastramento
+  inteiro:
+  - convenio_ano
+  identificador:
+  - convenio_codigo
+  - convenio_codigo_sequencial
+  - convenio_codigo_declaracao
+  - conveno_codigo_plano_trabalho
+  - convenio_numero_sequencial_siafi
+  - convenio_matricula_tecnico_sccg
+  - convenio_matricula_gestor
+  texto:
+  - convenio_alteracao
+  - convenio_justificativa_da_alteracao
+sentinelas:
+  convenio_codigo: ['-', '00', '000']
+  convenio_numero_sequencial_siafi: ['0']
+  conveno_codigo_plano_trabalho: ['0']
+  convenio_codigo_declaracao: ['0']
+  convenio_matricula_gestor: ['null']
+renomear:
+  convenio_codigo: nr_convenio  # R — redundante com nr_siafi+cd_uo (01)
+  convenio_codigo_sequencial: cd_convenio_sequencial  # PK
+  convenio_codigo_declaracao: cd_declaracao_contrapartida  # FK -> 06/14
+  convenio_data_de_publicacao: dt_publicacao
+  convenio_ano: nr_ano_convenio
+  convenio_alteracao: fl_permite_alteracao
+  conveno_codigo_plano_trabalho: cd_plano_trabalho  # FK -> 03/13
+  convenio_numero_sequencial_siafi: nr_siafi  # R
+  convenio_matricula_tecnico_sccg: cd_matricula_tecnico_sccg  # LGPD
+  convenio_data_alteracao_sccg: dh_alteracao_sccg
+  convenio_justificativa_da_alteracao: tx_justificativa_alteracao
+  convenio_data_controle_sccg_convenio: dt_controle_sccg
+  convenio_data_assinatura_convenio: dt_assinatura
+  convenio_matricula_gestor: cd_matricula_gestor  # LGPD
+  convenio_data_de_cadastramento: dh_cadastramento
+# Sim/Não do SIGCON-MG nesta fonte não é o SIM/NÃO padrão do GRP — vocabulário
+# próprio, por isso sobrescreve em vez de confiar no fl_ + MAPA_BOOLEANO.
+booleanos:
+  fl_permite_alteracao:
+    Pode sofrer alteração: true
+    Não pode sofrer alteração: false

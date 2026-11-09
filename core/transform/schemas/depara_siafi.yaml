@@ -1,0 +1,32 @@
+fonte: depara_siafi
+descricao: >
+  De-para de números SIAFI (SIAFI2.csv). Grão: 1 linha por SIAFI de origem
+  (siafi_uo_origem). Chaves repetidas com o MESMO destino colapsam em uma só
+  linha (dedup); com destino DIVERGENTE vão para quarentena.parquet.
+grao:
+- siafi_uo_origem
+colunas:
+  identificador:
+  - siafi1
+  - uo1
+  - siafi2
+  - uo2
+  - siafiatual
+  - uoatual
+renomear:
+  siafi1: nr_siafi_1  # R
+  uo1: cd_uo_1  # R
+  siafi2: nr_siafi_origem
+  uo2: cd_uo_origem
+  siafiatual: nr_siafi_atual
+  uoatual: cd_uo_atual
+derivadas:
+  siafi_uo_origem:
+    funcao: montar_siafi_uo
+    args: [nr_siafi_origem, cd_uo_origem]
+  siafi_uo_atual:
+    funcao: montar_siafi_uo
+    args: [nr_siafi_atual, cd_uo_atual]
+quarentena:
+  grao: [siafi_uo_origem]
+  destino: [siafi_uo_atual]

@@ -1,41 +1,22 @@
 fonte: siconv_convenio
-gerado_em: '2026-06-19'
+descricao: >
+  Convênios Transferegov/SICONV (dados abertos da União). Grão: 1 linha por
+  convênio federal (nr_convenio_siconv). Encoding utf-8-sig em sources.py
+  (corrige o BOM que, lido como latin-1, sobrava como lixo antes do nome da
+  1ª coluna — "nr_convenio", não "i»¿nr_convenio").
+grao:
+- nr_convenio_siconv
 colunas:
   data:
-  - data_suspensiva
-  valor:
-  - vl_saldo_conta
-  - valor_global_original_conv
-  identificador:
-  - i»¿nr_convenio
-  - id_proposta
   - dia_assin_conv
-  - nr_processo
   - dia_publ_conv
   - dia_inic_vigenc_conv
   - dia_fim_vigenc_conv
   - dia_fim_vigenc_original_conv
   - dia_limite_prest_contas
-  texto:
-  - dia
-  - mes
-  - ano
-  - sit_convenio
-  - subsituacao_conv
-  - situacao_publicacao
-  - instrumento_ativo
-  - ind_opera_obtv
-  - ug_emitente
-  - dias_prest_contas
+  - data_suspensiva
   - data_retirada_suspensiva
-  - dias_clausula_suspensiva
-  - situacao_contratacao
-  - ind_assinado
-  - motivo_suspensao
-  - ind_foto
-  - qtde_convenios
-  - qtd_ta
-  - qtd_prorroga
+  valor:
   - vl_global_conv
   - vl_repasse_conv
   - vl_contrapartida_conv
@@ -45,32 +26,84 @@ colunas:
   - vl_saldo_reman_convenente
   - vl_rendimento_aplicacao
   - vl_ingresso_contrapartida
-duvidoso:
+  - vl_saldo_conta
+  - valor_global_original_conv
+  inteiro:
+  - dias_prest_contas
+  - dias_clausula_suspensiva
+  - qtd_ta
+  - qtd_prorroga
+  identificador:
+  - nr_convenio
+  - id_proposta
+  - nr_processo
+  texto:
+  - sit_convenio
+  - subsituacao_conv
+  - situacao_publicacao
+  - instrumento_ativo
+  - ind_opera_obtv
+  - ug_emitente
+  - situacao_contratacao
+  - ind_assinado
+  - motivo_suspensao
+  - ind_foto
+sentinelas:
+  nr_processo: ['000']
+renomear:
+  nr_convenio: nr_convenio_siconv  # PK
+  id_proposta: cd_proposta_siconv
+  dia_assin_conv: dt_assinatura
+  sit_convenio: ds_situacao_convenio
+  subsituacao_conv: ds_subsituacao_convenio
+  situacao_publicacao: ds_situacao_publicacao
+  instrumento_ativo: fl_instrumento_ativo
+  ind_opera_obtv: fl_obtv
+  nr_processo: nr_processo
+  ug_emitente: cd_ug_emitente
+  dia_publ_conv: dt_publicacao
+  dia_inic_vigenc_conv: dt_vigencia_inicio
+  dia_fim_vigenc_conv: dt_vigencia_termino
+  dia_fim_vigenc_original_conv: dt_vigencia_termino_inicial
+  dias_prest_contas: qt_dias_prestacao_contas
+  dia_limite_prest_contas: dt_pc_limite
+  data_suspensiva: dt_clausula_suspensiva
+  data_retirada_suspensiva: dt_retirada_suspensiva
+  dias_clausula_suspensiva: qt_dias_clausula_suspensiva
+  situacao_contratacao: ds_situacao_contratacao
+  ind_assinado: fl_assinado
+  motivo_suspensao: tx_motivo_suspensao
+  ind_foto: fl_foto
+  qtd_ta: qt_termo_aditivo
+  qtd_prorroga: qt_prorrogacao
+  vl_global_conv: vl_global
+  vl_repasse_conv: vl_repasse
+  vl_contrapartida_conv: vl_contrapartida
+  vl_empenhado_conv: vl_empenhado
+  vl_desembolsado_conv: vl_desembolsado
+  vl_saldo_reman_tesouro: vl_saldo_remanescente_tesouro
+  vl_saldo_reman_convenente: vl_saldo_remanescente_convenente
+  vl_rendimento_aplicacao: vl_rendimento_aplicacao
+  vl_ingresso_contrapartida: vl_ingresso_contrapartida
+  vl_saldo_conta: vl_saldo_conta
+  valor_global_original_conv: vl_global_inicial
+# Antes de descartar, confirmar (Fase 6, V12) que dia/mes/ano batem com as
+# partes de dt_assinatura.
+descartar:
 - dia
 - mes
 - ano
-- sit_convenio
-- subsituacao_conv
-- situacao_publicacao
-- instrumento_ativo
-- ind_opera_obtv
-- ug_emitente
-- dias_prest_contas
-- data_retirada_suspensiva
-- dias_clausula_suspensiva
-- situacao_contratacao
-- ind_assinado
-- motivo_suspensao
-- ind_foto
 - qtde_convenios
-- qtd_ta
-- qtd_prorroga
-- vl_global_conv
-- vl_repasse_conv
-- vl_contrapartida_conv
-- vl_empenhado_conv
-- vl_desembolsado_conv
-- vl_saldo_reman_tesouro
-- vl_saldo_reman_convenente
-- vl_rendimento_aplicacao
-- vl_ingresso_contrapartida
+booleanos:
+  fl_instrumento_ativo:
+    SIM: true
+    NÃO: false
+  fl_obtv:
+    SIM: true
+    NÃO: false
+  fl_assinado:
+    SIM: true
+    NÃO: false
+  fl_foto:
+    SIM: true
+    NÃO: false

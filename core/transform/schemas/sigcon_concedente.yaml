@@ -1,0 +1,15 @@
+fonte: sigcon_concedente
+descricao: >
+  Dimensão de concedentes/esferas do SIGCON-MG. Grão: 1 linha por concedente
+  (nr_cnpj_concedente). Esperado: 4 valores distintos de ds_esfera (o trim
+  genérico de texto já resolve o 'Federal ' com espaço à direita do export).
+grao:
+- nr_cnpj_concedente
+colunas:
+  identificador:
+  - concedente_cnpj
+  texto:
+  - concedente_esfera
+renomear:
+  concedente_esfera: ds_esfera
+  concedente_cnpj: nr_cnpj_concedente  # PK

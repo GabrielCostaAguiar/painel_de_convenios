@@ -1,0 +1,31 @@
+fonte: sigcon_cronograma_desembolso
+descricao: >
+  Cronograma de desembolso do SIGCON-MG. Grão: plano de trabalho x ano x mês.
+  O export do BO traz blocos desalinhados sem cd_plano_trabalho (relatório
+  paginado) — essas linhas são descartadas por descartar_linhas_se_nulo
+  (esperado ≈18.402 linhas descartadas, restando ≈29.992).
+grao:
+- cd_plano_trabalho
+- nr_ano_desembolso
+- nr_mes_desembolso
+colunas:
+  valor:
+  - valor_concedente_cronograma_desembolso
+  - valor_proponente_cronograma_desembolso
+  inteiro:
+  - mes_cronograma_desembolso
+  - ano_cronograma_desembolso
+  identificador:
+  - plano_trabalho_codigo
+renomear:
+  mes_cronograma_desembolso: nr_mes_desembolso
+  ano_cronograma_desembolso: nr_ano_desembolso
+  valor_concedente_cronograma_desembolso: vl_desembolso_concedente
+  valor_proponente_cronograma_desembolso: vl_desembolso_proponente
+  plano_trabalho_codigo: cd_plano_trabalho  # FK -> 03
+# Nome BRUTO (pré-renomear): este bloco roda antes da tipagem (ver
+# core/transform/silver.py), exatamente para tirar o bloco desalinhado do
+# relatório do BO antes que "mes_cronograma_desembolso" quebre tentando
+# converter texto de cabeçalho vazado pra inteiro.
+descartar_linhas_se_nulo:
+- plano_trabalho_codigo

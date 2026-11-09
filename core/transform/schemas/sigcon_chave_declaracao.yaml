@@ -1,0 +1,22 @@
+fonte: sigcon_chave_declaracao
+descricao: >
+  Ponte ETL: mapeia cd_declaracao_contrapartida → SIAFI+UO. Grão: 1 linha
+  por convênio (siafi_uo).
+grao:
+- siafi_uo
+colunas:
+  identificador:
+  - declaracao_contrapartida_codigo
+  - convenio_numero_sequencial_siafi
+  - unidade_orcamentaria_codigo
+sentinelas:
+  declaracao_contrapartida_codigo: ['99999999']
+  convenio_numero_sequencial_siafi: ['0']
+renomear:
+  declaracao_contrapartida_codigo: cd_declaracao_contrapartida  # FK -> 06
+  convenio_numero_sequencial_siafi: nr_siafi
+  unidade_orcamentaria_codigo: cd_uo
+derivadas:
+  siafi_uo:
+    funcao: montar_siafi_uo
+    args: [nr_siafi, cd_uo]
