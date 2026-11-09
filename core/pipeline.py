@@ -29,26 +29,28 @@ from core.ingestion.ponte_extracao import ingerir_gmail_mapeados, ingerir_transf
 logger = logging.getLogger(__name__)
 
 # Fontes Silver necessarias para a carga Gold/ORM completa (chaves de
-# core.ingestion.sources.FONTES). Nao inclui qv_despesa_* e parlamentares -
-# nenhum loader atual as consome.
+# core.ingestion.sources.FONTES). Nao inclui parlamentares - nenhum loader
+# atual a consome. Renomeadas pelo Modelo de Extracao das Bases Legadas v1.0
+# (refactor/ingestao-legado); carregar_fonte e CARGAS_ORM abaixo ainda usam
+# os nomes antigos nos argumentos de CLI - ver mapa de impacto da Fase 7.
 FONTES_SILVER = [
-    "dcgce_convenio",
-    "dcgce_geral",
-    "dcgce_plano_trabalho",
-    "dcgce_esfera",
-    "dcgce_codigo_convenio",
-    "dcgce_cronograma_desembolso",
-    "dcgce_plano_aplicacao",
-    "dcgce_termo_aditivo",
-    "dcgce_declaracao_contrapartida",
-    "dcgce_prorrogacao_oficio",
-    "dcgce_sigcon_nt_emenda",
-    "dcgce_unidades_executoras",
-    "dcgce_codigo_ta",
-    "dcgce_Codigo_plano_de_trabalho",
-    "dcgce_codigo_dec_contrap",
-    "chaves_convenio",
-    "siafi2",
+    "sigcon_convenio",
+    "sigcon_convenio_geral",
+    "sigcon_plano_trabalho",
+    "sigcon_concedente",
+    "sigcon_chave_convenio",
+    "sigcon_cronograma_desembolso",
+    "sigcon_plano_aplicacao",
+    "sigcon_termo_aditivo",
+    "sigcon_declaracao_contrapartida",
+    "sigcon_prorrogacao_oficio",
+    "sigcon_nt_emenda",
+    "sigcon_unidade_executora",
+    "sigcon_chave_termo_aditivo",
+    "sigcon_chave_plano_trabalho",
+    "sigcon_chave_declaracao",
+    "sigcon_chave_siconv",
+    "depara_siafi",
     "controle_sei",
     "siconv_convenio",
 ]

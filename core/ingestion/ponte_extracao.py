@@ -42,21 +42,21 @@ _PADRAO_DATA = re.compile(r"(\d{4}-\d{2}-\d{2})")
 #     encoding reais (ver "Adicionando uma Nova Fonte" no CLAUDE.md e
 #     `gerar_schemas`) — não dá pra adivinhar sem um anexo real em mãos.
 MAPA_GMAIL_PARA_FONTE: dict[str, str] = {
-    "dcgce_Codigo_plano_de_trabalho": "dcgce_Codigo_plano_de_trabalho",
-    "dcgce_Codigo_convenio": "dcgce_codigo_convenio",
-    "dcgce_Codigo_dec_contrap": "dcgce_codigo_dec_contrap",
-    "dcgce_unidades.executoras": "dcgce_unidades_executoras",
-    "dcgce_termo.aditivo": "dcgce_termo_aditivo",
-    "dcgce_plano.trabalho": "dcgce_plano_trabalho",
-    "dcgce_prorrogacao_oficio": "dcgce_prorrogacao_oficio",
-    "dcgce_plano_aplicacao": "dcgce_plano_aplicacao",
-    "dcgce_Geral": "dcgce_geral",
-    "dcgce_declaracao_contrapartida": "dcgce_declaracao_contrapartida",
-    "dcgce_Cronograma_desembolso": "dcgce_cronograma_desembolso",
-    "dcgce_convenio": "dcgce_convenio",
-    "dcgce_Codigo_ta": "dcgce_codigo_ta",
-    "dcgce_esfera": "dcgce_esfera",
-    "dcgce_sigcon_nt_emenda": "dcgce_sigcon_nt_emenda",
+    "dcgce_Codigo_plano_de_trabalho": "sigcon_chave_plano_trabalho",
+    "dcgce_Codigo_convenio": "sigcon_chave_convenio",
+    "dcgce_Codigo_dec_contrap": "sigcon_chave_declaracao",
+    "dcgce_unidades.executoras": "sigcon_unidade_executora",
+    "dcgce_termo.aditivo": "sigcon_termo_aditivo",
+    "dcgce_plano.trabalho": "sigcon_plano_trabalho",
+    "dcgce_prorrogacao_oficio": "sigcon_prorrogacao_oficio",
+    "dcgce_plano_aplicacao": "sigcon_plano_aplicacao",
+    "dcgce_Geral": "sigcon_convenio_geral",
+    "dcgce_declaracao_contrapartida": "sigcon_declaracao_contrapartida",
+    "dcgce_Cronograma_desembolso": "sigcon_cronograma_desembolso",
+    "dcgce_convenio": "sigcon_convenio",
+    "dcgce_Codigo_ta": "sigcon_chave_termo_aditivo",
+    "dcgce_esfera": "sigcon_concedente",
+    "dcgce_sigcon_nt_emenda": "sigcon_nt_emenda",
 }
 
 

@@ -37,23 +37,27 @@ FONTES: dict[str, FonteDados] = {
     # SIGCON-MG — exportações Business Objects / PRODEMGE
     # Arquivos em: data/raw/sigcon/
     # Todos usam header=1 (linha 0 é vazia; cabeçalho real está na linha 1)
-    # exceto dcgce_unidades_executoras que usa header=0.
+    # exceto sigcon_unidade_executora que usa header=0.
     # engine=openpyxl é explícito (não apenas inferido da extensão .xlsx)
     # porque estas 15 fontes também podem chegar via core/extract/gmail.py +
     # core/ingestion/ponte_extracao.py, cujo anexo pousa sem extensão.
+    #
+    # Nomenclatura (Modelo de Extração das Bases Legadas v1.0): as chaves
+    # abaixo substituem as antigas dcgce_*; caminho e opcoes_leitura ficam os
+    # mesmos, exceto onde indicado.
     # -----------------------------------------------------------------------
 
     # ---- Tabelas a manter (alimentam o painel Consultas SIGCON) ----
 
-    "dcgce_convenio": FonteDados(
-        nome="dcgce_convenio",
+    "sigcon_convenio": FonteDados(
+        nome="sigcon_convenio",
         arquivo="sigcon/dcgce_convenio.xlsx",
         formato="excel",
         descricao="Convênios do SIGCON-MG — chave SIAFI+UO, valores e datas de vigência",
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_geral": FonteDados(
-        nome="dcgce_geral",
+    "sigcon_convenio_geral": FonteDados(
+        nome="sigcon_convenio_geral",
         arquivo="sigcon/dcgce_Geral.xlsx",
         formato="excel",
         descricao=(
@@ -62,8 +66,8 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_plano_trabalho": FonteDados(
-        nome="dcgce_plano_trabalho",
+    "sigcon_plano_trabalho": FonteDados(
+        nome="sigcon_plano_trabalho",
         arquivo="sigcon/dcgce_plano.trabalho.xlsx",
         formato="excel",
         descricao=(
@@ -72,8 +76,8 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_cronograma_desembolso": FonteDados(
-        nome="dcgce_cronograma_desembolso",
+    "sigcon_cronograma_desembolso": FonteDados(
+        nome="sigcon_cronograma_desembolso",
         arquivo="sigcon/dcgce_Cronograma_desembolso.xlsx",
         formato="excel",
         descricao=(
@@ -82,59 +86,62 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_plano_aplicacao": FonteDados(
-        nome="dcgce_plano_aplicacao",
+    "sigcon_plano_aplicacao": FonteDados(
+        nome="sigcon_plano_aplicacao",
         arquivo="sigcon/dcgce_plano_aplicacao.xlsx",
         formato="excel",
         descricao="Planos de aplicação — liga-se ao convênio via codigo_plano_trabalho",
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_termo_aditivo": FonteDados(
-        nome="dcgce_termo_aditivo",
+    "sigcon_termo_aditivo": FonteDados(
+        nome="sigcon_termo_aditivo",
         arquivo="sigcon/dcgce_termo.aditivo.xlsx",
         formato="excel",
         descricao=(
             "Termos aditivos — PK: termo_aditivo_codigo_sequencial. "
-            "SIAFI+UO carimbados via ponte dcgce_codigo_ta."
+            "SIAFI+UO carimbados via ponte sigcon_chave_termo_aditivo."
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_prorrogacao_oficio": FonteDados(
-        nome="dcgce_prorrogacao_oficio",
+    "sigcon_prorrogacao_oficio": FonteDados(
+        nome="sigcon_prorrogacao_oficio",
         arquivo="sigcon/dcgce_prorrogacao_oficio.xlsx",
         formato="excel",
         descricao=(
-            "Prorrogações de ofício — prorrogacao_oficio_codigo_convenio equivale a "
-            "convenio_codigo_sequencial (não é SIAFI)."
+            "Prorrogações de ofício — prorrogacao_oficio_codigo_convenio é o "
+            "código sequencial do convênio (não é SIAFI)."
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_declaracao_contrapartida": FonteDados(
-        nome="dcgce_declaracao_contrapartida",
+    "sigcon_declaracao_contrapartida": FonteDados(
+        nome="sigcon_declaracao_contrapartida",
         arquivo="sigcon/dcgce_declaracao_contrapartida.xlsx",
         formato="excel",
         descricao=(
             "Declarações de contrapartida — PK: declaracao_contrapartida_codigo. "
-            "SIAFI+UO carimbados via ponte dcgce_codigo_dec_contrap."
+            "SIAFI+UO carimbados via ponte sigcon_chave_declaracao."
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_unidades_executoras": FonteDados(
-        nome="dcgce_unidades_executoras",
+    "sigcon_unidade_executora": FonteDados(
+        nome="sigcon_unidade_executora",
         arquivo="sigcon/dcgce_unidades.executoras.xlsx",
         formato="excel",
-        descricao="Unidades executoras — chave composta SIAFI+UO direta",
+        descricao=(
+            "Unidades executoras — relação 1:N com o convênio (≈12 unidades por "
+            "convênio em média), chave SIAFI+UO do convênio + unidade executora."
+        ),
         opcoes_leitura={"header": 0, "engine": "openpyxl"},
     ),
-    "dcgce_sigcon_nt_emenda": FonteDados(
-        nome="dcgce_sigcon_nt_emenda",
+    "sigcon_nt_emenda": FonteDados(
+        nome="sigcon_nt_emenda",
         arquivo="sigcon/dcgce_sigcon_nt_emenda.xlsx",
         formato="excel",
         descricao="Notas técnicas de emendas parlamentares — liga via plano_trabalho_codigo+UO",
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_esfera": FonteDados(
-        nome="dcgce_esfera",
+    "sigcon_concedente": FonteDados(
+        nome="sigcon_concedente",
         arquivo="sigcon/dcgce_esfera.xlsx",
         formato="excel",
         descricao="Dimensão de esferas — chave: concedente_cnpj → concedente_esfera",
@@ -143,8 +150,8 @@ FONTES: dict[str, FonteDados] = {
 
     # ---- Tabela de relacionamento SIGCON↔SICONV ----
 
-    "chaves_convenio": FonteDados(
-        nome="chaves_convenio",
+    "sigcon_chave_siconv": FonteDados(
+        nome="sigcon_chave_siconv",
         arquivo="sigcon/Chaves_convenio.csv",
         formato="csv",
         descricao=(
@@ -158,8 +165,8 @@ FONTES: dict[str, FonteDados] = {
 
     # ---- Pontes ETL (carimbo de chaves; usadas só no loader, não geram aba no painel) ----
 
-    "dcgce_Codigo_plano_de_trabalho": FonteDados(
-        nome="dcgce_Codigo_plano_de_trabalho",
+    "sigcon_chave_plano_trabalho": FonteDados(
+        nome="sigcon_chave_plano_trabalho",
         arquivo="sigcon/dcgce_Codigo_plano_de_trabalho.xlsx",
         formato="excel",
         descricao=(
@@ -168,8 +175,8 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_codigo_ta": FonteDados(
-        nome="dcgce_codigo_ta",
+    "sigcon_chave_termo_aditivo": FonteDados(
+        nome="sigcon_chave_termo_aditivo",
         arquivo="sigcon/dcgce_Codigo_ta.xlsx",
         formato="excel",
         descricao=(
@@ -177,8 +184,8 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_codigo_dec_contrap": FonteDados(
-        nome="dcgce_codigo_dec_contrap",
+    "sigcon_chave_declaracao": FonteDados(
+        nome="sigcon_chave_declaracao",
         arquivo="sigcon/dcgce_Codigo_dec_contrap.xlsx",
         formato="excel",
         descricao=(
@@ -186,41 +193,15 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-    "dcgce_codigo_convenio": FonteDados(
-        nome="dcgce_codigo_convenio",
+    "sigcon_chave_convenio": FonteDados(
+        nome="sigcon_chave_convenio",
         arquivo="sigcon/dcgce_Codigo_convenio.xlsx",
         formato="excel",
         descricao=(
             "Ponte ETL: mapeia convenio_codigo_sequencial → SIAFI+UO. "
-            "Usada para enriquecer dcgce_geral (que não tem UO) e o cronograma."
+            "Usada para enriquecer sigcon_convenio_geral (que não tem UO) e o cronograma."
         ),
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
-    ),
-
-    # -----------------------------------------------------------------------
-    # Execução estadual — exportações QlikView / Business Objects
-    # Arquivos em: data/raw/execucao/
-    #
-    # ANTI-PADRÃO herdado do QlikView: cada ano é uma fonte separada.
-    # TODO (R2+): substituir por uma fonte única qv_despesa com leitura de
-    #   todos os arquivos da pasta execucao/ de uma só vez, sem replicar a
-    #   entrada por ano. Manter entradas por enquanto para não quebrar cargas
-    #   existentes.
-    # -----------------------------------------------------------------------
-
-    "qv_despesa_ano_2019": FonteDados(
-        nome="qv_despesa_ano_2019",
-        arquivo="execucao/qv_despesa_ano_2019.csv",
-        formato="csv",
-        descricao="Despesas do ano 2019 (exportação QlikView / Business Objects) — ver TODO acima",
-        opcoes_leitura={"sep": ";", "encoding": "latin-1"},
-    ),
-    "qv_despesa_ano_2020": FonteDados(
-        nome="qv_despesa_ano_2020",
-        arquivo="execucao/qv_despesa_ano_2020.csv",
-        formato="csv",
-        descricao="Despesas do ano 2020 (exportação QlikView / Business Objects) — ver TODO acima",
-        opcoes_leitura={"sep": ";", "encoding": "latin-1"},
     ),
 
     # -----------------------------------------------------------------------
@@ -233,7 +214,9 @@ FONTES: dict[str, FonteDados] = {
         arquivo="uniao/siconv_convenio.csv",
         formato="csv",
         descricao="Convênios Transferegov — dados abertos (SICONV/União)",
-        opcoes_leitura={"sep": ";", "encoding": "latin-1"},
+        # utf-8-sig (não latin-1): o export tem BOM UTF-8; lido como latin-1 o
+        # BOM sobra como 3 bytes de lixo antes do nome da 1ª coluna.
+        opcoes_leitura={"sep": ";", "encoding": "utf-8-sig"},
     ),
 
     # -----------------------------------------------------------------------
@@ -258,8 +241,8 @@ FONTES: dict[str, FonteDados] = {
     # Usados na etapa de relacionamento R2+ (não geram aba no painel diretamente)
     # -----------------------------------------------------------------------
 
-    "siafi2": FonteDados(
-        nome="siafi2",
+    "depara_siafi": FonteDados(
+        nome="depara_siafi",
         arquivo="SIAFI2.csv",
         formato="csv",
         descricao=(
@@ -270,8 +253,8 @@ FONTES: dict[str, FonteDados] = {
         ),
         opcoes_leitura={"sep": ";", "encoding": "latin-1"},
     ),
-    "parlamentares": FonteDados(
-        nome="parlamentares",
+    "depara_parlamentar": FonteDados(
+        nome="depara_parlamentar",
         arquivo="De para nomes parlamentares.xlsx",
         formato="excel",
         descricao=(
