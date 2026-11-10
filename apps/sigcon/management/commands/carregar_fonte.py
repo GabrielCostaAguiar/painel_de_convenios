@@ -9,9 +9,9 @@ Uso:
     python manage.py carregar_fonte <fonte> --silver <caminho/para/arquivo.parquet>
 
 Exemplos:
-    python manage.py carregar_fonte dcgce_geral
-    python manage.py carregar_fonte dcgce_termo.aditivo
-    python manage.py carregar_fonte dcgce_plano.trabalho --silver data/silver/dcgce_plano.trabalho.parquet
+    python manage.py carregar_fonte sigcon_convenio_geral
+    python manage.py carregar_fonte sigcon_termo_aditivo
+    python manage.py carregar_fonte sigcon_plano_trabalho --silver data/silver/sigcon_plano_trabalho.parquet
 """
 
 from pathlib import Path
@@ -25,19 +25,19 @@ from core.cache import invalidar_cache_indicadores
 from apps.sigcon import loader as loaders
 
 _LOADERS = {
-    "dcgce_geral":                    loaders.carregar_convenio_geral,
-    "dcgce_plano.trabalho":           loaders.carregar_plano_trabalho,
-    "dcgce_Cronograma_desembolso":    loaders.carregar_cronograma_desembolso,
-    "dcgce_plano_aplicacao":          loaders.carregar_plano_aplicacao,
-    "dcgce_termo.aditivo":            loaders.carregar_termo_aditivo,
-    "dcgce_declaracao_contrapartida": loaders.carregar_declaracao_contrapartida,
-    "dcgce_prorrogacao_oficio":       loaders.carregar_prorrogacao_oficio,
-    "dcgce_sigcon_nt_emenda":         loaders.carregar_nt_emenda,
-    "dcgce_esfera":                   loaders.carregar_esfera,
-    "dcgce_Codigo_convenio":          loaders.carregar_codigo_convenio,
-    "dcgce_Codigo_plano_de_trabalho": loaders.carregar_codigo_plano_trabalho,
-    "dcgce_Codigo_ta":                loaders.carregar_codigo_termo_aditivo,
-    "dcgce_Codigo_dec_contrap":       loaders.carregar_codigo_declaracao_contrapartida,
+    "sigcon_convenio_geral":           loaders.carregar_convenio_geral,
+    "sigcon_plano_trabalho":           loaders.carregar_plano_trabalho,
+    "sigcon_cronograma_desembolso":    loaders.carregar_cronograma_desembolso,
+    "sigcon_plano_aplicacao":          loaders.carregar_plano_aplicacao,
+    "sigcon_termo_aditivo":            loaders.carregar_termo_aditivo,
+    "sigcon_declaracao_contrapartida": loaders.carregar_declaracao_contrapartida,
+    "sigcon_prorrogacao_oficio":       loaders.carregar_prorrogacao_oficio,
+    "sigcon_nt_emenda":                loaders.carregar_nt_emenda,
+    "sigcon_concedente":               loaders.carregar_esfera,
+    "sigcon_chave_convenio":           loaders.carregar_codigo_convenio,
+    "sigcon_chave_plano_trabalho":     loaders.carregar_codigo_plano_trabalho,
+    "sigcon_chave_termo_aditivo":      loaders.carregar_codigo_termo_aditivo,
+    "sigcon_chave_declaracao":         loaders.carregar_codigo_declaracao_contrapartida,
 }
 
 logger = logging.getLogger(__name__)

@@ -90,10 +90,10 @@ def test_carregar_fonte_tambem_segue_o_padrao(caplog):
     ):
         with caplog.at_level(logging.ERROR):
             with pytest.raises(CommandError) as excinfo:
-                call_command("carregar_fonte", "dcgce_geral")
+                call_command("carregar_fonte", "sigcon_convenio_geral")
 
     assert excinfo.value.__cause__ is erro
-    assert "dcgce_geral" in str(excinfo.value)
+    assert "sigcon_convenio_geral" in str(excinfo.value)
     assert any(r.exc_info for r in caplog.records if r.levelno >= logging.ERROR)
 
 
@@ -105,7 +105,7 @@ def test_fonte_desconhecida_continua_listando_as_validas():
 
     mensagem = str(excinfo.value)
     assert "fonte_que_nao_existe" in mensagem
-    assert "dcgce_geral" in mensagem, "deveria listar as fontes válidas"
+    assert "sigcon_convenio_geral" in mensagem, "deveria listar as fontes válidas"
 
 
 # ---------------------------------------------------------------------------

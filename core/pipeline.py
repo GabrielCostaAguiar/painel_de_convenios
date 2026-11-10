@@ -29,10 +29,9 @@ from core.ingestion.ponte_extracao import ingerir_gmail_mapeados, ingerir_transf
 logger = logging.getLogger(__name__)
 
 # Fontes Silver necessarias para a carga Gold/ORM completa (chaves de
-# core.ingestion.sources.FONTES). Nao inclui parlamentares - nenhum loader
-# atual a consome. Renomeadas pelo Modelo de Extracao das Bases Legadas v1.0
-# (refactor/ingestao-legado); carregar_fonte e CARGAS_ORM abaixo ainda usam
-# os nomes antigos nos argumentos de CLI - ver mapa de impacto da Fase 7.
+# core.ingestion.sources.FONTES). Nao inclui depara_parlamentar - nenhum loader
+# atual a consome. Chaves do Modelo de Extracao das Bases Legadas v1.0; as
+# mesmas chaves valem em carregar_fonte e em CARGAS_ORM abaixo.
 FONTES_SILVER = [
     "sigcon_convenio",
     "sigcon_convenio_geral",
@@ -59,19 +58,19 @@ FONTES_SILVER = [
 # (comando, args posicionais, kwargs de flags)
 CARGAS_ORM = [
     ("carregar_convenios", [], {}),
-    ("carregar_fonte", ["dcgce_geral"], {}),
-    ("carregar_fonte", ["dcgce_plano.trabalho"], {}),
-    ("carregar_fonte", ["dcgce_Cronograma_desembolso"], {}),
-    ("carregar_fonte", ["dcgce_plano_aplicacao"], {}),
-    ("carregar_fonte", ["dcgce_termo.aditivo"], {}),
-    ("carregar_fonte", ["dcgce_declaracao_contrapartida"], {}),
-    ("carregar_fonte", ["dcgce_prorrogacao_oficio"], {}),
-    ("carregar_fonte", ["dcgce_sigcon_nt_emenda"], {}),
-    ("carregar_fonte", ["dcgce_esfera"], {}),
-    ("carregar_fonte", ["dcgce_Codigo_convenio"], {}),
-    ("carregar_fonte", ["dcgce_Codigo_plano_de_trabalho"], {}),
-    ("carregar_fonte", ["dcgce_Codigo_ta"], {}),
-    ("carregar_fonte", ["dcgce_Codigo_dec_contrap"], {}),
+    ("carregar_fonte", ["sigcon_convenio_geral"], {}),
+    ("carregar_fonte", ["sigcon_plano_trabalho"], {}),
+    ("carregar_fonte", ["sigcon_cronograma_desembolso"], {}),
+    ("carregar_fonte", ["sigcon_plano_aplicacao"], {}),
+    ("carregar_fonte", ["sigcon_termo_aditivo"], {}),
+    ("carregar_fonte", ["sigcon_declaracao_contrapartida"], {}),
+    ("carregar_fonte", ["sigcon_prorrogacao_oficio"], {}),
+    ("carregar_fonte", ["sigcon_nt_emenda"], {}),
+    ("carregar_fonte", ["sigcon_concedente"], {}),
+    ("carregar_fonte", ["sigcon_chave_convenio"], {}),
+    ("carregar_fonte", ["sigcon_chave_plano_trabalho"], {}),
+    ("carregar_fonte", ["sigcon_chave_termo_aditivo"], {}),
+    ("carregar_fonte", ["sigcon_chave_declaracao"], {}),
     ("carregar_cronograma", [], {}),
     ("carregar_unidades_executoras", [], {}),
     ("carregar_controle_sei", [], {}),

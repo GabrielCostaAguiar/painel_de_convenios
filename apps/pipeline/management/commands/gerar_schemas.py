@@ -6,7 +6,7 @@ automaticamente e salva um schema YAML editável em core/transform/schemas/.
 
 Uso:
     python manage.py gerar_schemas                    # todas as fontes
-    python manage.py gerar_schemas dcgce_convenios    # uma fonte específica
+    python manage.py gerar_schemas sigcon_convenio     # uma fonte específica
     python manage.py gerar_schemas --sobrescrever     # força regeneração de YAMLs existentes
 """
 

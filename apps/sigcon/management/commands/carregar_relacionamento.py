@@ -4,21 +4,24 @@ Management command: carregar_relacionamento
 Full refresh do model ConvenioIntegrado (tabela Gold integrada G_/A_).
 
 Fluxo:
-  - Se data/gold/convenios_integrado.parquet existir: lê direto.
-  - Senão (ou com --construir): constrói a partir dos Silver files e grava o Gold.
+  - Sem --gold: SEMPRE reconstrói a tabela a partir dos Silver files e regrava
+    data/gold/convenios_integrado.parquet. Nunca reaproveita um Gold antigo,
+    que poderia ter sido montado com Silver desatualizada.
+  - Com --gold <arquivo>: carrega esse Parquet como está, sem reconstruir.
+  - --construir é aceito por compatibilidade e equivale ao comportamento padrão.
 
 Pré-requisitos dos Silver files:
-  python manage.py rodar_silver chaves_convenio
-  python manage.py rodar_silver siafi2
-  python manage.py rodar_silver dcgce_convenio
-  python manage.py rodar_silver dcgce_codigo_convenio
-  python manage.py rodar_silver dcgce_geral
-  python manage.py rodar_silver dcgce_plano_trabalho
-  python manage.py rodar_silver dcgce_esfera
+  python manage.py rodar_silver sigcon_chave_siconv
+  python manage.py rodar_silver depara_siafi
+  python manage.py rodar_silver sigcon_convenio
+  python manage.py rodar_silver sigcon_chave_convenio
+  python manage.py rodar_silver sigcon_convenio_geral
+  python manage.py rodar_silver sigcon_plano_trabalho
+  python manage.py rodar_silver sigcon_concedente
+  python manage.py rodar_silver siconv_convenio          # opcional
 
 Uso:
   python manage.py carregar_relacionamento
-  python manage.py carregar_relacionamento --construir       # força rebuild do Gold
   python manage.py carregar_relacionamento --gold caminho/arquivo.parquet
 """
 
@@ -39,7 +42,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = (
         "Full refresh do ConvenioIntegrado (tabela Gold G_/A_): "
-        "lê data/gold/convenios_integrado.parquet ou reconstrói dos Silver files."
+        "reconstrói dos Silver files, ou carrega o Parquet dado em --gold."
     )
 
     def add_arguments(self, parser):
@@ -48,26 +51,25 @@ class Command(BaseCommand):
             type=Path,
             default=None,
             metavar="CAMINHO",
-            help="Caminho explícito para o Parquet Gold. Omitir = data/gold/convenios_integrado.parquet",
+            help="Carrega este Parquet Gold sem reconstruir. Omitir = reconstrói dos Silver files.",
         )
         parser.add_argument(
             "--construir",
             action="store_true",
             default=False,
-            help="Força a reconstrução da tabela a partir dos Silver files (ignora Gold existente).",
+            help="Compatibilidade: reconstruir já é o comportamento padrão (sem --gold).",
         )
 
     def handle(self, *args, **options):
         gold_path = options["gold"]
-        forcar_rebuild = options["construir"]
 
-        if forcar_rebuild:
-            # Apaga o Gold existente para forçar rebuild
-            padrao = Path(settings.DATA_DIR) / "gold" / "convenios_integrado.parquet"
-            destino = gold_path or padrao
-            if destino.exists():
-                destino.unlink()
-                self.stdout.write(f"Gold removido para rebuild: {destino}")
+        if gold_path is None:
+            # Sem --gold: reconstrói sempre. O Gold antigo é removido para o
+            # loader não o reaproveitar.
+            antigo = Path(settings.DATA_DIR) / "gold" / "convenios_integrado.parquet"
+            if antigo.exists():
+                antigo.unlink()
+                self.stdout.write(f"Gold removido para rebuild: {antigo}")
 
         self.stdout.write("Carregando ConvenioIntegrado no banco (full refresh)...")
 

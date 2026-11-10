@@ -12,9 +12,9 @@ Uso:
     python manage.py rodar_silver <fonte> --bronze <caminho/para/arquivo.csv>
 
 Exemplos:
-    python manage.py rodar_silver dcgce_convenios
-    python manage.py rodar_silver dcgce_geral
-    python manage.py rodar_silver dcgce_convenios --bronze data/bronze/dcgce_convenios/dcgce_convenios_20260609_164337.csv
+    python manage.py rodar_silver sigcon_convenio
+    python manage.py rodar_silver sigcon_convenio_geral
+    python manage.py rodar_silver sigcon_convenio --bronze data/bronze/sigcon_convenio/sigcon_convenio_20260609_164337.csv
 """
 
 from pathlib import Path

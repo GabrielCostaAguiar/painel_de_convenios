@@ -3,15 +3,17 @@ Management command: carregar_cronograma
 
 Full refresh: apaga todos os registros de CronogramaDesembolso e reinsere
 a partir dos Parquets Silver, carimbando SIAFI+UO via joins internos.
+Todas as linhas da Silver entram; as marcadas (ds_alerta_linha) ficam no banco
+e são filtradas nas telas.
 
 Pipeline de join:
-  dcgce_cronograma_desembolso.plano_trabalho_codigo
-    → dcgce_geral.conveno_codigo_plano_trabalho  → convenio_codigo_sequencial
-    → dcgce_codigo_convenio.convenio_codigo_sequencial → SIAFI + UO
+  sigcon_cronograma_desembolso.cd_plano_trabalho
+    → sigcon_convenio_geral.cd_plano_trabalho  → cd_convenio_sequencial
+    → sigcon_chave_convenio.cd_convenio_sequencial → nr_siafi + cd_uo
 
 Uso:
     python manage.py carregar_cronograma
-    python manage.py carregar_cronograma --silver data/silver/dcgce_cronograma_desembolso.parquet
+    python manage.py carregar_cronograma --silver data/silver/sigcon_cronograma_desembolso.parquet
 """
 
 from pathlib import Path
@@ -38,7 +40,7 @@ class Command(BaseCommand):
             metavar="CAMINHO",
             help=(
                 "Caminho customizado para o Parquet Silver do cronograma. "
-                "Omitir = DATA_DIR/silver/dcgce_cronograma_desembolso.parquet"
+                "Omitir = DATA_DIR/silver/sigcon_cronograma_desembolso.parquet"
             ),
         )
 

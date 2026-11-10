@@ -14,7 +14,7 @@ from django.db import models
 
 class CodigoConvenio(models.Model):
     """
-    Fonte: data/silver/dcgce_Codigo_convenio.parquet
+    Fonte: data/silver/sigcon_chave_convenio.parquet
     Carga: full refresh via loader dedicado.
     Mapeia convenio_codigo → convenio_codigo_sequencial, SIAFI e UO.
     """
@@ -47,7 +47,7 @@ class CodigoConvenio(models.Model):
 
 class CodigoPlanoTrabalho(models.Model):
     """
-    Fonte: data/silver/dcgce_Codigo_plano_de_trabalho.parquet
+    Fonte: data/silver/sigcon_chave_plano_trabalho.parquet
     Carga: full refresh via loader dedicado.
     Mapeia conveno_codigo_plano_trabalho → SIAFI e UO.
     """
@@ -80,7 +80,7 @@ class CodigoPlanoTrabalho(models.Model):
 
 class CodigoTermoAditivo(models.Model):
     """
-    Fonte: data/silver/dcgce_Codigo_ta.parquet
+    Fonte: data/silver/sigcon_chave_termo_aditivo.parquet
     Carga: full refresh via loader dedicado.
     Mapeia termo_aditivo_codigo_sequencial → convênio SIAFI e plano de trabalho.
     """
@@ -120,7 +120,7 @@ class CodigoTermoAditivo(models.Model):
 
 class CodigoDeclaracaoContrapartida(models.Model):
     """
-    Fonte: data/silver/dcgce_Codigo_dec_contrap.parquet
+    Fonte: data/silver/sigcon_chave_declaracao.parquet
     Carga: full refresh via loader dedicado.
     Mapeia declaracao_contrapartida_codigo → convênio SIAFI e UO.
     """

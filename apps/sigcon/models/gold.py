@@ -9,10 +9,6 @@ carregar_relacionamento.
 from django.db import models
 
 
-# dcgce_chave e dcgce_unidades.executoras: schemas com erro de geração (header não
-# detectado corretamente). Modelar após reinspecionar o arquivo raw.
-
-
 # ---------------------------------------------------------------------------
 # ConvenioIntegrado — tabela Gold: SIGCON ↔ SICONV ↔ SIAFI com campos G_/A_
 # ---------------------------------------------------------------------------

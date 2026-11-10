@@ -1,20 +1,15 @@
 """
 Management command: carregar_unidades_executoras
 
-Full refresh consolidado: lê dcgce_convenio + dcgce_geral + dcgce_plano_trabalho
-+ dcgce_esfera, faz os joins internos (SIAFI+UO, plano de trabalho, esfera)
-e recarrega a tabela Convenio no banco.
+Full refresh do model UnidadesExecutoras a partir do Silver
+sigcon_unidade_executora (todas as linhas).
 
-Pré-requisito: Silver de todas as fontes deve estar gerado.
-  python manage.py rodar_silver dcgce_convenio
-  python manage.py rodar_silver dcgce_geral
-  python manage.py rodar_silver dcgce_plano_trabalho
-  python manage.py rodar_silver dcgce_esfera
-  python manage.py rodar_silver dcgce_codigo_convenio
+Pré-requisito: Silver da fonte gerado.
+  python manage.py rodar_silver sigcon_unidade_executora
 
 Uso:
     python manage.py carregar_unidades_executoras
-    python manage.py carregar_unidades_executoras --silver data/silver/dcgce_unidade_executora.parquet
+    python manage.py carregar_unidades_executoras --silver data/silver/sigcon_unidade_executora.parquet
 """
 
 from pathlib import Path
@@ -32,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = (
-        "Full refresh consolidado: carrega UnidadesExecutoras unindo dcgce_unidade_executora + dcgce_geral "
-        "+ dcgce_plano_trabalho + dcgce_esfera."
+        "Full refresh de UnidadesExecutoras a partir de sigcon_unidade_executora."
     )
 
     def add_arguments(self, parser):
@@ -44,7 +38,7 @@ class Command(BaseCommand):
             metavar="CAMINHO",
             help=(
                 "Caminho customizado para o Parquet Silver da unidade executora. "
-                "Omitir = DATA_DIR/silver/dcgce_unidade_executora.parquet"
+                "Omitir = DATA_DIR/silver/sigcon_unidade_executora.parquet"
             ),
         )
 

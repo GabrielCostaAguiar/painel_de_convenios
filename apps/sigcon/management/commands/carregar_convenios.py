@@ -1,20 +1,20 @@
 """
 Management command: carregar_convenios
 
-Full refresh consolidado: lê dcgce_convenio + dcgce_geral + dcgce_plano_trabalho
-+ dcgce_esfera, faz os joins internos (SIAFI+UO, plano de trabalho, esfera)
-e recarrega a tabela Convenio no banco.
+Full refresh consolidado: lê sigcon_convenio + sigcon_convenio_geral +
+sigcon_plano_trabalho + sigcon_concedente, faz os joins internos (SIAFI+UO,
+plano de trabalho, esfera) e recarrega a tabela Convenio no banco.
 
 Pré-requisito: Silver de todas as fontes deve estar gerado.
-  python manage.py rodar_silver dcgce_convenio
-  python manage.py rodar_silver dcgce_geral
-  python manage.py rodar_silver dcgce_plano_trabalho
-  python manage.py rodar_silver dcgce_esfera
-  python manage.py rodar_silver dcgce_codigo_convenio
+  python manage.py rodar_silver sigcon_convenio
+  python manage.py rodar_silver sigcon_convenio_geral
+  python manage.py rodar_silver sigcon_plano_trabalho
+  python manage.py rodar_silver sigcon_concedente
+  python manage.py rodar_silver sigcon_chave_convenio
 
 Uso:
     python manage.py carregar_convenios
-    python manage.py carregar_convenios --silver data/silver/dcgce_convenio.parquet
+    python manage.py carregar_convenios --silver data/silver/sigcon_convenio.parquet
 """
 
 from pathlib import Path
@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = (
-        "Full refresh consolidado: carrega Convenio unindo dcgce_convenio + dcgce_geral "
-        "+ dcgce_plano_trabalho + dcgce_esfera."
+        "Full refresh consolidado: carrega Convenio unindo sigcon_convenio + "
+        "sigcon_convenio_geral + sigcon_plano_trabalho + sigcon_concedente."
     )
 
     def add_arguments(self, parser):
@@ -44,7 +44,7 @@ class Command(BaseCommand):
             metavar="CAMINHO",
             help=(
                 "Caminho customizado para o Parquet Silver do convenio. "
-                "Omitir = DATA_DIR/silver/dcgce_convenio.parquet"
+                "Omitir = DATA_DIR/silver/sigcon_convenio.parquet"
             ),
         )
 

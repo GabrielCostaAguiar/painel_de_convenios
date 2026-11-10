@@ -48,3 +48,18 @@ def test_painel_nao_expoe_nenhum_comando():
         nome for nome, app in get_commands().items() if app == "apps.painel"
     ]
     assert do_painel == []
+
+
+def test_cargas_orm_do_pipeline_usam_chaves_validas():
+    """As chaves de carregar_fonte em CARGAS_ORM têm de existir em _LOADERS e
+    em FONTES: sem isso o rodar_pipeline falha só na etapa Gold/ORM."""
+    from apps.sigcon.management.commands.carregar_fonte import _LOADERS
+    from core.ingestion.sources import FONTES
+    from core.pipeline import CARGAS_ORM
+
+    usadas = [args[0] for comando, args, _ in CARGAS_ORM if comando == "carregar_fonte"]
+    assert usadas, "CARGAS_ORM deveria ter chamadas de carregar_fonte"
+    for chave in usadas:
+        assert chave in _LOADERS, f"{chave} não está em carregar_fonte._LOADERS"
+        assert chave in FONTES, f"{chave} não está em FONTES"
+    assert set(_LOADERS) == set(usadas), "_LOADERS e CARGAS_ORM divergem"

@@ -10,7 +10,7 @@ from django.db import models
 
 class Convenio(models.Model):
     """
-    Convênio consolidado: dcgce_convenio + dcgce_geral + dcgce_plano_trabalho + dcgce_esfera.
+    Convênio consolidado: sigcon_convenio + sigcon_convenio_geral + sigcon_plano_trabalho + sigcon_concedente.
     Chave natural: (convenio_numero_sequencial_siafi, unidade_orcamentaria_codigo).
     Carga: full refresh via 'python manage.py carregar_convenios'.
     """
@@ -26,7 +26,7 @@ class Convenio(models.Model):
         "Cód. UO", max_length=20, null=True, blank=True,
     )
 
-    # --- de dcgce_geral ---
+    # --- de sigcon_convenio_geral ---
     plano_trabalho_codigo = models.CharField(
         "Código Plano de Trabalho", max_length=50, null=True, blank=True, db_index=True,
     )
@@ -34,7 +34,7 @@ class Convenio(models.Model):
     data_assinatura = models.DateField("Data de Assinatura", null=True, blank=True)
     convenio_ano = models.CharField("Ano", max_length=10, null=True, blank=True)
 
-    # --- de dcgce_plano_trabalho ---
+    # --- de sigcon_plano_trabalho ---
     instrumento = models.CharField("Instrumento", max_length=100, null=True, blank=True)
     titulo = models.TextField("Título", null=True, blank=True)
     objeto = models.TextField("Objeto", null=True, blank=True)
@@ -42,18 +42,18 @@ class Convenio(models.Model):
     cnpj_concedente = models.CharField("CNPJ Concedente", max_length=20, null=True, blank=True)
     cnpj_proponente = models.CharField("CNPJ Proponente", max_length=20, null=True, blank=True)
 
-    # --- de dcgce_esfera ---
+    # --- de sigcon_concedente ---
     esfera = models.CharField("Esfera", max_length=50, null=True, blank=True)
 
-    # --- de dcgce_convenio: status ---
+    # --- de sigcon_convenio: status ---
     situacao = models.CharField("Situação", max_length=100, null=True, blank=True)
 
-    # --- de dcgce_convenio: datas de vigência ---
+    # --- de sigcon_convenio: datas de vigência ---
     data_inicio_vigencia = models.DateField("Início de Vigência", null=True, blank=True)
     data_termino_vigencia = models.DateField("Término de Vigência", null=True, blank=True)
     data_real_convenio = models.DateField("Data Real do Convênio", null=True, blank=True)
 
-    # --- de dcgce_convenio: financeiro ---
+    # --- de sigcon_convenio: financeiro ---
     valor_inicial_concedente_contratado = models.DecimalField(
         "Valor Inicial Concedente", max_digits=18, decimal_places=2, null=True, blank=True,
     )
@@ -97,12 +97,12 @@ class Convenio(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# ConvenioGeral — dados gerais do SIGCON-MG (dcgce_geral)
+# ConvenioGeral — dados gerais do SIGCON-MG (sigcon_convenio_geral)
 # ---------------------------------------------------------------------------
 
 class ConvenioGeral(models.Model):
     """
-    Fonte: data/silver/dcgce_geral.parquet
+    Fonte: data/silver/sigcon_convenio_geral.parquet
     Carga: full refresh via loader dedicado.
     Ligação: convenio_codigo → Convenio.convenio_codigo
     """
@@ -169,12 +169,12 @@ class ConvenioGeral(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# PlanoTrabalho — planos de trabalho (dcgce_plano.trabalho)
+# PlanoTrabalho — planos de trabalho (sigcon_plano_trabalho)
 # ---------------------------------------------------------------------------
 
 class PlanoTrabalho(models.Model):
     """
-    Fonte: data/silver/dcgce_plano.trabalho.parquet
+    Fonte: data/silver/sigcon_plano_trabalho.parquet
     Carga: full refresh via loader dedicado.
     PK natural: plano_trabalho_codigo — referenciado por CronogramaDesembolso,
     PlanoAplicacao e NtEmenda.
@@ -254,13 +254,13 @@ class PlanoTrabalho(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# CronogramaDesembolso — cronograma de desembolsos (dcgce_Cronograma_desembolso)
+# CronogramaDesembolso — cronograma de desembolsos (sigcon_cronograma_desembolso)
 # ---------------------------------------------------------------------------
 
 class CronogramaDesembolso(models.Model):
     """
-    Cronograma enriquecido: dcgce_cronograma_desembolso + SIAFI+UO do convênio.
-    Rota: plano_trabalho_codigo → dcgce_geral → dcgce_codigo_convenio → SIAFI+UO.
+    Cronograma enriquecido: sigcon_cronograma_desembolso + SIAFI+UO do convênio.
+    Rota: plano_trabalho_codigo → sigcon_convenio_geral → sigcon_chave_convenio → SIAFI+UO.
     Carga: full refresh via 'python manage.py carregar_cronograma'.
     """
 
@@ -327,12 +327,12 @@ class CronogramaDesembolso(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# PlanoAplicacao — planos de aplicação (dcgce_plano_aplicacao)
+# PlanoAplicacao — planos de aplicação (sigcon_plano_aplicacao)
 # ---------------------------------------------------------------------------
 
 class PlanoAplicacao(models.Model):
     """
-    Fonte: data/silver/dcgce_plano_aplicacao.parquet
+    Fonte: data/silver/sigcon_plano_aplicacao.parquet
     Carga: full refresh via loader dedicado.
     Ligação: codigo_plano_trabalho → PlanoTrabalho.plano_trabalho_codigo
     """
@@ -418,12 +418,12 @@ class PlanoAplicacao(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# TermoAditivo — termos aditivos (dcgce_termo.aditivo)
+# TermoAditivo — termos aditivos (sigcon_termo_aditivo)
 # ---------------------------------------------------------------------------
 
 class TermoAditivo(models.Model):
     """
-    Fonte: data/silver/dcgce_termo.aditivo.parquet
+    Fonte: data/silver/sigcon_termo_aditivo.parquet
     Carga: full refresh via loader dedicado.
     PK natural: termo_aditivo_codigo_sequencial — ligação com Convenio feita via
     CodigoTermoAditivo.
@@ -484,12 +484,12 @@ class TermoAditivo(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# DeclaracaoContrapartida — declarações de contrapartida (dcgce_declaracao_contrapartida)
+# DeclaracaoContrapartida — declarações de contrapartida (sigcon_declaracao_contrapartida)
 # ---------------------------------------------------------------------------
 
 class DeclaracaoContrapartida(models.Model):
     """
-    Fonte: data/silver/dcgce_declaracao_contrapartida.parquet
+    Fonte: data/silver/sigcon_declaracao_contrapartida.parquet
     Carga: full refresh via loader dedicado.
     PK natural: declaracao_contrapartida_codigo
     """
@@ -557,12 +557,12 @@ class DeclaracaoContrapartida(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# ProrrogacaoOficio — prorrogações de ofício (dcgce_prorrogacao_oficio)
+# ProrrogacaoOficio — prorrogações de ofício (sigcon_prorrogacao_oficio)
 # ---------------------------------------------------------------------------
 
 class ProrrogacaoOficio(models.Model):
     """
-    Fonte: data/silver/dcgce_prorrogacao_oficio.parquet
+    Fonte: data/silver/sigcon_prorrogacao_oficio.parquet
     Carga: full refresh via loader dedicado.
     Ligação: prorrogacao_oficio_codigo_convenio → Convenio.convenio_codigo
     """
@@ -610,12 +610,12 @@ class ProrrogacaoOficio(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# NtEmenda — notas técnicas de emendas parlamentares (dcgce_sigcon_nt_emenda)
+# NtEmenda — notas técnicas de emendas parlamentares (sigcon_nt_emenda)
 # ---------------------------------------------------------------------------
 
 class NtEmenda(models.Model):
     """
-    Fonte: data/silver/dcgce_sigcon_nt_emenda.parquet
+    Fonte: data/silver/sigcon_nt_emenda.parquet
     Carga: full refresh via loader dedicado.
     Ligação: plano_trabalho_codigo → PlanoTrabalho.plano_trabalho_codigo
     """
@@ -650,12 +650,12 @@ class NtEmenda(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Esfera — lookup: CNPJ do concedente → esfera (dcgce_esfera)
+# Esfera — lookup: CNPJ do concedente → esfera (sigcon_concedente)
 # ---------------------------------------------------------------------------
 
 class Esfera(models.Model):
     """
-    Fonte: data/silver/dcgce_esfera.parquet
+    Fonte: data/silver/sigcon_concedente.parquet
     Carga: full refresh via loader dedicado.
     Tabela de dimensão: concedente_cnpj é chave única.
     """
@@ -679,12 +679,12 @@ class Esfera(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# UnidadesExecutoras — dados das unidades executoras do SIGCON-MG (dcgce_unidades.executoras)
+# UnidadesExecutoras — dados das unidades executoras do SIGCON-MG (sigcon_unidade_executora)
 # ---------------------------------------------------------------------------
 
 class UnidadesExecutoras(models.Model):
     """
-    Fonte: data/silver/dcgce_unidades_executoras.parquet
+    Fonte: data/silver/sigcon_unidade_executora.parquet
     Carga: full refresh via loader dedicado.
     Ligação: convenio_codigo → Convenio.convenio_codigo
     """
