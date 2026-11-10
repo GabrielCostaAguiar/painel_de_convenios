@@ -3,23 +3,45 @@
 from django.db import migrations, models
 
 
+def remover_pk_antiga(apps, schema_editor):
+    """No PostgreSQL o Django não derruba a constraint da PK antiga ao tirar
+    `primary_key` de cd_uo: o `DROP NOT NULL` seguinte falha ("coluna cd_uo
+    está em uma chave primária"). Remove a PK explicitamente. Nos demais
+    bancos (SQLite) o Django refaz a tabela e não precisa disto."""
+    if schema_editor.connection.vendor != "postgresql":
+        return
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT conname FROM pg_constraint "
+            "WHERE conrelid = 'grp_tabela_uo'::regclass AND contype = 'p'"
+        )
+        for (nome,) in cursor.fetchall():
+            schema_editor.execute(f'ALTER TABLE "grp_tabela_uo" DROP CONSTRAINT "{nome}"')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
         ("grp", "0007_grpacaoorcamentaria_grpatividadeprojeto_and_more"),
     ]
 
+    # Ordem importa: cd_uo ainda é a PK (migration 0007). Primeiro tira a PK
+    # antiga; só então adiciona a nova `id`. Na ordem original (AddField antes)
+    # o Postgres recusa ("múltiplas chaves primárias na tabela grp_tabela_uo")
+    # ao criar um banco do zero — o que derrubava a suíte de testes inteira.
+    # Em bancos já migrados esta migration consta como aplicada e nada muda.
     operations = [
+        migrations.RunPython(remover_pk_antiga, migrations.RunPython.noop),
+        migrations.AlterField(
+            model_name="grptabelauo",
+            name="cd_uo",
+            field=models.CharField(blank=True, db_index=True, max_length=20, null=True),
+        ),
         migrations.AddField(
             model_name="grptabelauo",
             name="id",
             field=models.BigAutoField(
                 auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
             ),
-        ),
-        migrations.AlterField(
-            model_name="grptabelauo",
-            name="cd_uo",
-            field=models.CharField(blank=True, db_index=True, max_length=20, null=True),
         ),
     ]
