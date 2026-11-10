@@ -322,6 +322,36 @@ failed pré-existente, 1 skipped, 130 errors pré-existentes de Postgres —
 zero diferença linha a linha no conjunto de FAILED/ERROR). Hash SHA-256
 das 22 Parquets do GRP: 22/22 idênticos ao baseline.
 
+## Fase 6 — executada
+
+Bronze + Silver rodados para as 20 fontes legadas contra os arquivos reais
+de `data/raw/`. Relatório completo em `docs/validacao_ingestao_legado.md`
+(contagens por tabela, V1–V16, 7 divergências registradas: D1/D2 volume e
+redundância de `depara_siafi`, D3 sentinela faltante em
+`sigcon_plano_aplicacao`, D4 5º valor em `ds_esfera`, D5 string vazia
+residual em colunas com `sentinelas:` customizado, D6 fator ~100 entre
+`sigcon_cronograma_desembolso`/`sigcon_plano_aplicacao` em 63 planos, D7
+"4 linhas sem SIAFI" da especificação são 8 na base real).
+
+Nenhuma delas é um bug do motor: ou são dados reais mais "sujos"/maiores
+que a referência original da especificação (D1, D4, D6, D7), ou são
+lacunas de regra que a própria especificação não pediu para essas colunas
+(D3, D5), ou uma suposição da especificação ("R" = cópia fiel) que não se
+confirma em ~30% das linhas de uma tabela específica (D2). Nenhuma foi
+"corrigida" inventando regra nova — ficam registradas para a Fase 7.
+
+Gap de persistência encontrado (não é divergência de dados, é lacuna do
+comando): `rodar_silver` (`apps/pipeline/`, fora de escopo) só grava a
+tabela "principal" — nunca `quarentena:` nem `desdobrar:`. Os dois
+artefatos que faltavam (tabela 21 `controle_sei_documento`, 1.954 linhas;
+quarentena de `depara_siafi`, 8 linhas) foram gerados e gravados por um
+script avulso usando só `transformar_fonte_completo()`/`gravar_silver()`
+de `core/transform/silver.py` (em escopo). Ver seção 5 do relatório de
+validação.
+
+Regressão: GRP 22/22 hashes idênticos; suíte completa idêntica ao
+baseline (641 passed, mesmos 1 failed/130 errors pré-existentes).
+
 ## Resumo para o checkpoint
 
 - [x] Motor do GRP mapeado (`silver.py`, `utils.py`, `chaves.py`, `readers.py`, `bronze.py`)
