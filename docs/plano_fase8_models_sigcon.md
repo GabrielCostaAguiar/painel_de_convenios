@@ -1,5 +1,7 @@
 # Fase 8 — Conferência da refatoração e plano para ligar o SIGCON no app web
 
+> **Status: executada em 2026-11-10 (branch `feat/models-sigcon`).** Etapas 0.1–0.5, 1, 2, 3, 4 e 5 concluídas; a Etapa 6 (renomear campos dos models) não foi feita, por decisão do plano. Resultado em `docs/validacao_models_sigcon.md`.
+
 Documento de execução para um agente/desenvolvedor que **não participou** das
 Fases 0–7 (`docs/plano_refatoracao_ingestao.md`). Parte 1 é a conferência do que
 foi feito, com evidência. Parte 2 é o plano, em etapas pequenas, cada uma com

@@ -8,7 +8,7 @@ Internal web dashboard for DCGCE/SEPLAG-MG to replace a legacy QlikView panel. B
 
 ## Environment Setup
 
-Copy `.env.example` to `.env` and fill in `DJANGO_SECRET_KEY`. The settings module for development is `config.settings.dev` (SQLite, DEBUG=True). Always set this environment variable:
+Copy `.env.example` to `.env` and fill in `DJANGO_SECRET_KEY`. The settings module for development is `config.settings.dev` (PostgreSQL local `painel_convenios`, DEBUG=True). Always set this environment variable:
 
 ```
 DJANGO_SETTINGS_MODULE=config.settings.dev
@@ -76,9 +76,13 @@ completo de cada YAML (`grao`, `renomear`, `sentinelas`, `booleanos`,
   tabela por fonte com nome bruto→final, tipo, sentinelas e marca LGPD.
 - `docs/relatorio_ingestao_legado.md` — o que mudou, o que foi excluído, e
   o mapa de impacto completo para `apps/sigcon/loader.py` e
-  `core/pipeline.py::CARGAS_ORM` (ainda usam os nomes antigos — **os
-  `carregar_*` vão falhar com `FileNotFoundError` até isso ser
-  adaptado**; é esperado, está documentado).
+  `core/pipeline.py::CARGAS_ORM` (**já adaptados na Fase 8**: loaders,
+  `carregar_fonte` e o Gold leem a Silver nova).
+- `docs/validacao_models_sigcon.md` — contagem por fonte/model (nenhuma linha
+  com dado é excluída: Silver = Bronze − linhas vazias; model = Silver) e o
+  que mudou no Gold (o antigo nunca incluiu o SICONV).
+- `docs/auditoria_exclusao_linhas.md` — regra de preservação de linhas e onde o
+  código excluía linhas antes.
 - `docs/validacao_ingestao_legado.md` — contagens reais por tabela e as
   divergências encontradas contra a base de produção.
 
@@ -138,7 +142,7 @@ data/bronze/<fonte>/<fonte>_<timestamp>.csv   ← append-only, never modified
 data/silver/<fonte>.parquet                   ← overwritten each run
         │
         ▼  python manage.py carregar_convenios / carregar_fonte / carregar_cronograma / carregar_unidades_executoras / carregar_controle_sei
-SQLite / PostgreSQL (apps.sigcon models)
+PostgreSQL (apps.sigcon models)
         │
         ▼  python manage.py carregar_relacionamento --construir  (joins multiple Silver files)
 data/gold/convenios_integrado.parquet  →  apps.sigcon.ConvenioIntegrado
@@ -186,7 +190,7 @@ presentation layer. That's why cache keys live in `core/cache.py` and not in
 
 **`apps/sigcon/`** — the real home of the SIGCON-MG domain (**not** `apps/convenios/`, which is a dead directory kept only for historical migration state — see Common Commands).
 - `models/`: package, one file per domain — `sigcon.py` (`Convenio` main table + SIGCON-MG auxiliaries), `codigos.py` (code-mapping tables), `gold.py` (`ConvenioIntegrado`), `externos.py` (`ControleSEI`). `__init__.py` re-exports every class, so `from apps.sigcon.models import X` works regardless of the file. Splitting the package does **not** generate a migration — the ORM keys models by `app_label` + class name, never by file. The GRP models live in **`apps/grp/models.py`** (a separate Django app, own `app_label`), not here — they were moved out via `SeparateDatabaseAndState` migrations; the old `convenios_dadosgrp`-style DB table names are historical and don't reflect the current app.
-- `loader.py`: one `carregar_*` function per model — all **full refresh**: `Model.objects.all().delete()` then `bulk_create`. Chosen because SIGCON-MG has no reliable delta; running N times yields the same DB state. Every delete/insert pair goes through `_bulk_refresh`, which wraps both in `transaction.atomic()` — **keep it that way**: without the transaction, a failure mid-load leaves the table empty. Never add a delete/insert path that bypasses the helper. **Reads Silver by the legacy `dcgce_*`/`chaves_convenio`/`siafi2` filenames and raw column names** — these no longer exist after the ingestion-legada refactor (`refactor/ingestao-legado`); every `carregar_*` command fails with `FileNotFoundError` until this file is updated to the new source keys and column names. Full file:line map in `docs/relatorio_ingestao_legado.md`.
+- `loader.py`: one `carregar_*` function per model — all **full refresh**: `Model.objects.all().delete()` then `bulk_create`. Chosen because SIGCON-MG has no reliable delta; running N times yields the same DB state. Every delete/insert pair goes through `_bulk_refresh`, which wraps both in `transaction.atomic()` — **keep it that way**: without the transaction, a failure mid-load leaves the table empty. Never add a delete/insert path that bypasses the helper. **Reads the new Silver** (`sigcon_*`, `controle_sei`; the models keep their historical field names and each loader maps Silver column → field). **Never drops a row**: a model has exactly the rows of its Silver (`tests/test_loaders_preservam_linhas.py`); enrichment joins are LEFT, with a de-duplicated right side that has no null keys (pandas matches null with null) and an assert that the row count did not change. Rows the engine flagged go to the DB flagged (`CronogramaDesembolso.ds_alerta_linha`, `ConvenioIntegrado.fl_uo_excluida`/`limpeza_g`) and the **queries** filter them: `get_cronograma_qs` uses `ds_alerta_linha__isnull=True`, the Gold lookups use `fl_uo_excluida=False` and `exclude(limpeza_g=1)`. `ConvenioIntegrado.siafi_uo` is nullable (convênios without SIAFI).
 - Management commands that load data follow one exception pattern: `FileNotFoundError` is the *expected* error (source not ingested yet) and becomes a short `CommandError`; anything else is *unexpected* and gets `logger.exception(...)` plus `raise CommandError(...) from exc`, so the traceback survives. Never go back to `except (FileNotFoundError, Exception)` — it hides the cause.  
 - Management commands: `carregar_convenios` (main table), `carregar_fonte <fonte>` (13 auxiliary tables, see `_LOADERS` dict), `carregar_cronograma`, `carregar_unidades_executoras`, `carregar_controle_sei`, `carregar_relacionamento` (Gold `ConvenioIntegrado`). `rodar_transformacao` and `carregar_silver` are **legacy/dead** — do not use (see Common Commands).
 
@@ -202,7 +206,7 @@ presentation layer. That's why cache keys live in `core/cache.py` and not in
 
 **`config/settings/`**  
 - `base.py`: shared settings; reads `.env` via `django-environ`. Exposes `DATA_DIR` (defaults to `BASE_DIR/data`).  
-- `dev.py`: extends base; SQLite at `BASE_DIR/db.sqlite3`.  
+- `dev.py`: extends base; PostgreSQL (`painel_convenios` on localhost).  
 - `prod.py`: extends base; configure `DATABASE_URL` and Redis cache here.
 
 ### Adding a New Data Source

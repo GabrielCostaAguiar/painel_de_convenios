@@ -99,7 +99,9 @@ coleta de 3 módulos de teste). `apps/grp/views/_filtros.py` migrado para
 Nomes de coluna: ver `docs/dicionario_dados_legado.md` (tabela completa
 bruto→final por fonte, gerada dos YAMLs).
 
-## 4. Mapa de impacto para a próxima fase
+> **ATUALIZAÇÃO (Fase 8, 2026-11-10):** o mapa de impacto abaixo foi **executado**: loaders, `carregar_fonte`, `CARGAS_ORM`, Gold e CLI leem a Silver nova (ver `docs/validacao_models_sigcon.md`). Duas afirmações desta seção estavam erradas: (1) os models **não** usavam os nomes novos — usam os nomes históricos, e cada loader faz o de-para; (2) os `carregar_*` **não** falhavam todos com `FileNotFoundError`: como os Parquets antigos ainda existiam, vários carregavam dado velho sem erro. Os dados antigos de `data/bronze|silver` foram removidos.
+
+## 4. Mapa de impacto para a próxima fase (histórico — já executado)
 
 A renomeação de fontes e colunas quebra tudo que lê Silver pelos nomes
 antigos. Agrupado por arquivo — cada um precisa ser adaptado para ler as
@@ -186,9 +188,7 @@ só texto de ajuda desatualizado, sem efeito funcional (o comando em si
 já lê de `FONTES`, que tem as chaves novas).
 
 ### Models (`apps/sigcon/models/`)
-Nenhuma mudança de schema necessária — os models já usam nomes de campo
-próprios (`nr_convenio`, `cd_uo`, etc., já no padrão novo) independente
-do nome da fonte Silver. O único acoplamento é via loader (acima).
+Os models mantêm os nomes de campo históricos (`convenio_codigo`, `unidade_orcamentaria_codigo`...), **não** os do dicionário novo; o acoplamento é via loader. Mudanças de schema da Fase 8: `CronogramaDesembolso.ds_alerta_linha`, `ConvenioIntegrado.fl_uo_excluida` e `siafi_uo` nulo (migrations 0013/0014 do app `convenios`).
 
 ## 5. Divergências pendentes
 
