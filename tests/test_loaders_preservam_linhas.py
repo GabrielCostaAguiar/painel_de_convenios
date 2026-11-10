@@ -204,3 +204,24 @@ def test_cronograma_real_48392_linhas_29992_validas(settings):
     loader.carregar_cronograma_desembolso()
     assert CronogramaDesembolso.objects.count() == 48392
     assert CronogramaDesembolso.objects.filter(ds_alerta_linha__isnull=True).count() == 29992
+
+
+@pytest.mark.skipif(not _TEM_SILVER_NOVA, reason="data/silver (Silver nova) não existe neste ambiente")
+@pytest.mark.django_db
+def test_gold_real_grava_todas_as_linhas_inclusive_sem_siafi(settings, tmp_path):
+    from apps.sigcon.models import ConvenioIntegrado
+
+    import shutil
+
+    settings.DATA_DIR = tmp_path  # o Gold é gravado aqui, sem mexer em data/gold
+    (tmp_path / "silver").mkdir()
+    for fonte in ("sigcon_chave_siconv", "depara_siafi", "sigcon_convenio", "sigcon_chave_convenio",
+                  "sigcon_convenio_geral", "sigcon_plano_trabalho", "sigcon_concedente", "siconv_convenio"):
+        shutil.copy(_SILVER / f"{fonte}.parquet", tmp_path / "silver" / f"{fonte}.parquet")
+    resultado = loader.carregar_tabela_integrada()
+    n_chaves = len(pd.read_parquet(_SILVER / "sigcon_chave_siconv.parquet"))
+    assert resultado["inseridos"] == n_chaves == ConvenioIntegrado.objects.count()
+    assert ConvenioIntegrado.objects.filter(siafi_uo__isnull=True).count() == 4
+    assert ConvenioIntegrado.objects.filter(fl_uo_excluida=True).count() >= 1
+    validas = ConvenioIntegrado.objects.filter(limpeza_g=0, fl_uo_excluida=False).count()
+    assert 0 < validas < n_chaves

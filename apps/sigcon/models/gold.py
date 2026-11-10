@@ -26,8 +26,11 @@ class ConvenioIntegrado(models.Model):
     """
 
     # --- chaves / bridge ---
+    # Nulo para os convênios sem número SIAFI (a Silver trata SIAFI '0' como
+    # nulo): a linha é preservada, só não tem chave. UNIQUE continua valendo
+    # para as chaves preenchidas (o PostgreSQL aceita vários NULL).
     siafi_uo = models.CharField(
-        "SIAFI_UO", max_length=30, unique=True, db_index=True,
+        "SIAFI_UO", max_length=30, unique=True, db_index=True, null=True, blank=True,
     )
     siafi_uo_atual = models.CharField(
         "SIAFI_UO Atual", max_length=30, null=True, blank=True, db_index=True,
@@ -94,7 +97,12 @@ class ConvenioIntegrado(models.Model):
     # --- G_ flags (0/1) ---
     g_periodo_nao_aditado = models.SmallIntegerField("G_ Período Não Aditado", null=True, blank=True)
     g_valor_nao_aditado = models.SmallIntegerField("G_ Valor Não Aditado", null=True, blank=True)
+    # 1 = nenhuma data G_ preenchida. Antes essas linhas eram EXCLUÍDAS na
+    # construção; agora ficam e as consultas filtram limpeza_g=0.
     limpeza_g = models.SmallIntegerField("Limpeza G_", null=True, blank=True)
+    # True = UO em UOS_EXCLUIR (11 UOs não-operacionais). Antes a linha era
+    # excluída; agora fica e as consultas filtram fl_uo_excluida=False.
+    fl_uo_excluida = models.BooleanField("UO excluída", default=False)
 
     # --- A_ datas ---
     a_dia_assinatura = models.DateField("A_ Data Assinatura", null=True, blank=True)

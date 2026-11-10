@@ -706,11 +706,17 @@ def carregar_tabela_integrada(gold_path: Path | None = None) -> dict:
     Se gold_path não fornecido, constrói a tabela chamando
     construir_tabela_integrada() com os Silver files e grava em data/gold/.
 
+    TODAS as linhas do Gold entram (uma por linha de sigcon_chave_siconv): UO
+    excluída vai para fl_uo_excluida, linha sem datas para limpeza_g, e
+    convênio sem SIAFI fica com siafi_uo nulo. As consultas filtram.
+
     Parâmetros
     ----------
     gold_path : caminho explícito para o Parquet Gold convenios_integrado.
                 Se None, tenta data/gold/convenios_integrado.parquet;
-                se não existir, constrói do zero.
+                se não existir, constrói do zero. (O comando
+                carregar_relacionamento remove o Gold antigo antes, para
+                sempre reconstruir.)
     """
     from core.gold.relacionamento import construir_tabela_integrada, gravar_tabela_integrada
 
@@ -721,20 +727,20 @@ def carregar_tabela_integrada(gold_path: Path | None = None) -> dict:
         df = pd.read_parquet(caminho_gold)
     else:
         logger.info("Gold Parquet não encontrado — construindo a partir dos Silver files...")
-        df_chaves = _ler_parquet(_silver_path("chaves_convenio"))
-        df_siafi2 = _ler_parquet(_silver_path("siafi2"))
-        df_conv = _ler_parquet(_silver_path("dcgce_convenio"))
-        df_cod = _ler_parquet(_silver_path("dcgce_codigo_convenio"))
-        df_geral = _ler_parquet(_silver_path("dcgce_geral"))
-        df_plano = _ler_parquet(_silver_path("dcgce_plano_trabalho"))
-        df_esfera = _ler_parquet(_silver_path("dcgce_esfera"))
+        df_chaves = _ler_parquet(_silver_path("sigcon_chave_siconv"))
+        df_depara = _ler_parquet(_silver_path("depara_siafi"))
+        df_conv = _ler_parquet(_silver_path("sigcon_convenio"))
+        df_cod = _ler_parquet(_silver_path("sigcon_chave_convenio"))
+        df_geral = _ler_parquet(_silver_path("sigcon_convenio_geral"))
+        df_plano = _ler_parquet(_silver_path("sigcon_plano_trabalho"))
+        df_esfera = _ler_parquet(_silver_path("sigcon_concedente"))
 
         # siconv_convenio é opcional
         siconv_p = _silver_path("siconv_convenio")
         df_siconv = pd.read_parquet(siconv_p) if siconv_p.exists() else None
 
         df = construir_tabela_integrada(
-            df_chaves, df_siafi2, df_conv, df_cod, df_geral, df_plano, df_esfera,
+            df_chaves, df_depara, df_conv, df_cod, df_geral, df_plano, df_esfera,
             df_siconv=df_siconv,
         )
         gravar_tabela_integrada(df)
@@ -748,7 +754,7 @@ def carregar_tabela_integrada(gold_path: Path | None = None) -> dict:
     for _, row in df.iterrows():
         objetos.append(ConvenioIntegrado(
             # bridge / chaves
-            siafi_uo=_para_str(row["siafi_uo"]) or "",
+            siafi_uo=_para_str(row["siafi_uo"]),  # nulo = convênio sem SIAFI
             siafi_uo_atual=_para_str(_g("siafi_uo_atual")),
             convenio_numero_sequencial_siafi=_para_str(_g("convenio_numero_sequencial_siafi")),
             unidade_orcamentaria_codigo=_para_str(_g("unidade_orcamentaria_codigo")),
@@ -793,6 +799,7 @@ def carregar_tabela_integrada(gold_path: Path | None = None) -> dict:
             g_periodo_nao_aditado=_para_int(_g("g_periodo_nao_aditado")),
             g_valor_nao_aditado=_para_int(_g("g_valor_nao_aditado")),
             limpeza_g=_para_int(_g("limpeza_g")),
+            fl_uo_excluida=bool(_g("fl_uo_excluida")),
             # A_ datas
             a_dia_assinatura=_str_para_date(_g("a_dia_assinatura")),
             a_inicio_vigencia=_str_para_date(_g("a_inicio_vigencia")),

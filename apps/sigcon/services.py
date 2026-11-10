@@ -112,9 +112,12 @@ def enrich_convenios_page(page_items: list) -> dict:
     if not siafis:
         return {}
 
+    # O Gold guarda TODAS as linhas; as telas usam só as "válidas": sem a marca
+    # de "nenhuma data G_" (limpeza_g=1) e de UO operacional.
     rows = ConvenioIntegrado.objects.filter(
         convenio_numero_sequencial_siafi__in=siafis,
-    ).values(
+        fl_uo_excluida=False,
+    ).exclude(limpeza_g=1).values(
         "convenio_numero_sequencial_siafi",
         "unidade_orcamentaria_codigo",
         "codigo_siconv",
@@ -415,7 +418,8 @@ def get_sigcon_qs(filtros: dict):
         pares = set(
             ConvenioIntegrado.objects.filter(
                 g_proponente_pad__icontains=filtros["proponente"],
-            ).values_list("convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo")
+                fl_uo_excluida=False,
+            ).exclude(limpeza_g=1).values_list("convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo")
         )
         qs = _filtrar_por_siafi_uo_pares(qs, pares)
 

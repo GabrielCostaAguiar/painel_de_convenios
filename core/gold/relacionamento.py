@@ -11,7 +11,8 @@ Roadmap:
 
 Regras de negócio centrais (ver docs/AUDITORIA_RELACIONAMENTO.md):
   - Chave: SIAFI_UO = str(siafi) + str(uo), sem separador, nunca int
-  - UOs excluídas: UOS_EXCLUIR (11 UOs não-operacionais)
+  - UOs de UOS_EXCLUIR (11 UOs não-operacionais): MARCADAS em fl_uo_excluida,
+    não removidas — nenhuma linha com dado é excluída em nenhuma camada
   - Join SIGCON→SICONV: LEFT JOIN (0 ou 1 SICONV por convênio SIGCON)
   - Fan-out: cada camada de join é validada após a operação
 
@@ -33,7 +34,7 @@ import pandas as pd
 from core.transform.chaves import (
     aplicar_correcoes,
     aplicar_deparas,
-    filtrar_uo,
+    marcar_uo_excluida,
     montar_siafi_uo,
     resolver_siafi_atual,
 )
@@ -120,6 +121,132 @@ def _col(df: pd.DataFrame, nome: str) -> pd.Series | None:
 
 
 # ---------------------------------------------------------------------------
+# Fronteira: Silver nova (nr_/cd_/dt_/...) → nomes internos do Gold
+# ---------------------------------------------------------------------------
+# O miolo G_/A_ trabalha com os nomes dos campos do model ConvenioIntegrado e
+# com os prefixos sigcon_/siconv_. As Silvers novas são renomeadas AQUI, uma
+# vez, na entrada de cada função pública. Coluna obrigatória ausente levanta
+# KeyError: antes, `if coluna in df.columns` fazia campos (SICONV, de-paras)
+# sumirem do Gold sem aviso quando o nome mudava.
+
+_ENTRADA_CHAVE_SICONV = {   # sigcon_chave_siconv
+    "tp_instrumento_siafi": "plano_trabalho_tipo_siafi",
+    "cd_uo": "unidade_orcamentaria_codigo",
+    "nr_siafi": "convenio_numero_sequencial_siafi",
+    "ds_situacao_convenio": "situacao",
+    "nr_convenio_siconv": "codigo_siconv",
+}
+_ENTRADA_CONVENIO = {       # sigcon_convenio
+    "nr_convenio": "convenio_codigo",
+    "nr_siafi": "convenio_numero_sequencial_siafi",
+    "cd_uo": "unidade_orcamentaria_codigo",
+    "ds_situacao_convenio": "situacao",
+    "dt_vigencia_inicio": "data_inicio_vigencia",
+    "dt_vigencia_termino_inicial": "data_termino_vigencia",
+    "dt_vigencia_termino": "data_real_convenio",
+    "vl_convenio_concedente_inicial": "valor_inicial_concedente_contratado",
+    "vl_convenio_concedente": "valor_concedente",
+    "vl_convenio_proponente": "valor_proponente",
+    "vl_convenio_total": "valor_total_convenio",
+}
+_ENTRADA_CHAVE_CONVENIO = {  # sigcon_chave_convenio
+    "cd_convenio_sequencial": "convenio_codigo_sequencial",
+    "nr_siafi": "convenio_numero_sequencial_siafi",
+    "cd_uo": "unidade_orcamentaria_codigo",
+}
+_ENTRADA_GERAL = {          # sigcon_convenio_geral
+    "cd_convenio_sequencial": "convenio_codigo_sequencial",
+    "cd_plano_trabalho": "conveno_codigo_plano_trabalho",
+    "nr_siafi": "convenio_numero_sequencial_siafi",
+    "dt_assinatura": "convenio_data_assinatura_convenio",
+}
+_ENTRADA_PLANO = {          # sigcon_plano_trabalho
+    "cd_plano_trabalho": "plano_trabalho_codigo",
+    "tx_objeto": "plano_trabalho_objeto",
+    "nm_concedente": "plano_trabalho_razao_social_concedente",
+    "nr_cnpj_concedente": "plano_trabalho_cnpj_concedente",
+}
+_ENTRADA_CONCEDENTE = {     # sigcon_concedente
+    "nr_cnpj_concedente": "concedente_cnpj",
+    "ds_esfera": "concedente_esfera",
+}
+_ENTRADA_SICONV = {         # siconv_convenio
+    "nr_convenio_siconv": "nr_convenio",
+    "cd_proposta_siconv": "id_proposta",
+    "dt_assinatura": "siconv_data_assinatura",
+    "dt_vigencia_inicio": "siconv_data_inicio_vigencia",
+    "dt_vigencia_termino": "siconv_data_fim_vigencia",
+    "dt_vigencia_termino_inicial": "siconv_data_fim_vigencia_inicial",
+    "ds_situacao_convenio": "siconv_situacao",
+    "vl_repasse": "siconv_valor_concedente",
+    "vl_contrapartida": "siconv_valor_proponente",
+    "vl_global": "siconv_valor_global",
+}
+# Opcionais: o Transferegov pode trazê-las, mas siconv_convenio hoje NÃO tem
+# nome do proponente, órgão concedente nem objeto (G_proponente cai em
+# uo_nome_std; G_concedente e G_objeto vêm só do SIGCON).
+_ENTRADA_SICONV_OPCIONAL = {
+    "nm_proponente": "siconv_proponente",
+    "desc_orgao_sup": "siconv_concedente",
+    "objeto_proposta": "siconv_objeto",
+}
+
+
+def _entrada(df: pd.DataFrame, mapa: dict[str, str], fonte: str) -> pd.DataFrame:
+    """Renomeia a Silver nova para os nomes internos; coluna do mapa ausente = KeyError."""
+    faltando = [c for c in mapa if c not in df.columns]
+    if faltando:
+        raise KeyError(f"Silver '{fonte}': coluna(s) obrigatória(s) ausente(s): {faltando}")
+    return df.rename(columns=mapa)
+
+
+def _deduplicar_consulta(df: pd.DataFrame, chaves: list[str], etapa: str) -> pd.DataFrame:
+    """
+    Subconjunto de CONSULTA para um merge LEFT: uma linha por chave, sem chave nula.
+
+    Chave nula sai porque o pandas casa nulo com nulo — um convênio sem SIAFI
+    herdaria dados de outro sem SIAFI. Chave repetida fica com a primeira linha;
+    se as linhas repetidas tiverem conteúdo DIFERENTE, registra ALERTA com a
+    contagem (nenhuma escolha em silêncio). Só use em dimensões de consulta,
+    nunca na tabela que será gravada.
+    """
+    df = df.dropna(subset=chaves)
+    sem_identicas = df.drop_duplicates()
+    n_conflito = int(sem_identicas.duplicated(subset=chaves).sum())
+    if n_conflito:
+        logger.warning(
+            "ALERTA '%s': %d linha(s) com a mesma chave %s e conteúdo diferente; vale a primeira",
+            etapa, n_conflito, chaves,
+        )
+    return sem_identicas.drop_duplicates(subset=chaves)
+
+
+def _colapsar_chave_unica(df: pd.DataFrame, chave: str, etapa: str) -> pd.DataFrame:
+    """
+    Garante uma linha por `chave` na tabela que será GRAVADA, sem perder dado.
+
+    - Linhas com chave nula ficam todas (não são duplicatas umas das outras).
+    - Linhas com a mesma chave e 100% idênticas colapsam numa só.
+    - Mesma chave com conteúdo DIFERENTE: ValueError. Quem escolhe qual vale é
+      uma pessoa, não o código.
+    """
+    com_chave = df[chave].notna()
+    sub = df[com_chave]
+    sem_identicas = sub.drop_duplicates()
+    repetidas = int(sem_identicas.duplicated(subset=[chave]).sum())
+    if repetidas:
+        raise ValueError(
+            f"{etapa}: {repetidas} chave(s) '{chave}' repetida(s) com conteúdo diferente "
+            "— decisão de negócio, o código não escolhe sozinho"
+        )
+    n_identicas = len(sub) - len(sem_identicas)
+    if n_identicas:
+        logger.warning("%s: %d linha(s) 100%% idênticas colapsadas em '%s'", etapa, n_identicas, chave)
+        df = df.drop(index=sub.index[sub.duplicated()])
+    return df
+
+
+# ---------------------------------------------------------------------------
 # Convenio_codigo (Código SIGCON) 1:1 por linha — Plano de Aplicação / Cronograma
 # ---------------------------------------------------------------------------
 
@@ -170,14 +297,16 @@ def carimbar_convenio_codigo(
 
 def preparar_sigcon_convenio(df_convenio: pd.DataFrame) -> pd.DataFrame:
     """
-    Aplica filtro de UO, de-paras e correções ao Silver de dcgce_convenio.
+    Aplica correções e de-paras ao Silver `sigcon_convenio` (lado de consulta).
 
+    Entrada com os nomes da Silver nova; a saída usa os nomes internos do Gold.
     Produz colunas adicionais: situacao_std, uo_nome_std, uo_sigla_std,
-    uo_descricao_std, siafi_uo.
+    uo_descricao_std, siafi_uo. Nenhuma linha é removida (a marcação de UO
+    excluída é feita na tabela-ponte, em montar_sigcon_chaves).
     """
-    df = filtrar_uo(df_convenio, coluna_uo="unidade_orcamentaria_codigo")
+    df = _entrada(df_convenio, _ENTRADA_CONVENIO, "sigcon_convenio")
     df = aplicar_correcoes(df, nome_tabela="sigcon_convenio")
-    df = aplicar_deparas(df)
+    df = aplicar_deparas(df, obrigatorias=("situacao", "unidade_orcamentaria_codigo"))
     df["siafi_uo"] = montar_siafi_uo(
         df["convenio_numero_sequencial_siafi"],
         df["unidade_orcamentaria_codigo"],
@@ -191,7 +320,7 @@ def preparar_sigcon_convenio(df_convenio: pd.DataFrame) -> pd.DataFrame:
 
 def montar_sigcon_chaves(
     df_chaves: pd.DataFrame,
-    df_siafi2: pd.DataFrame,
+    df_depara: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Constrói a tabela-ponte sigcon_chaves com chaves SIAFI_UO resolvidas.
@@ -199,17 +328,24 @@ def montar_sigcon_chaves(
     Equivalente ao bloco QlikView:
       sigcon_chaves1 (FROM Chaves_convenio.csv) + LEFT JOIN SIAFI2
 
-    Passos:
-      1. Filtra UOs não-operacionais
-      2. Monta siafi_uo = siafi + uo
+    Entrada: Silver `sigcon_chave_siconv` e `depara_siafi` (nomes novos).
+
+    Passos (nenhuma linha é removida):
+      1. Marca fl_uo_excluida (UO em UOS_EXCLUIR) — a linha fica
+      2. Monta siafi_uo = siafi + uo (nulo se faltar SIAFI ou UO)
       3. Aplica de-paras (instrumento, uo_nome_std, situacao_std, etc.)
-      4. Resolve siafi_uo_atual via LEFT JOIN com SIAFI2 (fallback = original)
-      5. Deduplica por siafi_uo
+      4. Resolve siafi_uo_atual via depara_siafi (fallback = original)
+      5. Colapsa só linhas 100% idênticas; chave repetida com conteúdo
+         diferente levanta ValueError
+
+    Linhas sem siafi_uo (convênio sem SIAFI) ficam, com chave nula.
 
     Saída: siafi_uo, siafi_uo_atual, siafiatual, uo_atual, codigo_siconv,
-           instrumento_chaves, situacao, situacao_std, uo_nome_std, etc.
+           instrumento_chaves, situacao, situacao_std, uo_nome_std, etc.,
+           fl_uo_excluida.
     """
-    df = filtrar_uo(df_chaves, coluna_uo="unidade_orcamentaria_codigo")
+    df = _entrada(df_chaves, _ENTRADA_CHAVE_SICONV, "sigcon_chave_siconv")
+    df["fl_uo_excluida"] = marcar_uo_excluida(df, coluna_uo="unidade_orcamentaria_codigo")
 
     df["siafi_uo"] = montar_siafi_uo(
         df["convenio_numero_sequencial_siafi"],
@@ -218,19 +354,15 @@ def montar_sigcon_chaves(
     n_sem_chave = int(df["siafi_uo"].isna().sum())
     if n_sem_chave:
         logger.warning(
-            "montar_sigcon_chaves: %d linhas com SIAFI_UO nulo", n_sem_chave
+            "montar_sigcon_chaves: %d linha(s) com SIAFI_UO nulo (mantidas, sem SIAFI)", n_sem_chave
         )
 
-    df = aplicar_deparas(df)
-    df = resolver_siafi_atual(df, df_siafi2, coluna_siafi_uo="siafi_uo")
-
-    n_antes = len(df)
-    df = df.drop_duplicates(subset=["siafi_uo"], keep="first")
-    if len(df) < n_antes:
-        logger.warning(
-            "montar_sigcon_chaves: %d duplicatas em siafi_uo removidas",
-            n_antes - len(df),
-        )
+    df = aplicar_deparas(
+        df,
+        obrigatorias=("situacao", "plano_trabalho_tipo_siafi", "unidade_orcamentaria_codigo"),
+    )
+    df = resolver_siafi_atual(df, df_depara, coluna_siafi_uo="siafi_uo")
+    df = _colapsar_chave_unica(df, "siafi_uo", "montar_sigcon_chaves")
 
     colunas_saida = [
         "siafi_uo", "siafi_uo_atual",
@@ -239,8 +371,8 @@ def montar_sigcon_chaves(
         "codigo_siconv", "instrumento_chaves",
         "situacao", "situacao_std",
         "uo_nome_std", "uo_sigla_std", "uo_descricao_std",
+        "fl_uo_excluida",
     ]
-    colunas_saida = [c for c in colunas_saida if c in df.columns]
     df = df[colunas_saida].reset_index(drop=True)
 
     logger.info("montar_sigcon_chaves: %d linhas, %d colunas", len(df), len(df.columns))
@@ -259,7 +391,11 @@ def _preparar_sigcon_completo(
     df_esfera: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Junta as 5 fontes SIGCON em um único DataFrame por siafi_uo.
+    Junta as 5 fontes SIGCON em um único DataFrame por siafi_uo (lado de
+    consulta do Gold: uma linha por chave, sem chave nula).
+
+    Entrada: Silvers novas (sigcon_convenio, sigcon_chave_convenio,
+    sigcon_convenio_geral, sigcon_plano_trabalho, sigcon_concedente).
 
     Reproduz a cadeia de joins de carregar_convenios() em loader.py, mas
     retorna o DataFrame em vez de instâncias ORM.
@@ -271,41 +407,47 @@ def _preparar_sigcon_completo(
       sigcon_valor_global, sigcon_valor_global_inicial,
       sigcon_concedente, sigcon_objeto, sigcon_cnpj_concedente, sigcon_esfera.
     """
+    df_codigo_convenio = _entrada(df_codigo_convenio, _ENTRADA_CHAVE_CONVENIO, "sigcon_chave_convenio")
+    df_geral = _entrada(df_geral, _ENTRADA_GERAL, "sigcon_convenio_geral")
+    df_plano = _entrada(df_plano, _ENTRADA_PLANO, "sigcon_plano_trabalho")
+    df_esfera = _entrada(df_esfera, _ENTRADA_CONCEDENTE, "sigcon_concedente")
+
     # Normaliza chaves de join
     for df, cols in [
-        (df_convenio, ["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"]),
         (df_codigo_convenio, ["convenio_codigo_sequencial", "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"]),
         (df_geral, ["convenio_numero_sequencial_siafi", "convenio_codigo_sequencial", "conveno_codigo_plano_trabalho"]),
         (df_plano, ["plano_trabalho_codigo", "plano_trabalho_cnpj_concedente"]),
         (df_esfera, ["concedente_cnpj"]),
     ]:
         for col in cols:
-            if col in df.columns:
-                df[col] = _limpar_id(df[col])
+            df[col] = _limpar_id(df[col])
 
-    # Aplica filtro, correções e de-paras ao convenio antes de qualquer join
+    # Correções e de-paras no convênio (preparar_sigcon_convenio recebe a Silver
+    # nova e renomeia sozinha); nenhuma linha sai.
     convenio = preparar_sigcon_convenio(df_convenio)
+    for col in ["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"]:
+        convenio[col] = _limpar_id(convenio[col])
     convenio["siafi_uo"] = montar_siafi_uo(
         convenio["convenio_numero_sequencial_siafi"],
         convenio["unidade_orcamentaria_codigo"],
     )
 
     # Enriquece geral com UO via codigo_convenio
-    cod_uo = (
-        df_codigo_convenio[["convenio_codigo_sequencial", "unidade_orcamentaria_codigo"]]
-        .drop_duplicates("convenio_codigo_sequencial")
+    cod_uo = _deduplicar_consulta(
+        df_codigo_convenio[["convenio_codigo_sequencial", "unidade_orcamentaria_codigo"]],
+        ["convenio_codigo_sequencial"], "sigcon_completo/cod_uo",
     )
     geral = df_geral.merge(cod_uo, on="convenio_codigo_sequencial", how="left")
     geral = geral.rename(columns={"conveno_codigo_plano_trabalho": "plano_trabalho_codigo"})
-    if "unidade_orcamentaria_codigo" in geral.columns:
-        geral["unidade_orcamentaria_codigo"] = _limpar_id(geral["unidade_orcamentaria_codigo"])
+    geral["unidade_orcamentaria_codigo"] = _limpar_id(geral["unidade_orcamentaria_codigo"])
 
-    geral_sub = (
+    geral_sub = _deduplicar_consulta(
         geral[[
             "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo",
             "plano_trabalho_codigo", "convenio_data_assinatura_convenio",
-        ]]
-        .drop_duplicates(["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"])
+        ]],
+        ["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"],
+        "sigcon_completo/geral",
     )
 
     merged = convenio.merge(
@@ -316,20 +458,20 @@ def _preparar_sigcon_completo(
     _validar_fan_out(len(convenio), len(merged), "sigcon+geral")
 
     # Plano trabalho (concedente, objeto, cnpj, instrumento)
-    plano_sub = (
+    plano_sub = _deduplicar_consulta(
         df_plano[[
             "plano_trabalho_codigo", "plano_trabalho_objeto",
             "plano_trabalho_razao_social_concedente", "plano_trabalho_cnpj_concedente",
-        ]]
-        .drop_duplicates("plano_trabalho_codigo")
+        ]],
+        ["plano_trabalho_codigo"], "sigcon_completo/plano",
     )
     merged = merged.merge(plano_sub, on="plano_trabalho_codigo", how="left")
     _validar_fan_out(len(convenio), len(merged), "sigcon+plano")
 
     # Esfera via CNPJ concedente
-    esfera_sub = (
-        df_esfera[["concedente_cnpj", "concedente_esfera"]]
-        .drop_duplicates("concedente_cnpj")
+    esfera_sub = _deduplicar_consulta(
+        df_esfera[["concedente_cnpj", "concedente_esfera"]],
+        ["concedente_cnpj"], "sigcon_completo/esfera",
     )
     merged = merged.merge(
         esfera_sub,
@@ -355,60 +497,38 @@ def _preparar_sigcon_completo(
         "plano_trabalho_cnpj_concedente": "sigcon_cnpj_concedente",
         "concedente_esfera": "sigcon_esfera",
     }
-    presentes = {k: v for k, v in colunas.items() if k in merged.columns}
-    resultado = merged[list(presentes.keys())].rename(columns=presentes)
+    faltando = [c for c in colunas if c not in merged.columns]
+    if faltando:
+        raise KeyError(f"_preparar_sigcon_completo: coluna(s) esperada(s) ausente(s): {faltando}")
+    resultado = merged[list(colunas)].rename(columns=colunas)
 
-    resultado = resultado.drop_duplicates("siafi_uo")
-    return resultado
+    # Lado de consulta: uma linha por siafi_uo, sem chave nula
+    return _deduplicar_consulta(resultado, ["siafi_uo"], "sigcon_completo")
 
 
 def _preparar_siconv(df_siconv: pd.DataFrame) -> pd.DataFrame:
     """
-    Normaliza o Silver de siconv_convenio, prefixando colunas com siconv_.
-
-    O arquivo Transferegov pode usar nomes ligeiramente diferentes entre versões.
-    Esta função trata os nomes pós-normalização (snake_case do Silver) e mapeia
-    para os nomes canônicos usados no coalesce.
+    Prepara o Silver `siconv_convenio` (nomes novos) para o coalesce G_,
+    prefixando as colunas com siconv_ (lado de consulta: uma linha por convênio
+    federal, sem chave nula).
 
     Colunas de saída: nr_convenio (chave), id_proposta,
       siconv_situacao, siconv_data_inicio_vigencia, siconv_data_fim_vigencia,
       siconv_data_fim_vigencia_inicial, siconv_data_assinatura,
-      siconv_valor_concedente, siconv_valor_proponente, siconv_valor_global,
-      siconv_proponente, siconv_concedente, siconv_objeto.
+      siconv_valor_concedente, siconv_valor_proponente, siconv_valor_global
+      (+ siconv_proponente, siconv_concedente, siconv_objeto SE a fonte as trouxer).
     """
-    # Mapeamento de nomes Transferegov → canônicos (post-Silver normalization)
-    mapa = {
-        # datas
-        "dia_assin_conv": "siconv_data_assinatura",
-        "dia_inic_vigenc_conv": "siconv_data_inicio_vigencia",
-        "dia_fim_vigenc_conv": "siconv_data_fim_vigencia",
-        "dia_fim_vigenc_original_conv": "siconv_data_fim_vigencia_inicial",
-        # situação
-        "sit_convenio": "siconv_situacao",
-        # valores
-        "vl_repasse_conv": "siconv_valor_concedente",
-        "vl_contrapartida_conv": "siconv_valor_proponente",
-        "vl_global_conv": "siconv_valor_global",
-        # nomes (podem vir do mesmo CSV ou de siconv_proposta se disponível)
-        "nm_proponente": "siconv_proponente",
-        "desc_orgao_sup": "siconv_concedente",
-        "objeto_proposta": "siconv_objeto",
-    }
-
-    df = df_siconv.copy()
-    df = df.rename(columns={k: v for k, v in mapa.items() if k in df.columns})
+    df = _entrada(df_siconv, _ENTRADA_SICONV, "siconv_convenio")
+    df = df.rename(columns={k: v for k, v in _ENTRADA_SICONV_OPCIONAL.items() if k in df.columns})
 
     # Chave: nr_convenio deve ser StringDtype sem artefatos .0
-    if "nr_convenio" in df.columns:
-        df["nr_convenio"] = _limpar_id(df["nr_convenio"])
+    df["nr_convenio"] = _limpar_id(df["nr_convenio"])
 
     colunas_saida = ["nr_convenio", "id_proposta"] + [
-        v for v in mapa.values() if v in df.columns
+        v for v in (*_ENTRADA_SICONV.values(), *_ENTRADA_SICONV_OPCIONAL.values())
+        if v in df.columns and v not in ("nr_convenio", "id_proposta")
     ]
-    colunas_saida = [c for c in colunas_saida if c in df.columns]
-
-    df = df[colunas_saida].drop_duplicates("nr_convenio")
-    return df
+    return _deduplicar_consulta(df[colunas_saida], ["nr_convenio"], "siconv")
 
 
 # ---------------------------------------------------------------------------
@@ -763,8 +883,9 @@ def aplicar_campos_a(df_com_g: pd.DataFrame) -> pd.DataFrame:
     # Dimensão A_: uma linha por siafi_uo_atual com os campos G_ correspondentes
     # Selecionamos as colunas G_ da tabela original, keyed por siafi_uo
     dim_a = (
-        df_com_g[["siafi_uo"] + list(g_existentes.keys())]
-        .drop_duplicates("siafi_uo")
+        _deduplicar_consulta(
+            df_com_g[["siafi_uo"] + list(g_existentes.keys())], ["siafi_uo"], "A_/dimensão",
+        )
         .rename(columns=g_existentes)
         .rename(columns={"siafi_uo": "siafi_uo_key"})
     )
@@ -793,37 +914,39 @@ def aplicar_campos_a(df_com_g: pd.DataFrame) -> pd.DataFrame:
 
 def construir_tabela_integrada(
     df_chaves: pd.DataFrame,
-    df_siafi2: pd.DataFrame,
+    df_depara: pd.DataFrame,
     df_sigcon_convenio: pd.DataFrame,
     df_sigcon_codigo_convenio: pd.DataFrame,
     df_sigcon_geral: pd.DataFrame,
     df_sigcon_plano: pd.DataFrame,
     df_sigcon_esfera: pd.DataFrame,
     df_siconv: pd.DataFrame | None = None,
-    filtrar_limpeza_g: bool = True,
 ) -> pd.DataFrame:
     """
     Constrói a tabela integrada completa (G_ + A_) a partir dos Silver files.
 
+    NENHUMA linha da ponte é excluída: o resultado tem uma linha por linha de
+    `sigcon_chave_siconv` (com as repetidas 100% idênticas colapsadas). UO
+    excluída → fl_uo_excluida; linha sem datas → limpeza_g = 1. Quem não quer
+    essas linhas numa tela filtra na consulta (apps/sigcon/services.py).
+
     Passos:
-      1. Monta tabela-ponte SIGCON (chaves + SIAFI2)
+      1. Monta tabela-ponte SIGCON (chaves + depara_siafi)
       2. Prepara lado SIGCON completo (convenio + geral + plano + esfera)
       3. Prepara lado SICONV (se disponível)
       4. Aplica campos G_ (coalesce SICONV → SIGCON)
       5. Aplica campos A_ (projeção sobre siafi_uo_atual)
-      6. Filtra limpeza_g == 0 (linhas sem dados temporais) se solicitado
 
-    Parameters
+    Parameters (todos com os nomes de coluna da Silver nova)
     ----------
-    df_chaves          : Silver de chaves_convenio
-    df_siafi2          : Silver de siafi2
-    df_sigcon_convenio : Silver de dcgce_convenio
-    df_sigcon_codigo_convenio : Silver de dcgce_codigo_convenio
-    df_sigcon_geral    : Silver de dcgce_geral
-    df_sigcon_plano    : Silver de dcgce_plano_trabalho
-    df_sigcon_esfera   : Silver de dcgce_esfera
+    df_chaves          : Silver de sigcon_chave_siconv
+    df_depara          : Silver de depara_siafi
+    df_sigcon_convenio : Silver de sigcon_convenio
+    df_sigcon_codigo_convenio : Silver de sigcon_chave_convenio
+    df_sigcon_geral    : Silver de sigcon_convenio_geral
+    df_sigcon_plano    : Silver de sigcon_plano_trabalho
+    df_sigcon_esfera   : Silver de sigcon_concedente
     df_siconv          : Silver de siconv_convenio (opcional)
-    filtrar_limpeza_g  : se True, remove linhas sem nenhuma data G_ (default True)
 
     Returns
     -------
@@ -832,7 +955,7 @@ def construir_tabela_integrada(
     logger.info("construir_tabela_integrada: início")
 
     # Passo 1: tabela-ponte
-    sigcon_chaves = montar_sigcon_chaves(df_chaves, df_siafi2)
+    sigcon_chaves = montar_sigcon_chaves(df_chaves, df_depara)
     logger.info("  tabela-ponte: %d linhas", len(sigcon_chaves))
 
     # Passo 2: SIGCON completo
@@ -859,13 +982,13 @@ def construir_tabela_integrada(
     # Passo 5: A_ fields
     integrado = aplicar_campos_a(integrado)
 
-    # Passo 6: limpeza_g
-    if filtrar_limpeza_g and "limpeza_g" in integrado.columns:
-        n_antes = len(integrado)
-        integrado = integrado[integrado["limpeza_g"] == 0].reset_index(drop=True)
-        n_removidas = n_antes - len(integrado)
-        if n_removidas:
-            logger.info("  limpeza_g: %d linhas removidas (sem dados temporais)", n_removidas)
+    assert len(integrado) == len(sigcon_chaves), (
+        f"construir_tabela_integrada: a tabela-ponte tinha {len(sigcon_chaves)} linhas e o "
+        f"resultado {len(integrado)} — linha perdida ou multiplicada"
+    )
+    n_limpeza = int((integrado["limpeza_g"] == 1).sum())
+    if n_limpeza:
+        logger.info("  limpeza_g=1: %d linha(s) sem nenhuma data G_ (mantidas, marcadas)", n_limpeza)
 
     logger.info(
         "construir_tabela_integrada: concluído — %d linhas × %d colunas",

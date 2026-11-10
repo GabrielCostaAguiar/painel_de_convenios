@@ -9,7 +9,7 @@ import pytest
 
 from core.transform.chaves import (
     UOS_EXCLUIR,
-    filtrar_uo,
+    marcar_uo_excluida,
     montar_siafi_uo,
     resolver_siafi_atual,
     aplicar_correcoes,
@@ -21,9 +21,18 @@ from core.transform.chaves import (
 # Fixtures reutilizáveis
 # ---------------------------------------------------------------------------
 
-def _siafi2(rows: list[tuple]) -> pd.DataFrame:
-    """Cria um mini-SIAFI2 com colunas (siafi1, uo1, siafi2, uo2, siafiatual, uoatual)."""
-    return pd.DataFrame(rows, columns=["siafi1", "uo1", "siafi2", "uo2", "siafiatual", "uoatual"]).astype("string")
+def _depara(rows: list[tuple], alertas: list | None = None) -> pd.DataFrame:
+    """
+    Mini depara_siafi (Silver nova). Cada linha:
+    (siafi_origem, uo_origem, siafi_atual, uo_atual). siafi_uo_origem/atual já
+    montados, como no YAML da fonte.
+    """
+    df = pd.DataFrame(rows, columns=["nr_siafi_origem", "cd_uo_origem", "nr_siafi_atual", "cd_uo_atual"]).astype("string")
+    df["siafi_uo_origem"] = montar_siafi_uo(df["nr_siafi_origem"], df["cd_uo_origem"])
+    df["siafi_uo_atual"] = montar_siafi_uo(df["nr_siafi_atual"], df["cd_uo_atual"])
+    if alertas is not None:
+        df["ds_alerta_linha"] = pd.array(alertas, dtype="string")
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -83,54 +92,79 @@ class TestMontarSiafiUo:
 # ---------------------------------------------------------------------------
 
 class TestResolverSiafiAtual:
-    def _chaves(self, siafi_uo_values: list[str]) -> pd.DataFrame:
+    def _chaves(self, siafi_uo_values: list) -> pd.DataFrame:
         return pd.DataFrame({"siafi_uo": pd.array(siafi_uo_values, dtype="string")})
 
     def test_match_simples(self):
         """Convênio com substituição SIAFI deve receber o valor atual."""
         chaves = self._chaves(["93090741261"])
-        siafi2 = _siafi2([("9309074", "1261", "9309074", "1261", "9600000", "1300")])
-        resultado = resolver_siafi_atual(chaves, siafi2)
+        depara = _depara([("9309074", "1261", "9600000", "1300")])
+        resultado = resolver_siafi_atual(chaves, depara)
         assert resultado["siafi_uo_atual"][0] == "96000001300"
         assert resultado["siafiatual"][0] == "9600000"
         assert resultado["uo_atual"][0] == "1300"
 
     def test_sem_match_usa_fallback(self):
-        """Convênio sem entrada no SIAFI2 deve ter siafi_uo_atual = siafi_uo original."""
+        """Convênio sem entrada no depara deve ter siafi_uo_atual = siafi_uo original."""
         chaves = self._chaves(["00000001234"])
-        siafi2 = _siafi2([("9999999", "9999", "9999999", "9999", "8888888", "8888")])
-        resultado = resolver_siafi_atual(chaves, siafi2)
+        depara = _depara([("9999999", "9999", "8888888", "8888")])
+        resultado = resolver_siafi_atual(chaves, depara)
         assert resultado["siafi_uo_atual"][0] == "00000001234"
 
-    def test_fallback_quando_siafi2_vazio(self):
-        """SIAFI2 vazio: todos os convênios ficam com siafi_uo_atual = siafi_uo."""
+    def test_fallback_quando_depara_vazio(self):
         chaves = self._chaves(["1001001"])
-        siafi2 = _siafi2([])
-        resultado = resolver_siafi_atual(chaves, siafi2)
+        resultado = resolver_siafi_atual(chaves, _depara([]))
         assert resultado["siafi_uo_atual"][0] == "1001001"
 
-    def test_deduplicacao_siafi2(self):
-        """Duplicata na dimensão SIAFI2 deve ser removida sem erro."""
+    def test_origem_repetida_com_mesmo_destino_colapsa_na_consulta(self):
+        """Linhas repetidas do depara (as colunas redundantes diferiam) não multiplicam o convênio."""
         chaves = self._chaves(["93090741261"])
-        siafi2 = _siafi2([
-            ("9309074", "1261", "9309074", "1261", "9600000", "1300"),
-            ("9309074", "1261", "9309074", "1261", "9600000", "1300"),  # duplicata
+        depara = _depara([
+            ("9309074", "1261", "9600000", "1300"),
+            ("9309074", "1261", "9600000", "1300"),
         ])
-        resultado = resolver_siafi_atual(chaves, siafi2)
+        resultado = resolver_siafi_atual(chaves, depara)
         assert len(resultado) == 1
         assert resultado["siafi_uo_atual"][0] == "96000001300"
 
     def test_multiplos_com_mix_match_e_fallback(self):
-        """Mix de convênios: alguns com match, outros sem."""
         chaves = self._chaves(["93090741261", "11111111111", "22222222222"])
-        siafi2 = _siafi2([
-            ("9309074", "1261", "9309074", "1261", "9600000", "1300"),
-            ("2222222", "2222", "2222222", "2222", "3333333", "3333"),
+        depara = _depara([
+            ("9309074", "1261", "9600000", "1300"),
+            ("2222222", "2222", "3333333", "3333"),
         ])
-        resultado = resolver_siafi_atual(chaves, siafi2)
-        assert resultado.set_index("siafi_uo")["siafi_uo_atual"]["93090741261"] == "96000001300"
-        assert resultado.set_index("siafi_uo")["siafi_uo_atual"]["11111111111"] == "11111111111"
-        assert resultado.set_index("siafi_uo")["siafi_uo_atual"]["22222222222"] == "33333333333"
+        resultado = resolver_siafi_atual(chaves, depara).set_index("siafi_uo")["siafi_uo_atual"]
+        assert resultado["93090741261"] == "96000001300"
+        assert resultado["11111111111"] == "11111111111"
+        assert resultado["22222222222"] == "33333333333"
+
+    def test_linhas_em_quarentena_sao_ignoradas_na_consulta(self):
+        """Origem com destinos divergentes (marcada) não escolhe destino: cai no fallback."""
+        chaves = self._chaves(["94277811451"])
+        depara = _depara(
+            [("9427781", "1451", "9427781", "1451"), ("9427781", "1451", "9433735", "4691")],
+            alertas=["quarentena:grao_divergente", "quarentena:grao_divergente"],
+        )
+        resultado = resolver_siafi_atual(chaves, depara)
+        assert len(resultado) == 1
+        assert resultado["siafi_uo_atual"][0] == "94277811451"
+
+    def test_chave_nula_nao_casa_com_origem_nula(self):
+        """O pandas casaria nulo com nulo: um convênio sem SIAFI não pode herdar destino."""
+        chaves = self._chaves([None])
+        depara = _depara([(None, "1261", "9600000", "1300")])
+        resultado = resolver_siafi_atual(chaves, depara)
+        assert len(resultado) == 1
+        assert pd.isna(resultado["siafi_uo_atual"][0])
+
+    def test_coluna_ausente_levanta_keyerror(self):
+        with pytest.raises(KeyError):
+            resolver_siafi_atual(self._chaves(["1"]), pd.DataFrame({"outra": ["x"]}))
+
+    def test_nao_perde_linhas_do_lado_esquerdo(self):
+        chaves = self._chaves(["A", "B", None])
+        resultado = resolver_siafi_atual(chaves, _depara([("1", "2", "3", "4")]))
+        assert len(resultado) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -191,38 +225,36 @@ class TestAplicarCorrecoes:
 # filtrar_uo
 # ---------------------------------------------------------------------------
 
-class TestFiltrarUo:
-    def test_remove_uo_excluida(self):
+class TestMarcarUoExcluida:
+    def test_marca_uo_excluida_sem_remover_linha(self):
         df = pd.DataFrame({
-            "unidade_orcamentaria_codigo": pd.array(
-                ["1261", "5131", "9801", "1491"], dtype="string"
-            )
+            "unidade_orcamentaria_codigo": pd.array(["1261", "5131", "9801", "1491"], dtype="string")
         })
-        resultado = filtrar_uo(df)
-        assert set(resultado["unidade_orcamentaria_codigo"]) == {"1261", "1491"}
+        mascara = marcar_uo_excluida(df)
+        assert mascara.tolist() == [False, True, True, False]
+        assert len(df) == 4  # a função não mexe no DataFrame
 
     def test_todas_excluidas(self):
-        uos = list(UOS_EXCLUIR)
-        df = pd.DataFrame({"unidade_orcamentaria_codigo": pd.array(uos, dtype="string")})
-        resultado = filtrar_uo(df)
-        assert len(resultado) == 0
+        df = pd.DataFrame({"unidade_orcamentaria_codigo": pd.array(list(UOS_EXCLUIR), dtype="string")})
+        assert marcar_uo_excluida(df).all()
 
     def test_nenhuma_excluida(self):
         df = pd.DataFrame({
             "unidade_orcamentaria_codigo": pd.array(["1261", "1491", "2351"], dtype="string")
         })
-        resultado = filtrar_uo(df)
-        assert len(resultado) == 3
+        assert not marcar_uo_excluida(df).any()
+
+    def test_uo_nula_nao_e_excluida(self):
+        df = pd.DataFrame({"unidade_orcamentaria_codigo": pd.array([None, "5131"], dtype="string")})
+        assert marcar_uo_excluida(df).tolist() == [False, True]
 
     def test_coluna_ausente_levanta_keyerror(self):
-        df = pd.DataFrame({"outra_coluna": [1, 2]})
         with pytest.raises(KeyError):
-            filtrar_uo(df)
+            marcar_uo_excluida(pd.DataFrame({"outra_coluna": [1, 2]}))
 
     def test_coluna_customizada(self):
         df = pd.DataFrame({"uo": pd.array(["5131", "1261"], dtype="string")})
-        resultado = filtrar_uo(df, coluna_uo="uo")
-        assert len(resultado) == 1
+        assert marcar_uo_excluida(df, coluna_uo="uo").tolist() == [True, False]
 
 
 # ---------------------------------------------------------------------------

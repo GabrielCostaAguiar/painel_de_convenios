@@ -4,9 +4,9 @@ de relacionamento SIGCON↔SICONV.
 
 Responsabilidades:
   - UOS_EXCLUIR     : frozenset de UOs não-operacionais a ignorar
-  - filtrar_uo      : aplica o filtro a qualquer DataFrame que tenha a coluna uo
+  - marcar_uo_excluida : marca (NÃO remove) as linhas cuja UO está em UOS_EXCLUIR
   - montar_siafi_uo : constrói a chave composta SIAFI+UO (sem separador)
-  - resolver_siafi_atual : de-para SIAFI_UO antigo → SIAFI_UO atual via SIAFI2
+  - resolver_siafi_atual : de-para SIAFI_UO antigo → SIAFI_UO atual via depara_siafi
   - aplicar_deparas : aplica todos os mapeamentos de R1 (situação, tipo, UO nome, sigla)
   - aplicar_correcoes : aplica a tabela de exceções data-driven com log
 
@@ -60,22 +60,26 @@ UOS_EXCLUIR: frozenset[str] = frozenset({
 })
 
 
-def filtrar_uo(df: pd.DataFrame, coluna_uo: str = "unidade_orcamentaria_codigo") -> pd.DataFrame:
+def marcar_uo_excluida(df: pd.DataFrame, coluna_uo: str = "unidade_orcamentaria_codigo") -> pd.Series:
     """
-    Remove linhas cujo código de UO pertence a UOS_EXCLUIR.
+    Máscara (bool) das linhas cujo código de UO pertence a UOS_EXCLUIR.
 
-    O QlikView aplica este filtro com `not match(UO, '5131', ...)`.
-    Aqui usamos `~isin(UOS_EXCLUIR)` após normalizar o valor da coluna.
+    NÃO remove nenhuma linha: regra do dono dos dados, nenhuma linha com dado é
+    excluída. O chamador grava a máscara em `fl_uo_excluida` e quem não quer
+    essas UOs numa tela filtra na consulta. (O QlikView as removia com
+    `not match(UO, '5131', ...)`.)
     """
     if coluna_uo not in df.columns:
         raise KeyError(
             f"Coluna '{coluna_uo}' não encontrada. Disponíveis: {list(df.columns)}"
         )
-    mascara = ~df[coluna_uo].astype(str).str.strip().isin(UOS_EXCLUIR)
-    n_excluidas = (~mascara).sum()
-    if n_excluidas:
-        logger.info("filtrar_uo: %d linhas excluídas pela lista UOS_EXCLUIR", n_excluidas)
-    return df.loc[mascara].copy()
+    mascara = df[coluna_uo].astype(str).str.strip().isin(UOS_EXCLUIR)
+    n_marcadas = int(mascara.sum())
+    if n_marcadas:
+        logger.info(
+            "marcar_uo_excluida: %d linha(s) com UO em UOS_EXCLUIR (marcadas, mantidas)", n_marcadas
+        )
+    return mascara
 
 
 # ---------------------------------------------------------------------------
@@ -126,81 +130,105 @@ def montar_siafi_uo(
 
 def resolver_siafi_atual(
     df_chaves: pd.DataFrame,
-    df_siafi2: pd.DataFrame,
+    df_depara: pd.DataFrame,
     coluna_siafi_uo: str = "siafi_uo",
 ) -> pd.DataFrame:
     """
     Enriquece df_chaves com as colunas siafi_uo_atual, siafiatual e uo_atual.
 
-    O SIAFI2.csv representa a cadeia de substituições de números SIAFI ao longo
-    do tempo. A lógica do QlikView (linha 2830) é:
-        SIAFI2 & UO2 as SIAFI_UO  (chave de look-up)
-        UOATUAL                    (resultado)
+    `df_depara` é o Silver `depara_siafi` (ex-SIAFI2.csv), que representa a
+    cadeia de substituições de números SIAFI ao longo do tempo. A chave de
+    look-up é `siafi_uo_origem` (SIAFI2+UO2) e o resultado é `siafi_uo_atual`
+    (SIAFI atual + UO atual) — ambos já montados no YAML da fonte. A lógica do
+    QlikView (linha 2830) é a mesma.
 
-    Aqui construímos a mesma chave dimensão: (siafi2+uo2) e fazemos LEFT JOIN
-    com df_chaves pela coluna siafi_uo.
+    Se um convênio não tiver correspondência (LEFT JOIN → NaN), o siafi_uo_atual
+    fica igual ao siafi_uo original. Isso é o comportamento correto: sem
+    substituição conhecida, o "atual" é o próprio valor.
 
-    Se um convênio não tiver correspondência no SIAFI2 (LEFT JOIN → NaN), o
-    siafi_uo_atual fica igual ao siafi_uo original. Isso é o comportamento
-    correto: sem substituição conhecida, o "atual" é o próprio valor.
-
-    Linhagem SIAFI:
-      SIAFI2.csv já codifica a cadeia completa: cada linha representa o estado
-      final (siafiatual). Para um convênio com 3 números SIAFI (A→B→C), o arquivo
-      terá 2 linhas: (A,UO)→C e (B,UO)→C. O par (SIAFI2, UO2) é único como
-      chave de look-up — deduplicamos antes do merge para garantir.
+    A tabela `depara_siafi` mantém TODAS as linhas do arquivo de origem. Aqui,
+    só na consulta, usamos um subconjunto de look-up:
+      - linhas marcadas em `ds_alerta_linha` (quarentena: a chave de origem
+        aponta para destinos diferentes) são ignoradas, porque não há como saber
+        qual destino vale — essas chaves caem no fallback;
+      - chave de origem nula não entra (o pandas casaria nulo com nulo);
+      - a mesma origem repetida com o MESMO destino colapsa numa linha (a
+        origem é uma chave de look-up; as colunas redundantes SIAFI1/UO1 é que
+        faziam as linhas diferirem). Origem repetida com destinos DIFERENTES que
+        não esteja marcada gera ALERTA.
 
     Parameters
     ----------
     df_chaves : DataFrame com coluna siafi_uo já montada
-    df_siafi2 : Silver do SIAFI2.csv (colunas: siafi2, uo2, siafiatual, uoatual)
+    df_depara : Silver depara_siafi (colunas: siafi_uo_origem, siafi_uo_atual,
+                nr_siafi_atual, cd_uo_atual; opcional: ds_alerta_linha)
     coluna_siafi_uo : nome da coluna de chave em df_chaves
 
     Returns
     -------
     df_chaves enriquecido com:
-      siafi_uo_atual  — chave atual (siafiatual + uoatual); fallback = siafi_uo original
+      siafi_uo_atual  — chave atual; fallback = siafi_uo original
       siafiatual      — número SIAFI atual
       uo_atual        — código UO atual
     """
-    colunas_necessarias = {"siafi2", "uo2", "siafiatual", "uoatual"}
-    ausentes = colunas_necessarias - set(df_siafi2.columns)
+    colunas_necessarias = {"siafi_uo_origem", "siafi_uo_atual", "nr_siafi_atual", "cd_uo_atual"}
+    ausentes = colunas_necessarias - set(df_depara.columns)
     if ausentes:
-        raise KeyError(f"SIAFI2 Silver está faltando colunas: {ausentes}")
+        raise KeyError(f"depara_siafi Silver está faltando colunas: {ausentes}")
 
-    # Monta a chave da dimensão SIAFI2
-    dim = df_siafi2[["siafi2", "uo2", "siafiatual", "uoatual"]].copy()
-    dim["siafi_uo_dim"] = montar_siafi_uo(dim["siafi2"], dim["uo2"], "siafi_uo_dim")
-    dim["siafi_uo_atual"] = montar_siafi_uo(dim["siafiatual"], dim["uoatual"], "siafi_uo_atual")
-
-    # Deduplicação: para um dado (siafi2+uo2) pode haver só 1 destino atual
-    n_antes = len(dim)
-    dim = dim.dropna(subset=["siafi_uo_dim"]).drop_duplicates(subset=["siafi_uo_dim"])
-    n_depois = len(dim)
-    if n_depois < n_antes:
-        logger.warning(
-            "resolver_siafi_atual: %d linhas duplicadas removidas da dimensão SIAFI2",
-            n_antes - n_depois,
-        )
-
-    dim = dim[["siafi_uo_dim", "siafi_uo_atual", "siafiatual", "uoatual"]].rename(
-        columns={"uoatual": "uo_atual"}
+    dim = df_depara
+    if "ds_alerta_linha" in dim.columns:
+        n_quarentena = int(dim["ds_alerta_linha"].notna().sum())
+        if n_quarentena:
+            logger.warning(
+                "resolver_siafi_atual: %d linha(s) do depara_siafi em quarentena ignoradas "
+                "na consulta (as chaves delas usam o próprio siafi_uo como atual)",
+                n_quarentena,
+            )
+        dim = dim[dim["ds_alerta_linha"].isna()]
+    dim = dim[["siafi_uo_origem", "siafi_uo_atual", "nr_siafi_atual", "cd_uo_atual"]].dropna(
+        subset=["siafi_uo_origem"]
     )
 
+    destinos_distintos = dim.groupby("siafi_uo_origem")["siafi_uo_atual"].nunique(dropna=False)
+    n_ambiguas = int((destinos_distintos > 1).sum())
+    if n_ambiguas:
+        logger.warning(
+            "ALERTA resolver_siafi_atual: %d chave(s) de origem com mais de um destino "
+            "fora da quarentena; vale a primeira linha",
+            n_ambiguas,
+        )
+
+    n_antes = len(dim)
+    dim = dim.drop_duplicates(subset=["siafi_uo_origem"])
+    if len(dim) < n_antes:
+        logger.info(
+            "resolver_siafi_atual: %d linhas repetidas da dimensão colapsadas na consulta",
+            n_antes - len(dim),
+        )
+
+    dim = dim.rename(columns={
+        "siafi_uo_origem": "_origem_depara",
+        "nr_siafi_atual": "siafiatual",
+        "cd_uo_atual": "uo_atual",
+    })
+
+    antes = len(df_chaves)
     resultado = df_chaves.merge(
         dim,
         left_on=coluna_siafi_uo,
-        right_on="siafi_uo_dim",
+        right_on="_origem_depara",
         how="left",
-    ).drop(columns=["siafi_uo_dim"])
+    ).drop(columns=["_origem_depara"])
+    assert len(resultado) == antes, "resolver_siafi_atual: o join mudou o número de linhas"
 
-    # Fallback: sem match no SIAFI2 → atual = original
+    # Fallback: sem match no depara → atual = original
     sem_match = resultado["siafi_uo_atual"].isna()
     resultado.loc[sem_match, "siafi_uo_atual"] = resultado.loc[sem_match, coluna_siafi_uo]
     n_sem_match = int(sem_match.sum())
     if n_sem_match:
         logger.info(
-            "resolver_siafi_atual: %d convênios sem correspondência no SIAFI2 "
+            "resolver_siafi_atual: %d convênios sem correspondência no depara_siafi "
             "(siafi_uo_atual = siafi_uo original)", n_sem_match,
         )
 
@@ -211,7 +239,7 @@ def resolver_siafi_atual(
 # Aplicação de de-paras (padronização)
 # ---------------------------------------------------------------------------
 
-def aplicar_deparas(df: pd.DataFrame) -> pd.DataFrame:
+def aplicar_deparas(df: pd.DataFrame, obrigatorias: tuple[str, ...] = ()) -> pd.DataFrame:
     """
     Aplica os de-paras de R1 a um DataFrame que contenha colunas pertinentes.
 
@@ -224,8 +252,14 @@ def aplicar_deparas(df: pd.DataFrame) -> pd.DataFrame:
       uo_nome_std               → uo_sigla_std       (Mapa5, aplicado após uo_nome_std)
       uo_nome_std               → uo_descricao_std   (Mapa4, aplicado após uo_nome_std)
 
-    Colunas ausentes são ignoradas (sem erro).
+    As colunas listadas em `obrigatorias` têm de existir (KeyError explícito — o
+    de-para sumir em silêncio por causa de um nome de coluna errado foi o que
+    deixou campos do Gold vazios sem aviso). As demais são opcionais e, se
+    ausentes, o de-para correspondente é pulado.
     """
+    faltando = [c for c in obrigatorias if c not in df.columns]
+    if faltando:
+        raise KeyError(f"aplicar_deparas: coluna(s) obrigatória(s) ausente(s): {faltando}")
     df = df.copy()
 
     if "situacao" in df.columns:
