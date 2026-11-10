@@ -23,12 +23,16 @@ testes:
 - avaliada no **texto bruto** do Bronze, logo depois da leitura, **antes** de
   sentinela, tipagem, renomeação ou remoção de colunas `Unnamed`;
 - **todas** as células da linha, inclusive as das colunas `Unnamed`, são
-  string vazia depois de `strip()`.
+  string vazia **ou `N/A`** depois de `strip()` (constante `_SEM_DADO` em
+  `core/transform/silver.py`). Decisão do dono dos dados em 2026-11-10: `N/A`
+  em todas as colunas (caso de `grp_tabela_uo`) é linha sem dado.
 
 Consequências, sem exceção:
-- Linha só com marcadores (`N/A`, `0`, `-`, `9999`, `99999999`, `null`) **não
-  é vazia** e fica. Ela pode virar uma linha toda nula depois da tipagem, e
-  continua na tabela.
+- Linha com qualquer **outro** texto (`0`, `-`, `9999`, `99999999`, `null`,
+  `-3`) **não é vazia** e fica. Ela pode virar uma linha toda nula depois da
+  tipagem, e continua na tabela. Se o dono dos dados quiser tratar algum
+  desses como "sem dado", é decisão dele: peça confirmação e acrescente o
+  valor a `_SEM_DADO`.
 - Linhas 100% idênticas (duplicadas) **ficam todas**.
 - Linha que repete o cabeçalho, linha com chave obrigatória vazia e linha de
   grão divergente (quarentena) **ficam** e são **marcadas**.
@@ -87,8 +91,7 @@ Não altere, nesta fase:
 - views e templates, a não ser que um teste de tela quebre por causa de uma
   mudança deste escopo;
 - `data/raw/`: nunca;
-- o comportamento do GRP, exceto a mudança prevista em `grp_tabela_uo` (Etapa
-  0.5).
+- o comportamento do GRP (as saídas Silver ficam idênticas).
 
 ## 5. Regras de trabalho
 
@@ -99,12 +102,11 @@ Não altere, nesta fase:
    `psycopg` e derruba a suíte inteira.
 3. **Peça confirmação ao usuário antes de:** aplicar migration que dropa
    tabela (`DeleteModel`), apagar qualquer coisa em `data/`, rodar carga no
-   banco de produção, ou regravar a linha de base do GRP.
+   banco de produção, ou regravar a linha de base do GRP (que, nesta fase, não deve mudar).
 4. Regressão do GRP a cada mudança em `core/transform/`: compare os 22 hashes
    SHA-256 de `docs/_baseline_grp_silver.json` com `data/silver/grp_*.parquet`.
-   Única diferença aceita nesta fase: `grp_tabela_uo` (+1 linha `N/A`/`N/A`,
-   Etapa 0.5). Mostre a diferença ao usuário e regrave só essa entrada depois
-   da confirmação.
+   Com `N/A` tratado como sem dado (decisão do dono dos dados), os 22 hashes
+   continuam idênticos. Qualquer diferença é regressão: pare e investigue.
 5. Não apague `data/silver/dcgce_*.parquet`, `chaves_convenio.parquet`,
    `siafi2.parquet` nem `data/gold/convenios_integrado.parquet` antes da Etapa
    5: são a base de comparação de paridade.
@@ -161,7 +163,8 @@ Testes novos (`tests/test_silver_grp.py` ou um novo
 `tests/test_preservacao_linhas.py`, no padrão `_criar_fonte`):
 1. Linha 100% vazia é removida, inclusive quando só tem espaços.
 2. Linha com dado **só** numa coluna `Unnamed` **não** é removida.
-3. Linha só com sentinelas (`N/A`/`9999`) fica, toda nula.
+3. Linha com `N/A` em todas as colunas é vazia e sai; linha só com `9999`/`0`
+   fica, toda nula.
 4. Duas linhas idênticas ficam as duas.
 5. Linha que repete o cabeçalho fica, marcada, com `tx_linha_bruta`.
 6. `marcar_linhas_se_nulo` marca e mantém; texto em coluna `inteiro` numa linha
@@ -176,12 +179,12 @@ Aceite da Etapa 0.5:
   12.009 (marcadas: todas as linhas das 2 chaves com destino divergente, que
   hoje são 8 depois da deduplicação; confira o número sem ela),
   `depara_parlamentar` 289, `sigcon_nt_emenda` 14.520,
-  `grp_tabela_uo` 161, `grp_instrumento_financiado` 0 (a única linha é vazia).
+  `grp_tabela_uo` 160, `grp_instrumento_financiado` 0 (a única linha é vazia).
+  **Conferido na execução:** cronograma 48.392 (18.400 marcadas), depara_siafi
+  12.009 (8 marcadas), invariante verdadeira nas 42 fontes.
   As demais ficam iguais às de hoje.
-- GRP: 21 hashes idênticos; `grp_tabela_uo` muda só pela linha `N/A`/`N/A`
-  (mostrar ao usuário antes de regravar a linha de base). Confira se
-  `apps/grp/views/_filtros.py::_grp_listas` precisa de `cd_uo__isnull=False`
-  para o dropdown de UO não ganhar uma opção vazia.
+- GRP: 22/22 hashes idênticos (com `N/A` como sem dado, `grp_tabela_uo`
+  continua com 160 linhas).
 - Rodar `rodar_silver` das 20 fontes legadas sem erro.
 
 ### Ajustes nas Etapas 1–3 impostos pela regra
@@ -242,8 +245,7 @@ regra de regressão futura:
       flags em vez de exclusão; decisão do usuário registrada sobre as 4
       linhas sem SIAFI; telas do SIGCON com os mesmos números da linha de base
       (Etapa 0.4)
-- [ ] GRP: 21 hashes idênticos e `grp_tabela_uo` com +1 linha aprovada pelo
-      usuário
+- [ ] GRP: 22/22 hashes idênticos
 - [ ] Suíte completa passando, exceto
       `apps/painel/tests/test_rotas_smoke.py::test_inventario_de_rotas_bate_com_o_gabarito`
       se continuar falhando por motivo independente (relatar)

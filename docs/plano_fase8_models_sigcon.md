@@ -200,15 +200,15 @@ consta como aplicada). Aceite: `python -m pytest -q` sem os 130 errors de
 banco dev/prod sem confirmação do usuário (dropa tabelas). Aceite:
 `makemigrations --check` limpo.
 
-**0.5 Motor sem exclusão de linhas (`core/transform/silver.py`).**
+**0.5 Motor sem exclusão de linhas (`core/transform/silver.py`).** _Executada._
 Ver o detalhamento no prompt (`docs/prompt_fase8_models_sigcon.md`, seção
 "Etapa 0.5"). Resumo: a única remoção que fica é a de linha 100% vazia no
 texto bruto. A remoção pós-tipagem e o `drop_duplicates()` saem. Cabeçalho
 repetido, `descartar_linhas_se_nulo` (vira `marcar_linhas_se_nulo`) e
 `quarentena` passam a marcar a linha em `ds_alerta_linha`, guardando o texto
 original em `tx_linha_bruta`. A tipagem não pode quebrar nem descartar linha
-marcada. Mudança esperada no GRP: só `grp_tabela_uo` (+1 linha `N/A`/`N/A`);
-os outros 21 hashes continuam idênticos.
+marcada. "Vazia" = células `""` ou `N/A` em todas as colunas (decisão do dono
+dos dados). GRP: os 22 hashes continuam idênticos.
 
 **0.4 Linha de base do banco.**
 Se o banco dev estiver carregado, exportar (somente leitura, via ORM) cada model

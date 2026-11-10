@@ -42,7 +42,7 @@ def valores_sentinela(coluna: str, overrides: dict | None) -> set:
     return SENTINELAS
 
 
-def limpar_colunas_padronizadas(df, booleanos: dict | None = None):
+def limpar_colunas_padronizadas(df, booleanos: dict | None = None, ignorar=None):
     """
     Limpeza da silver para fontes com nomes finais (bloco 'renomear').
 
@@ -52,6 +52,10 @@ def limpar_colunas_padronizadas(df, booleanos: dict | None = None):
     com MAPA_BOOLEANO como padrão; `booleanos` (bloco YAML 'booleanos:',
     chaves = nomes finais de coluna) sobrescreve o de-para por coluna —
     usado quando a fonte tem vocabulário SIM/NÃO diferente do GRP.
+
+    `ignorar` (máscara booleana, opcional): linhas MARCADAS pelo motor. Valor
+    de flag fora do vocabulário nelas vira nulo em vez de levantar erro; nas
+    demais linhas o erro continua.
     """
     for col in df.select_dtypes(include=["object", "string"]).columns:
         # .astype("string") no final é obrigatorio, nao cosmetico: .map()
@@ -67,7 +71,8 @@ def limpar_colunas_padronizadas(df, booleanos: dict | None = None):
         if col not in df.columns:
             continue
         mapa = (booleanos or {}).get(col, MAPA_BOOLEANO)
-        valores = df[col].dropna().unique()
+        verificadas = df[col] if ignorar is None else df.loc[~ignorar, col]
+        valores = verificadas.dropna().unique()
         estranhos = set(valores) - set(mapa)
         if estranhos:
             raise ValueError(f"Valores inesperados na flag '{col}': {estranhos}")

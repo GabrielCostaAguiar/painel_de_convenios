@@ -7,13 +7,20 @@ Pipeline (transformar_fonte / _transformar):
   2. Remoção de colunas fantasma (Unnamed — artefato do Excel exportado)
   3. Normalização de nomes para snake_case sem acentos
   4. Carregamento do schema YAML em core/transform/schemas/<nome>.yaml
-  5. Descarte de linhas 100% vazias e de linhas que repetem o cabeçalho como dado
-  6. 'descartar_linhas_se_nulo:' (chaves = nomes BRUTOS) — remove linhas com
-     "" em alguma das colunas listadas, ANTES de qualquer tipagem. Existe
-     neste ponto (e não depois do renomear) para descartar blocos
-     desalinhados do relatório do BO antes que uma coluna 'inteiro' do
-     mesmo bloco quebre a conversão numérica com texto de cabeçalho vazado
-     na linha errada (ex.: tabela 07 do Modelo de Extração)
+  5. Remoção das linhas 100% vazias — ÚNICA remoção de linha do motor. "Vazia"
+     = todas as células, inclusive as das colunas Unnamed, "" ou "N/A" depois
+     de strip(), avaliadas no texto bruto ANTES de qualquer tratamento. Linha
+     com qualquer outro texto (0, 9999...) NÃO é vazia e fica. Duplicatas
+     ficam todas.
+  6. Marcação de linhas (nada é excluído): em tabelas que declaram
+     'marcar_linhas_se_nulo:' ou 'quarentena:', a coluna `ds_alerta_linha`
+     recebe o motivo ('cabecalho_repetido', 'chave_obrigatoria_vazia:<col>',
+     'quarentena:grao_divergente', separados por ';') e `tx_linha_bruta` o
+     texto original da linha (JSON). 'marcar_linhas_se_nulo:' (chaves = nomes
+     BRUTOS) roda ANTES da tipagem: identifica blocos desalinhados do
+     relatório do BO (ex.: tabela 07) e, nas linhas marcadas, a tipagem não
+     quebra — valor que não converte vira nulo. Em tabelas sem marcação, linha
+     que repete o cabeçalho só gera ALERTA no log.
   7. Conversão por categoria declarada no schema (chaves = nomes BRUTOS,
      pré-renomear — mesma convenção do bloco 'colunas'):
        data          → datetime64[us], hora zerada (errors="coerce" → NaT)
@@ -34,12 +41,11 @@ Pipeline (transformar_fonte / _transformar):
   11. Limpeza de texto (strip) e 'booleanos:' (chaves = nomes FINAIS;
       default = convenção de prefixo fl_ + MAPA_BOOLEANO)
   12. 'derivadas:' — colunas calculadas por função registrada (nomes finais)
-  13. Descarte de linhas 100% vazias (idempotente com o passo 5; cobre linhas
-      que só ficaram vazias depois da tipagem — ex.: todas as datas inválidas)
-  14. Remoção de linhas 100% idênticas (dedup), com log
-  15. 'quarentena:' — separa linhas cujo grão se repete com destino
-      divergente para um segundo DataFrame; as de destino igual colapsam no
-      passo 14
+  13. Linhas 100% idênticas: só ALERTA com a contagem — todas ficam
+  14. 'quarentena:' — MARCA (não separa) as linhas cujo grão se repete com
+      destino divergente; `transformar_fonte_completo()["quarentena"]` devolve
+      uma cópia delas, só para relatório
+  15. Colunas ds_alerta_linha/tx_linha_bruta (só nas tabelas com marcação)
   16. 'grao:' — verifica unicidade (nomes finais); só loga ALERTA, nunca
       interrompe
   17. Relatório de qualidade (apenas log; nunca interrompe o fluxo)
@@ -50,7 +56,7 @@ derivadas → descartar linhas): aqui a tipagem (passo 7) roda ANTES do
 renomear, igual já funcionava para o GRP antes desta generalização — mudar
 a ordem exigiria reescrever as chaves de 'colunas' nos 22 YAMLs do GRP para
 nomes finais, o que violaria a regra de saída idêntica do GRP.
-'descartar_linhas_se_nulo:' também roda antes (ver passo 6, motivo acima).
+'marcar_linhas_se_nulo:' também roda antes (ver passo 6, motivo acima).
 'sentinelas:' usa nomes BRUTOS (mesma convenção de 'colunas'); 'booleanos:',
 'derivadas:', 'descartar:' e 'grao:'/'quarentena:' usam nomes FINAIS, por
 rodarem depois do renomear.
@@ -60,6 +66,7 @@ Gravação (gravar_silver):
   - Destino: DATA_DIR/silver/<nome>.parquet (sobrescrito a cada carga)
 """
 
+import json
 import logging
 from pathlib import Path
 
@@ -173,29 +180,52 @@ def _carregar_schema(nome_fonte: str) -> dict:
         return yaml.safe_load(f)
 
 
-def _descartar_linhas_vazias(df: pd.DataFrame, nome: str, estagio: str) -> pd.DataFrame:
-    antes = len(df)
-    df = df.dropna(how="all")
-    descartadas = antes - len(df)
-    if descartadas:
-        logger.info("Linhas 100%% vazias descartadas em '%s' (%s): %d", nome, estagio, descartadas)
-    return df
+# Texto que significa "não há dado" numa célula. "N/A" ("não se aplica") entra
+# por decisão do dono dos dados (2026-11-10): linha com N/A em TODAS as colunas
+# (ex.: grp_tabela_uo) é linha vazia. Outros marcadores ("0", "9999",
+# "99999999", "-3") NÃO entram: têm texto, e a linha fica.
+_SEM_DADO = frozenset({"", "N/A"})
 
 
-def _descartar_linhas_repetem_cabecalho(df: pd.DataFrame, nome: str) -> pd.DataFrame:
+def _remover_linhas_vazias(df: pd.DataFrame, nome: str) -> pd.DataFrame:
+    """
+    ÚNICA remoção de linha do motor: a linha 100% vazia — todas as células,
+    inclusive as das colunas `Unnamed`, são "" ou "N/A" depois de strip().
+    Avaliada no texto bruto, antes de sentinela, tipagem, renomeação ou
+    remoção de colunas.
+
+    Linha com qualquer outro texto (inclusive só marcadores como "0" ou
+    "9999") NÃO é vazia e fica. Regra do dono dos dados: nenhuma linha com
+    algum dado é excluída.
+    """
+    vazia = df.apply(lambda coluna: coluna.str.strip().isin(_SEM_DADO)).all(axis=1)
+    removidas = int(vazia.sum())
+    if removidas:
+        logger.info("Linhas 100%% vazias removidas em '%s': %d", nome, removidas)
+    return df.loc[~vazia].reset_index(drop=True)
+
+
+def _marcar(alertas: pd.Series, mascara: pd.Series, motivo: str) -> None:
+    """Acrescenta `motivo` ao alerta das linhas em `mascara` (vários motivos
+    na mesma linha ficam separados por ';')."""
+    if not mascara.any():
+        return
+    alertas.loc[mascara] = alertas.loc[mascara].map(
+        lambda atual: motivo if pd.isna(atual) else f"{atual};{motivo}"
+    )
+
+
+def _mascara_repetem_cabecalho(df: pd.DataFrame) -> pd.Series:
     """Alguns exports (ex.: relatórios paginados do BO) repetem a linha de
     cabeçalho como dado no meio do arquivo — com o texto original ("Plano
     Trabalho Código"), não o nome normalizado da coluna ("plano_trabalho_codigo").
-    Descarta linhas cujo valor em TODAS as colunas, depois de normalizado do
-    mesmo jeito que o nome da coluna, é igual ao próprio nome da coluna."""
+    Devolve a máscara das linhas cujo valor em TODAS as colunas, depois de
+    normalizado do mesmo jeito que o nome da coluna, é igual ao próprio nome da
+    coluna. Não remove nada."""
     if df.empty:
-        return df
+        return pd.Series(False, index=df.index)
     normalizado = df.astype(str).map(normalizar_coluna)
-    mascara = (normalizado == pd.Series(df.columns, index=df.columns)).all(axis=1)
-    if mascara.any():
-        logger.info("Linhas que repetem o cabeçalho descartadas em '%s': %d", nome, int(mascara.sum()))
-        df = df.loc[~mascara]
-    return df
+    return (normalizado == pd.Series(df.columns, index=df.columns)).all(axis=1)
 
 
 # ---------------------------------------------------------------------------
@@ -282,28 +312,27 @@ def _aplicar_derivadas(df: pd.DataFrame, regras: dict, nome: str) -> pd.DataFram
     return df
 
 
-def _descartar_linhas_se_nulo(df: pd.DataFrame, colunas: list[str], nome: str) -> pd.DataFrame:
+def _marcar_linhas_se_nulo(df: pd.DataFrame, colunas: list[str], alertas: pd.Series, nome: str) -> None:
     """
-    Roda sobre as colunas BRUTAS (pré-tipagem/renomear), tratando "" como
-    nulo — nesse ponto do pipeline nada foi convertido ainda, então um bronze
-    com keep_default_na=False só tem string, nunca NaN de verdade. Isso é
-    proposital: existe pra descartar blocos desalinhados do relatório do BO
-    (ex.: tabela 07) ANTES que uma coluna 'inteiro' do mesmo bloco quebre a
-    conversão numérica com texto de cabeçalho vazado na linha errada.
+    Marca (não remove) as linhas com "" numa das colunas BRUTAS listadas,
+    tratando "" como nulo — nesse ponto do pipeline nada foi convertido ainda,
+    então um bronze com keep_default_na=False só tem string, nunca NaN de
+    verdade. Roda antes da tipagem porque existe pra identificar blocos
+    desalinhados do relatório do BO (ex.: tabela 07): a linha continua na
+    tabela, com `ds_alerta_linha` preenchido e o texto original em
+    `tx_linha_bruta`, e a tipagem não quebra nela.
     """
     presentes = [c for c in colunas if c in df.columns]
     ausentes = set(colunas) - set(presentes)
     if ausentes:
-        logger.warning("descartar_linhas_se_nulo: coluna(s) ausente(s) em '%s': %s", nome, ausentes)
-    if not presentes:
-        return df
-    antes = len(df)
-    vazio = (df[presentes] == "").any(axis=1)
-    df = df.loc[~vazio]
-    descartadas = antes - len(df)
-    if descartadas:
-        logger.info("Linhas descartadas por nulo em %s ('%s'): %d", presentes, nome, descartadas)
-    return df
+        logger.warning("marcar_linhas_se_nulo: coluna(s) ausente(s) em '%s': %s", nome, ausentes)
+    for coluna in presentes:
+        vazio = df[coluna].str.strip().eq("")
+        if vazio.any():
+            logger.info(
+                "Linhas marcadas por nulo em '%s' ('%s'): %d", coluna, nome, int(vazio.sum())
+            )
+        _marcar(alertas, vazio, f"chave_obrigatoria_vazia:{coluna}")
 
 
 def _verificar_grao(df: pd.DataFrame, colunas: list[str], nome: str) -> None:
@@ -329,29 +358,31 @@ def _verificar_grao(df: pd.DataFrame, colunas: list[str], nome: str) -> None:
         logger.info("grão %s em '%s': único (%d linhas não-nulas)", presentes, nome, len(sem_nulo))
 
 
-def _aplicar_quarentena(df: pd.DataFrame, regra: dict | None, nome: str) -> tuple[pd.DataFrame, pd.DataFrame | None]:
+def _mascara_quarentena(df: pd.DataFrame, regra: dict | None, nome: str) -> pd.Series | None:
     """
-    Separa, da tabela principal, linhas cujo grão se repete com destino
-    divergente (ex.: tabela 16 — depara_siafi: SIAFI de origem repetido
-    apontando para destinos diferentes).
+    Identifica as linhas cujo grão se repete com destino divergente (ex.:
+    tabela 16 — depara_siafi: SIAFI de origem repetido apontando para destinos
+    diferentes). Não remove nada: devolve a máscara, e o chamador MARCA essas
+    linhas e devolve uma cópia delas em `transformar_fonte_completo`.
 
     Schema esperado:
         quarentena:
           grao: [siafi_uo_origem]
           destino: [siafi_uo_atual]
 
-    Linhas com o mesmo grão e o MESMO destino não entram em quarentena — elas
-    são resolvidas pela deduplicação de linhas idênticas, que já roda antes.
+    Todas as linhas da chave divergente são marcadas — inclusive as que
+    apontam para o destino "certo" —, porque não há como saber qual vale.
+    Linhas com o mesmo grão e o MESMO destino não são divergentes.
     """
     if not regra:
-        return df, None
+        return None
 
     grao = regra["grao"]
     destino = regra["destino"]
     faltando = [c for c in (*grao, *destino) if c not in df.columns]
     if faltando:
         logger.warning("quarentena: coluna(s) ausente(s) em '%s': %s", nome, faltando)
-        return df, None
+        return None
 
     contagem = df.dropna(subset=grao).groupby(grao)[destino].nunique()
     diverge = (contagem > 1).any(axis=1) if len(destino) > 1 else (contagem[destino[0]] > 1)
@@ -361,20 +392,17 @@ def _aplicar_quarentena(df: pd.DataFrame, regra: dict | None, nome: str) -> tupl
         chave_df = pd.MultiIndex.from_frame(df[grao])
     else:
         chave_df = df[grao[0]]
-    mascara = chave_df.isin(divergentes)
+    mascara = pd.Series(chave_df.isin(divergentes), index=df.index)
 
-    df_quarentena = df.loc[mascara].reset_index(drop=True)
-    df_principal = df.loc[~mascara].reset_index(drop=True)
-
-    if len(df_quarentena):
+    if mascara.any():
         logger.warning(
-            "quarentena '%s': %d linha(s) com grão %s divergente em %s, separadas",
+            "quarentena '%s': %d linha(s) com grão %s divergente em %s, marcadas",
             nome,
-            len(df_quarentena),
+            int(mascara.sum()),
             grao,
             destino,
         )
-    return df_principal, (df_quarentena if len(df_quarentena) else None)
+    return mascara
 
 
 # ---------------------------------------------------------------------------
@@ -420,25 +448,57 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
     cols_id = colunas.get("identificador", [])
     sentinelas: dict[str, list[str]] = schema.get("sentinelas", {})
 
+    if "descartar_linhas_se_nulo" in schema:
+        raise ValueError(
+            f"'{nome}': o bloco 'descartar_linhas_se_nulo' não existe mais — o motor "
+            "não exclui linhas com dado. Use 'marcar_linhas_se_nulo' (a linha fica, "
+            "marcada em ds_alerta_linha)."
+        )
+    # Só as tabelas que declaram marcação ganham ds_alerta_linha/tx_linha_bruta
+    # (o schema do GRP não muda).
+    marcacao_ativa = bool(schema.get("marcar_linhas_se_nulo") or schema.get("quarentena"))
+
     caminho = bronze_path if bronze_path is not None else _bronze_mais_recente(nome)
     df = pd.read_csv(caminho, dtype=str, keep_default_na=False)
+
+    n_bruto = len(df)
+    df = _remover_linhas_vazias(df, nome)  # antes de tirar as colunas Unnamed
 
     n_original = len(df.columns)
     df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
     df.columns = [normalizar_coluna(c) for c in df.columns]
 
     logger.info(
-        "Silver '%s': %d → %d colunas, %d linhas",
+        "Silver '%s': %d → %d colunas, %d → %d linhas",
         nome,
         n_original,
         len(df.columns),
+        n_bruto,
         len(df),
     )
 
-    df = _descartar_linhas_vazias(df, nome, "bruto")
-    df = _descartar_linhas_repetem_cabecalho(df, nome)
-    if schema.get("descartar_linhas_se_nulo"):
-        df = _descartar_linhas_se_nulo(df, schema["descartar_linhas_se_nulo"], nome)
+    # --- marcação de linhas (nomes BRUTOS, antes da tipagem; nenhuma sai) ---
+    alertas = pd.Series([None] * len(df), index=df.index, dtype="object")
+    linha_bruta = None
+    if marcacao_ativa:
+        linha_bruta = pd.Series(
+            [json.dumps(r, ensure_ascii=False) for r in df.to_dict("records")], index=df.index
+        )
+
+    cabecalho = _mascara_repetem_cabecalho(df)
+    if cabecalho.any():
+        if marcacao_ativa:
+            _marcar(alertas, cabecalho, "cabecalho_repetido")
+        else:
+            logger.warning(
+                "ALERTA '%s': %d linha(s) repetem o cabeçalho e foram mantidas "
+                "(a tabela não declara marcação)",
+                nome,
+                int(cabecalho.sum()),
+            )
+    if schema.get("marcar_linhas_se_nulo"):
+        _marcar_linhas_se_nulo(df, schema["marcar_linhas_se_nulo"], alertas, nome)
+    marcadas = alertas.notna()  # a tipagem tolera valores ruins nestas linhas
 
     # --- datas (só data, sem hora: datetime vindo do Excel passa direto,
     # mas a parte de hora é zerada — "data" guarda só a data) ---
@@ -467,7 +527,9 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
         if col not in df.columns:
             logger.warning("  Coluna valor '%s' ausente no Bronze de '%s'", col, nome)
             continue
-        convertida = pd.to_numeric(df[col].map(_para_numero), errors="coerce")
+        # float64 explícito: to_numeric devolve int64 numa série vazia (ou só de
+        # inteiros), e o tipo da coluna não pode depender do conteúdo.
+        convertida = pd.to_numeric(df[col].map(_para_numero), errors="coerce").astype("float64")
         logger.info("  %-45s  NaN: %d", col, convertida.isna().sum())
         df[col] = convertida
 
@@ -487,7 +549,15 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
         # direto: "2020.0" vira 2020 e "1.5" quebra no astype("Int64").
         milhar = limpa.str.fullmatch(r"\d{1,3}(\.\d{3})+", na=False)
         limpa = limpa.where(~milhar, limpa.str.replace(".", "", regex=False))
-        convertida = pd.to_numeric(limpa, errors="raise").astype("Int64")
+        if marcadas.any():
+            # Linha marcada não quebra a tipagem: o que não converte vira nulo
+            # (o texto original está em tx_linha_bruta). Linha não marcada
+            # mantém errors="raise".
+            normais = pd.to_numeric(limpa.where(~marcadas), errors="raise")
+            ruins = pd.to_numeric(limpa.where(marcadas), errors="coerce")
+            convertida = normais.fillna(ruins).astype("Int64")
+        else:
+            convertida = pd.to_numeric(limpa, errors="raise").astype("Int64")
         logger.info("  %-45s  <NA>: %d", col, convertida.isna().sum())
         df[col] = convertida
 
@@ -533,21 +603,32 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
         df = _aplicar_descartar(df, schema["descartar"], nome)
 
     if mapa:  # só fontes com bloco 'renomear' (as novas)
-        df = limpar_colunas_padronizadas(df, booleanos=schema.get("booleanos"))
+        df = limpar_colunas_padronizadas(
+            df, booleanos=schema.get("booleanos"), ignorar=marcadas if marcadas.any() else None
+        )
 
     # --- derivadas (colunas calculadas por função registrada) ---
     if schema.get("derivadas"):
         df = _aplicar_derivadas(df, schema["derivadas"], nome)
 
-    df = _descartar_linhas_vazias(df, nome, "pós-tipagem")
+    # Nenhuma linha sai a partir daqui. Duplicatas 100% idênticas ficam todas:
+    # só o ALERTA com a contagem (hoje depara_siafi e depara_parlamentar).
+    idem = int(df.duplicated().sum())
+    if idem:
+        logger.warning("ALERTA '%s': %d linha(s) 100%% idênticas a outra, mantidas", nome, idem)
 
-    antes = len(df)
-    df = df.drop_duplicates().reset_index(drop=True)
-    duplicadas = antes - len(df)
-    if duplicadas:
-        logger.info("Linhas 100%% idênticas removidas em '%s': %d", nome, duplicadas)
+    mascara_q = _mascara_quarentena(df, schema.get("quarentena"), nome)
+    if mascara_q is not None:
+        _marcar(alertas, mascara_q, "quarentena:grao_divergente")
 
-    df, quarentena = _aplicar_quarentena(df, schema.get("quarentena"), nome)
+    if marcacao_ativa:
+        assert df.index.equals(alertas.index), "índice mudou: linha perdida ou reordenada"
+        df["ds_alerta_linha"] = alertas.astype("string")
+        df["tx_linha_bruta"] = linha_bruta.where(alertas.notna()).astype("string")
+
+    quarentena = None
+    if mascara_q is not None and mascara_q.any():
+        quarentena = df.loc[mascara_q].reset_index(drop=True)
 
     if schema.get("grao"):
         _verificar_grao(df, schema["grao"], nome)

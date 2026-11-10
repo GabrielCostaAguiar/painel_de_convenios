@@ -357,7 +357,7 @@ class TestFlags:
 
 # ---------------------------------------------------------------------------
 # Blocos novos da Fase 2 (Modelo de Extração das Bases Legadas v1.0):
-# sentinelas, booleanos, descartar, descartar_linhas_se_nulo, grao,
+# sentinelas, booleanos, descartar, marcar_linhas_se_nulo, grao,
 # derivadas, desdobrar, quarentena, dedup de linhas idênticas.
 # ---------------------------------------------------------------------------
 
@@ -491,15 +491,15 @@ class TestDescartar:
         assert "nao_existe" in caplog.text
 
 
-class TestDescartarLinhasSeNulo:
-    def test_linha_com_nulo_na_coluna_e_removida(self, tmp_path, monkeypatch):
+class TestMarcarLinhasSeNulo:
+    def test_linha_com_nulo_na_coluna_fica_marcada(self, tmp_path, monkeypatch):
         # Chave BRUTA (pré-renomear): o bloco roda antes da tipagem — ver
         # core/transform/silver.py.
         schema = {
             "fonte": "fonte_obrigatoria",
             "colunas": {"identificador": ["col_chave"]},
             "renomear": {"col_chave": "cd_chave", "col_outro": "cd_outro"},
-            "descartar_linhas_se_nulo": ["col_chave"],
+            "marcar_linhas_se_nulo": ["col_chave"],
         }
         csv = _criar_fonte(
             tmp_path, monkeypatch, "fonte_obrigatoria", schema,
@@ -508,8 +508,63 @@ class TestDescartarLinhasSeNulo:
         from core.transform.silver import transformar_fonte
 
         df = transformar_fonte("fonte_obrigatoria", bronze_path=csv)
-        assert len(df) == 2
-        assert set(df["cd_chave"]) == {"1", "2"}
+        assert len(df) == 3  # nenhuma linha sai
+        assert pd.isna(df["ds_alerta_linha"].iloc[0])
+        assert df["ds_alerta_linha"].iloc[1] == "chave_obrigatoria_vazia:col_chave"
+        assert pd.isna(df["ds_alerta_linha"].iloc[2])
+        assert df["tx_linha_bruta"].iloc[1] == '{"col_chave": "", "col_outro": "b"}'
+        assert pd.isna(df["tx_linha_bruta"].iloc[0])
+
+    def test_chave_antiga_descartar_linhas_se_nulo_levanta_erro(self, tmp_path, monkeypatch):
+        schema = {
+            "fonte": "fonte_antiga",
+            "colunas": {"identificador": ["col_chave"]},
+            "renomear": {"col_chave": "cd_chave"},
+            "descartar_linhas_se_nulo": ["col_chave"],
+        }
+        csv = _criar_fonte(tmp_path, monkeypatch, "fonte_antiga", schema, "col_chave\n1\n")
+        from core.transform.silver import transformar_fonte
+
+        with pytest.raises(ValueError, match="marcar_linhas_se_nulo"):
+            transformar_fonte("fonte_antiga", bronze_path=csv)
+
+    def test_tipagem_inteira_nao_quebra_em_linha_marcada(self, tmp_path, monkeypatch):
+        """Texto de cabeçalho vazado numa coluna 'inteiro' de linha marcada vira
+        nulo (original em tx_linha_bruta); numa linha NÃO marcada continua erro."""
+        schema = {
+            "fonte": "fonte_inteiro_marcada",
+            "colunas": {"inteiro": ["col_mes"], "identificador": ["col_chave"]},
+            "renomear": {"col_mes": "nr_mes", "col_chave": "cd_chave"},
+            "marcar_linhas_se_nulo": ["col_chave"],
+        }
+        csv = _criar_fonte(
+            tmp_path, monkeypatch, "fonte_inteiro_marcada", schema,
+            "col_mes,col_chave\n3,10\nPlano Trabalho Código,\n684,\n",
+        )
+        from core.transform.silver import transformar_fonte
+
+        df = transformar_fonte("fonte_inteiro_marcada", bronze_path=csv)
+        assert len(df) == 3
+        assert df["nr_mes"].iloc[0] == 3
+        assert pd.isna(df["nr_mes"].iloc[1])
+        assert df["nr_mes"].iloc[2] == 684  # converte, então o valor fica
+        assert "Plano Trabalho Código" in df["tx_linha_bruta"].iloc[1]
+
+    def test_tipagem_inteira_continua_quebrando_em_linha_nao_marcada(self, tmp_path, monkeypatch):
+        schema = {
+            "fonte": "fonte_inteiro_ruim",
+            "colunas": {"inteiro": ["col_mes"], "identificador": ["col_chave"]},
+            "renomear": {"col_mes": "nr_mes", "col_chave": "cd_chave"},
+            "marcar_linhas_se_nulo": ["col_chave"],
+        }
+        csv = _criar_fonte(
+            tmp_path, monkeypatch, "fonte_inteiro_ruim", schema,
+            "col_mes,col_chave\nabc,10\n",
+        )
+        from core.transform.silver import transformar_fonte
+
+        with pytest.raises(ValueError):
+            transformar_fonte("fonte_inteiro_ruim", bronze_path=csv)
 
 
 class TestGrao:
@@ -569,8 +624,8 @@ class TestDerivadas:
         assert pd.isna(df["siafi_uo"].iloc[1])
 
 
-class TestDedupLinhasIdenticas:
-    def test_linhas_100_porcento_iguais_colapsam_em_uma(self, tmp_path, monkeypatch):
+class TestLinhasIdenticasFicam:
+    def test_linhas_100_porcento_iguais_ficam_todas(self, tmp_path, monkeypatch, caplog):
         schema = {
             "fonte": "fonte_dedup",
             "colunas": {"identificador": ["col_a"]},
@@ -582,12 +637,14 @@ class TestDedupLinhasIdenticas:
         )
         from core.transform.silver import transformar_fonte
 
-        df = transformar_fonte("fonte_dedup", bronze_path=csv)
-        assert len(df) == 2
+        with caplog.at_level(logging.WARNING):
+            df = transformar_fonte("fonte_dedup", bronze_path=csv)
+        assert len(df) == 3
+        assert "ALERTA" in caplog.text and "idênticas" in caplog.text
 
 
 class TestQuarentena:
-    def test_grao_com_destino_divergente_vai_pra_quarentena(self, tmp_path, monkeypatch):
+    def test_grao_com_destino_divergente_fica_marcado_na_principal(self, tmp_path, monkeypatch):
         schema = {
             "fonte": "fonte_quarentena",
             "colunas": {"identificador": ["col_origem", "col_destino"]},
@@ -596,8 +653,8 @@ class TestQuarentena:
         }
         csv = _criar_fonte(
             tmp_path, monkeypatch, "fonte_quarentena", schema,
-            # "A" aponta pra "X" e "Y" (divergente) -> quarentena
-            # "B" aponta sempre pra "Z" (mesmo destino, linhas idênticas -> dedup, não quarentena)
+            # "A" aponta pra "X" e "Y" (divergente) -> marcada
+            # "B" aponta sempre pra "Z" (mesmo destino) -> não marcada
             "col_origem,col_destino\nA,X\nA,Y\nB,Z\nB,Z\n",
         )
         from core.transform.silver import transformar_fonte_completo
@@ -605,8 +662,11 @@ class TestQuarentena:
         resultado = transformar_fonte_completo("fonte_quarentena", bronze_path=csv)
         principal, quarentena = resultado["principal"], resultado["quarentena"]
 
-        assert len(principal) == 1
-        assert principal["siafi_uo_origem"].iloc[0] == "B"
+        assert len(principal) == 4  # nada saiu
+        alerta = principal["ds_alerta_linha"]
+        assert alerta.iloc[0] == "quarentena:grao_divergente"
+        assert alerta.iloc[1] == "quarentena:grao_divergente"
+        assert pd.isna(alerta.iloc[2]) and pd.isna(alerta.iloc[3])
         assert quarentena is not None
         assert len(quarentena) == 2
         assert set(quarentena["siafi_uo_origem"]) == {"A"}
@@ -627,6 +687,7 @@ class TestQuarentena:
         resultado = transformar_fonte_completo("fonte_sem_quarentena", bronze_path=csv)
         assert resultado["quarentena"] is None
         assert len(resultado["principal"]) == 2
+        assert resultado["principal"]["ds_alerta_linha"].isna().all()
 
 
 class TestDesdobrar:

@@ -55,10 +55,12 @@ Pontos de exclusão no motor e o que cada um fez com os dados atuais:
 Todas as outras 36 fontes: Silver = Bronze − linhas 100% vazias. Ou seja, sem
 perda.
 
-Observação sobre as linhas só com `9999`/`99999999`/`N/A`: elas não têm
-informação, mas têm texto. Pela regra literal ("nenhum dado em nenhuma
-coluna"), **não são vazias** e devem ser mantidas. É o padrão adotado no
-prompt; o dono dos dados pode decidir tratá-las como vazias.
+Observação sobre as linhas só com marcadores. Decisão do dono dos dados em
+2026-11-10: `N/A` em **todas** as colunas conta como sem dado, então a linha
+`N/A`/`N/A` de `grp_tabela_uo` é vazia e continua saindo (160 linhas, hash do
+GRP inalterado). `9999`/`99999999` (`sigcon_nt_emenda`) e `0` têm texto e a
+linha **fica**; se o dono quiser tratá-los como sem dado, é só acrescentar o
+valor a `_SEM_DADO` em `core/transform/silver.py`.
 
 ## 3. Silver → Banco (loaders)
 
