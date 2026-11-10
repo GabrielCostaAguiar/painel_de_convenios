@@ -129,33 +129,38 @@ def carimbar_convenio_codigo(
     coluna_plano_trabalho: str,
 ) -> pd.DataFrame:
     """
-    Carimba convenio_codigo (Código SIGCON) 1:1 por linha, via plano_trabalho_codigo.
+    Carimba convenio_codigo (Código SIGCON) 1:1 por linha, via plano de trabalho.
 
     NUNCA usar SIAFI como chave aqui — SIAFI é 1:N convênio (o mesmo número
     SIAFI pode abrigar convênios diferentes ao longo do tempo, conforme
-    diagnóstico do caso SIAFI 9481207). plano_trabalho_codigo identifica o
+    diagnóstico do caso SIAFI 9481207). O plano de trabalho identifica o
     convênio EXATO de cada linha — mesma chave que já liga Plano de Aplicação
     e Cronograma ao convênio desde o R0–R4.
 
-    dcgce_geral traz, na mesma linha, conveno_codigo_plano_trabalho (a chave,
-    com o typo de origem) e convenio_codigo (Código SIGCON) — join direto,
-    sem tabela intermediária.
+    `df_geral` é o Silver `sigcon_convenio_geral`: traz, na mesma linha,
+    `cd_plano_trabalho` (a chave) e `nr_convenio` (Código SIGCON) — join
+    direto, sem tabela intermediária. Nenhuma linha de `df` é perdida (left
+    join) e chave nula nunca casa com chave nula: linha sem plano de trabalho
+    fica com convenio_codigo nulo.
 
     Pré-requisito: chaves já normalizadas pelo chamador (ver
     apps/sigcon/loader.py::_normalizar_chave) — esta função não normaliza.
     """
     geral_codigo = (
-        df_geral[["conveno_codigo_plano_trabalho", "convenio_codigo"]]
-        .drop_duplicates("conveno_codigo_plano_trabalho")
+        df_geral[["cd_plano_trabalho", "nr_convenio"]]
+        .dropna(subset=["cd_plano_trabalho"])
+        .drop_duplicates("cd_plano_trabalho")
+        .rename(columns={"cd_plano_trabalho": "_plano_geral", "nr_convenio": "convenio_codigo"})
     )
     antes = len(df)
     resultado = df.merge(
         geral_codigo,
         left_on=coluna_plano_trabalho,
-        right_on="conveno_codigo_plano_trabalho",
+        right_on="_plano_geral",
         how="left",
-    )
+    ).drop(columns=["_plano_geral"])
     _validar_fan_out(antes, len(resultado), "carimbar_convenio_codigo")
+    assert len(resultado) == antes, "carimbar_convenio_codigo: o join mudou o número de linhas"
     return resultado
 
 

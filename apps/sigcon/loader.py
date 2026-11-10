@@ -1,5 +1,5 @@
 """
-Loaders full-refresh para os models da app convenios.
+Loaders full-refresh para os models da app sigcon.
 
 Cada função:
   1. Lê o(s) Parquet(s) Silver via pd.read_parquet
@@ -10,13 +10,14 @@ Cada função:
 Os passos 2 e 3 rodam sempre dentro de uma mesma transação (core.db.bulk_refresh):
 ou a tabela inteira é substituída, ou nada muda.
 
-Funções do piloto (Convenio consolidado + Cronograma com SIAFI):
-  carregar_convenios()          — full-refresh do Convenio consolidado
-  carregar_cronograma_desembolso() — full-refresh do CronogramaDesembolso com SIAFI
+Fontes: as chaves novas da Silver (sigcon_*, depara_*, controle_sei — ver
+core/ingestion/sources.py e docs/dicionario_dados_legado.md). Os models mantêm
+os nomes de campo históricos; cada loader faz o de-para coluna da Silver →
+campo do model.
 
-As demais funções carregam os outros models da app (PlanoTrabalho, TermoAditivo, etc.)
-e ainda usam os Silver dos nomes antigos (dcgce_plano.trabalho.parquet, etc.) enquanto
-não forem re-ingeridos com os novos nomes.
+REGRA: nenhuma linha da Silver é perdida na carga (linhas do model = linhas do
+Parquet de origem). Joins de enriquecimento são LEFT, com o lado direito
+desduplicado e sem chave nula, e conferem que o número de linhas não mudou.
 """
 import logging
 from decimal import Decimal
@@ -94,6 +95,16 @@ def _para_str(val):
     return s or None
 
 
+def _bool_para_texto(val, verdadeiro: str, falso: str):
+    """boolean nullable da Silver → texto original do export; nulo → None."""
+    try:
+        if pd.isna(val):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return verdadeiro if bool(val) else falso
+
+
 def _ler_parquet(caminho: Path) -> pd.DataFrame:
     if not caminho.exists():
         raise FileNotFoundError(
@@ -128,88 +139,85 @@ def carregar_convenios(silver_path: Path | None = None) -> dict:
     """
     Full refresh consolidado do model Convenio.
 
-    Fontes lidas (na ordem dos joins):
-      dcgce_convenio         — chave SIAFI+UO, situação, datas vigência, valores
-      dcgce_codigo_convenio  — ponte: convenio_codigo_sequencial → UO (enriquece Geral)
-      dcgce_geral            — data publicação, assinatura, plano_trabalho_codigo
-      dcgce_plano_trabalho   — título, objeto, concedente, CNPJs, instrumento
-      dcgce_esfera           — esfera via CNPJ concedente
+    Fontes lidas (Silver, na ordem dos joins):
+      sigcon_convenio        — chave SIAFI+UO, situação, datas vigência, valores
+      sigcon_chave_convenio  — ponte: cd_convenio_sequencial → UO (enriquece Geral)
+      sigcon_convenio_geral  — data publicação, assinatura, plano de trabalho
+      sigcon_plano_trabalho  — título, objeto, concedente, CNPJs, instrumento
+      sigcon_concedente      — esfera via CNPJ concedente
 
-    Joins:
-      Geral+UO:    geral.convenio_codigo_sequencial = cod_conv.convenio_codigo_sequencial
-      Conv+Geral:  (conv.siafi, conv.uo) = (geral_enriquecido.siafi, geral_enriquecido.uo)
-      +Plano:      merged.plano_trabalho_codigo = plano.plano_trabalho_codigo
-      +Esfera:     merged.cnpj_concedente = esfera.concedente_cnpj
+    Joins (todos LEFT: o model recebe uma linha por linha de sigcon_convenio):
+      Geral+UO:    geral.cd_convenio_sequencial = chave.cd_convenio_sequencial
+      Conv+Geral:  (conv.nr_siafi, conv.cd_uo) = (geral.nr_siafi, geral.cd_uo)
+      +Plano:      merged.cd_plano_trabalho = plano.cd_plano_trabalho
+      +Esfera:     merged.nr_cnpj_concedente = concedente.nr_cnpj_concedente
+
+    O lado direito de cada join é desduplicado e SEM chave nula: o pandas casa
+    nulo com nulo, e um convênio sem SIAFI herdaria dados de outro convênio
+    sem SIAFI (a Silver antiga usava '0' como chave e fazia exatamente isso).
     """
-    conv = _ler_parquet(silver_path or _silver_path("dcgce_convenio"))
-    cod_conv = _ler_parquet(_silver_path("dcgce_codigo_convenio"))
-    geral = _ler_parquet(_silver_path("dcgce_geral"))
-    plano = _ler_parquet(_silver_path("dcgce_plano_trabalho"))
-    esfera = _ler_parquet(_silver_path("dcgce_esfera"))
+    conv = _ler_parquet(silver_path or _silver_path("sigcon_convenio"))
+    cod_conv = _ler_parquet(_silver_path("sigcon_chave_convenio"))
+    geral = _ler_parquet(_silver_path("sigcon_convenio_geral"))
+    plano = _ler_parquet(_silver_path("sigcon_plano_trabalho"))
+    concedente = _ler_parquet(_silver_path("sigcon_concedente"))
 
     # Normaliza todas as chaves de join
-    _normalizar_chave(conv, ["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"])
-    _normalizar_chave(cod_conv, [
-        "convenio_codigo_sequencial", "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo",
-    ])
-    _normalizar_chave(geral, [
-        "convenio_numero_sequencial_siafi", "convenio_codigo_sequencial", "conveno_codigo_plano_trabalho",
-    ])
-    _normalizar_chave(plano, ["plano_trabalho_codigo", "plano_trabalho_cnpj_concedente"])
-    _normalizar_chave(esfera, ["concedente_cnpj"])
+    _normalizar_chave(conv, ["nr_siafi", "cd_uo"])
+    _normalizar_chave(cod_conv, ["cd_convenio_sequencial", "nr_siafi", "cd_uo"])
+    _normalizar_chave(geral, ["nr_siafi", "cd_convenio_sequencial", "cd_plano_trabalho"])
+    _normalizar_chave(plano, ["cd_plano_trabalho", "nr_cnpj_concedente"])
+    _normalizar_chave(concedente, ["nr_cnpj_concedente"])
 
-    # Step 1: enriquecer Geral com UO (via convenio_codigo_sequencial → cod_conv)
+    # Step 1: enriquecer Geral com UO (via cd_convenio_sequencial → chave_convenio)
     cod_conv_uo = (
-        cod_conv[["convenio_codigo_sequencial", "unidade_orcamentaria_codigo"]]
-        .drop_duplicates("convenio_codigo_sequencial")
+        cod_conv[["cd_convenio_sequencial", "cd_uo"]]
+        .dropna(subset=["cd_convenio_sequencial"])
+        .drop_duplicates("cd_convenio_sequencial")
     )
-    geral = geral.merge(cod_conv_uo, on="convenio_codigo_sequencial", how="left")
-    # renomeia coluna com typo para nome canônico
-    geral = geral.rename(columns={"conveno_codigo_plano_trabalho": "plano_trabalho_codigo"})
-    _normalizar_chave(geral, ["unidade_orcamentaria_codigo"])
+    geral = geral.merge(cod_conv_uo, on="cd_convenio_sequencial", how="left")
 
     # Step 2: merge Convenio + Geral pela chave composta SIAFI+UO
     geral_sub = (
         geral[[
-            "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo",
-            "plano_trabalho_codigo",
-            "convenio_data_de_publicacao", "convenio_data_assinatura_convenio", "convenio_ano",
+            "nr_siafi", "cd_uo", "cd_plano_trabalho",
+            "dt_publicacao", "dt_assinatura", "nr_ano_convenio",
         ]]
-        .drop_duplicates(["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"])
+        .dropna(subset=["nr_siafi", "cd_uo"])
+        .drop_duplicates(["nr_siafi", "cd_uo"])
     )
-    merged = conv.merge(
-        geral_sub,
-        on=["convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo"],
-        how="left",
-    )
+    merged = conv.merge(geral_sub, on=["nr_siafi", "cd_uo"], how="left")
+    assert len(merged) == len(conv), "fan-out inesperado no join Convenio+Geral"
 
-    n_sem_plano = int(merged["plano_trabalho_codigo"].isna().sum())
+    n_sem_plano = int(merged["cd_plano_trabalho"].isna().sum())
     logger.info(
-        "Conv+Geral: %d registros, %d sem plano_trabalho_codigo (%.1f%%)",
+        "Conv+Geral: %d registros, %d sem cd_plano_trabalho (%.1f%%)",
         len(merged), n_sem_plano, 100 * n_sem_plano / max(len(merged), 1),
     )
 
     # Step 3: merge + PlanoTrabalho
     plano_sub = (
         plano[[
-            "plano_trabalho_codigo", "plano_trabalho_titulo", "plano_trabalho_objeto",
-            "plano_trabalho_razao_social_concedente", "plano_trabalho_cnpj_concedente",
-            "plano_trabalho_cnpj_proponente", "plano_trabalho_tipo_siafi",
+            "cd_plano_trabalho", "nm_plano_trabalho", "tx_objeto",
+            "nm_concedente", "nr_cnpj_concedente",
+            "nr_cnpj_proponente", "tp_instrumento_siafi",
         ]]
-        .drop_duplicates("plano_trabalho_codigo")
+        .dropna(subset=["cd_plano_trabalho"])
+        .drop_duplicates("cd_plano_trabalho")
     )
-    merged = merged.merge(plano_sub, on="plano_trabalho_codigo", how="left")
+    merged = merged.merge(plano_sub, on="cd_plano_trabalho", how="left")
+    assert len(merged) == len(conv), "fan-out inesperado no join +Plano"
 
     # Step 4: merge + Esfera via CNPJ concedente
-    esfera_sub = esfera[["concedente_cnpj", "concedente_esfera"]].drop_duplicates("concedente_cnpj")
-    merged = merged.merge(
-        esfera_sub,
-        left_on="plano_trabalho_cnpj_concedente",
-        right_on="concedente_cnpj",
-        how="left",
+    esfera_sub = (
+        concedente[["nr_cnpj_concedente", "ds_esfera"]]
+        .dropna(subset=["nr_cnpj_concedente"])
+        .drop_duplicates("nr_cnpj_concedente")
     )
+    merged = merged.merge(esfera_sub, on="nr_cnpj_concedente", how="left")
+    assert len(merged) == len(conv), "fan-out inesperado no join +Esfera"
 
-    n_sem_esfera = int(merged["concedente_esfera"].isna().sum())
+    n_sem_esfera = int(merged["ds_esfera"].isna().sum())
     logger.info(
         "Conv+Esfera: %d sem esfera (%.1f%%)",
         n_sem_esfera, 100 * n_sem_esfera / max(len(merged), 1),
@@ -217,34 +225,34 @@ def carregar_convenios(silver_path: Path | None = None) -> dict:
 
     objetos = [
         Convenio(
-            convenio_codigo=_para_str(row["convenio_codigo"]) or "",
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
-            situacao=_para_str(row["situacao"]),
-            data_inicio_vigencia=_para_date(row["data_inicio_vigencia"]),
-            data_termino_vigencia=_para_date(row["data_termino_vigencia"]),
-            data_real_convenio=_para_date(row["data_real_convenio"]),
-            valor_inicial_concedente_contratado=_para_decimal(row["valor_inicial_concedente_contratado"]),
-            valor_total_aditado_concedente_contratado=_para_decimal(row["valor_total_aditado_concedente_contratado"]),
-            valor_concedente=_para_decimal(row["valor_concedente"]),
-            valor_inicial_proponente_contratado=_para_decimal(row["valor_inicial_proponente_contratado"]),
-            valor_total_aditado_proponente_contratado=_para_decimal(row["valor_total_aditado_proponente_contratado"]),
-            valor_proponente=_para_decimal(row["valor_proponente"]),
-            valor_total_convenio=_para_decimal(row["valor_total_convenio"]),
+            convenio_codigo=_para_str(row["nr_convenio"]) or "",
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
+            situacao=_para_str(row["ds_situacao_convenio"]),
+            data_inicio_vigencia=_para_date(row["dt_vigencia_inicio"]),
+            data_termino_vigencia=_para_date(row["dt_vigencia_termino_inicial"]),
+            data_real_convenio=_para_date(row["dt_vigencia_termino"]),
+            valor_inicial_concedente_contratado=_para_decimal(row["vl_convenio_concedente_inicial"]),
+            valor_total_aditado_concedente_contratado=_para_decimal(row["vl_convenio_concedente_aditado"]),
+            valor_concedente=_para_decimal(row["vl_convenio_concedente"]),
+            valor_inicial_proponente_contratado=_para_decimal(row["vl_convenio_proponente_inicial"]),
+            valor_total_aditado_proponente_contratado=_para_decimal(row["vl_convenio_proponente_aditado"]),
+            valor_proponente=_para_decimal(row["vl_convenio_proponente"]),
+            valor_total_convenio=_para_decimal(row["vl_convenio_total"]),
             # de Geral
-            plano_trabalho_codigo=_para_str(row.get("plano_trabalho_codigo")),
-            data_publicacao=_para_date(row.get("convenio_data_de_publicacao")),
-            data_assinatura=_para_date(row.get("convenio_data_assinatura_convenio")),
-            convenio_ano=_para_str(row.get("convenio_ano")),
+            plano_trabalho_codigo=_para_str(row["cd_plano_trabalho"]),
+            data_publicacao=_para_date(row["dt_publicacao"]),
+            data_assinatura=_para_date(row["dt_assinatura"]),
+            convenio_ano=_para_str(row["nr_ano_convenio"]),
             # de PlanoTrabalho
-            instrumento=_para_str(row.get("plano_trabalho_tipo_siafi")),
-            titulo=_para_str(row.get("plano_trabalho_titulo")),
-            objeto=_para_str(row.get("plano_trabalho_objeto")),
-            concedente=_para_str(row.get("plano_trabalho_razao_social_concedente")),
-            cnpj_concedente=_para_str(row.get("plano_trabalho_cnpj_concedente")),
-            cnpj_proponente=_para_str(row.get("plano_trabalho_cnpj_proponente")),
-            # de Esfera
-            esfera=_para_str(row.get("concedente_esfera")),
+            instrumento=_para_str(row["tp_instrumento_siafi"]),
+            titulo=_para_str(row["nm_plano_trabalho"]),
+            objeto=_para_str(row["tx_objeto"]),
+            concedente=_para_str(row["nm_concedente"]),
+            cnpj_concedente=_para_str(row["nr_cnpj_concedente"]),
+            cnpj_proponente=_para_str(row["nr_cnpj_proponente"]),
+            # de Concedente (esfera)
+            esfera=_para_str(row["ds_esfera"]),
         )
         for _, row in merged.iterrows()
     ]
@@ -259,76 +267,77 @@ def carregar_cronograma_desembolso(silver_path: Path | None = None) -> dict:
     """
     Full refresh do CronogramaDesembolso com SIAFI+UO do convênio.
 
+    TODAS as linhas da Silver entram (hoje 48.392), inclusive as marcadas pelo
+    motor (bloco desalinhado do relatório do BO, sem plano de trabalho): o
+    motivo vai para `ds_alerta_linha` e as telas filtram
+    `ds_alerta_linha__isnull=True`.
+
     Rota do join:
-      cronograma.plano_trabalho_codigo
-        = geral.conveno_codigo_plano_trabalho  (campo com typo na fonte)
-        → geral.convenio_codigo_sequencial
-        → cod_conv.convenio_codigo_sequencial
-        → cod_conv.(convenio_numero_sequencial_siafi, unidade_orcamentaria_codigo)
+      cronograma.cd_plano_trabalho
+        = geral.cd_plano_trabalho
+        → geral.cd_convenio_sequencial
+        → chave_convenio.cd_convenio_sequencial
+        → chave_convenio.(nr_siafi, cd_uo)
 
     convenio_codigo (Código SIGCON) é carimbado 1:1 por linha pela mesma
-    chave plano_trabalho_codigo, reaproveitando dcgce_geral
+    chave cd_plano_trabalho, reaproveitando sigcon_convenio_geral
     (core/gold/relacionamento.py::carimbar_convenio_codigo) — nunca via SIAFI,
     que é 1:N convênio.
     """
     from core.gold.relacionamento import carimbar_convenio_codigo
 
-    crono = _ler_parquet(silver_path or _silver_path("dcgce_cronograma_desembolso"))
-    geral = _ler_parquet(_silver_path("dcgce_geral"))
-    cod_conv = _ler_parquet(_silver_path("dcgce_codigo_convenio"))
+    crono = _ler_parquet(silver_path or _silver_path("sigcon_cronograma_desembolso"))
+    geral = _ler_parquet(_silver_path("sigcon_convenio_geral"))
+    cod_conv = _ler_parquet(_silver_path("sigcon_chave_convenio"))
 
-    _normalizar_chave(crono, ["plano_trabalho_codigo"])
-    _normalizar_chave(geral, ["conveno_codigo_plano_trabalho", "convenio_codigo_sequencial"])
-    _normalizar_chave(cod_conv, [
-        "convenio_codigo_sequencial", "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo",
-    ])
+    _normalizar_chave(crono, ["cd_plano_trabalho"])
+    _normalizar_chave(geral, ["cd_plano_trabalho", "cd_convenio_sequencial"])
+    _normalizar_chave(cod_conv, ["cd_convenio_sequencial", "nr_siafi", "cd_uo"])
+    n_linhas = len(crono)
 
-    # Step 1: cronograma → Geral (plano_trabalho_codigo = conveno_codigo_plano_trabalho)
+    # Step 1: cronograma → Geral (cd_plano_trabalho)
     geral_plano = (
-        geral[["conveno_codigo_plano_trabalho", "convenio_codigo_sequencial"]]
-        .drop_duplicates("conveno_codigo_plano_trabalho")
+        geral[["cd_plano_trabalho", "cd_convenio_sequencial"]]
+        .dropna(subset=["cd_plano_trabalho"])
+        .drop_duplicates("cd_plano_trabalho")
     )
-    crono_enrich = crono.merge(
-        geral_plano,
-        left_on="plano_trabalho_codigo",
-        right_on="conveno_codigo_plano_trabalho",
-        how="left",
-    ).drop(columns=["conveno_codigo_plano_trabalho"])
+    crono_enrich = crono.merge(geral_plano, on="cd_plano_trabalho", how="left")
+    assert len(crono_enrich) == n_linhas, "fan-out inesperado no join cronograma→Geral"
 
     # Step 1b: carimba convenio_codigo (Código SIGCON) 1:1 pela mesma chave
-    crono_enrich = carimbar_convenio_codigo(crono_enrich, geral, coluna_plano_trabalho="plano_trabalho_codigo")
+    crono_enrich = carimbar_convenio_codigo(crono_enrich, geral, coluna_plano_trabalho="cd_plano_trabalho")
 
-    # Step 2: → CodigoConvenio (convenio_codigo_sequencial → SIAFI+UO)
+    # Step 2: → chave_convenio (cd_convenio_sequencial → SIAFI+UO)
     cod_conv_sub = (
-        cod_conv[[
-            "convenio_codigo_sequencial",
-            "convenio_numero_sequencial_siafi",
-            "unidade_orcamentaria_codigo",
-        ]]
-        .drop_duplicates("convenio_codigo_sequencial")
+        cod_conv[["cd_convenio_sequencial", "nr_siafi", "cd_uo"]]
+        .dropna(subset=["cd_convenio_sequencial"])
+        .drop_duplicates("cd_convenio_sequencial")
     )
-    crono_enrich = crono_enrich.merge(cod_conv_sub, on="convenio_codigo_sequencial", how="left")
+    crono_enrich = crono_enrich.merge(cod_conv_sub, on="cd_convenio_sequencial", how="left")
+    assert len(crono_enrich) == n_linhas, "fan-out inesperado no join sequencial→SIAFI+UO"
 
     n_total = len(crono_enrich)
-    n_com_siafi = int(crono_enrich["convenio_numero_sequencial_siafi"].notna().sum())
+    n_com_siafi = int(crono_enrich["nr_siafi"].notna().sum())
     n_sem_siafi = n_total - n_com_siafi
+    n_marcadas = int(crono_enrich["ds_alerta_linha"].notna().sum())
     logger.info(
-        "Cronograma: %d total | com SIAFI: %d (%.1f%%) | sem SIAFI: %d (%.1f%%)",
-        n_total,
+        "Cronograma: %d total (%d marcadas) | com SIAFI: %d (%.1f%%) | sem SIAFI: %d (%.1f%%)",
+        n_total, n_marcadas,
         n_com_siafi, 100 * n_com_siafi / max(n_total, 1),
         n_sem_siafi, 100 * n_sem_siafi / max(n_total, 1),
     )
 
     objetos = [
         CronogramaDesembolso(
-            plano_trabalho_codigo=_para_str(row["plano_trabalho_codigo"]),
-            convenio_codigo=_para_str(row.get("convenio_codigo")),
-            convenio_numero_sequencial_siafi=_para_str(row.get("convenio_numero_sequencial_siafi")),
-            unidade_orcamentaria_codigo=_para_str(row.get("unidade_orcamentaria_codigo")),
-            valor_concedente_cronograma_desembolso=_para_decimal(row["valor_concedente_cronograma_desembolso"]),
-            valor_proponente_cronograma_desembolso=_para_decimal(row["valor_proponente_cronograma_desembolso"]),
-            mes_cronograma_desembolso=_para_str(row["mes_cronograma_desembolso"]),
-            ano_cronograma_desembolso=_para_str(row["ano_cronograma_desembolso"]),
+            plano_trabalho_codigo=_para_str(row["cd_plano_trabalho"]),
+            convenio_codigo=_para_str(row["convenio_codigo"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
+            valor_concedente_cronograma_desembolso=_para_decimal(row["vl_desembolso_concedente"]),
+            valor_proponente_cronograma_desembolso=_para_decimal(row["vl_desembolso_proponente"]),
+            mes_cronograma_desembolso=_para_str(row["nr_mes_desembolso"]),
+            ano_cronograma_desembolso=_para_str(row["nr_ano_desembolso"]),
+            ds_alerta_linha=_para_str(row["ds_alerta_linha"]),
         )
         for _, row in crono_enrich.iterrows()
     ]
@@ -336,32 +345,33 @@ def carregar_cronograma_desembolso(silver_path: Path | None = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Loaders dos demais models
-# (ainda referenciam os nomes antigos dos Parquets Silver até re-ingestão)
+# Loaders dos demais models (cada um lê a Silver da sua fonte `sigcon_*`)
 # ---------------------------------------------------------------------------
 
 def carregar_convenio_geral(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_geral.parquet → model ConvenioGeral."""
-    caminho = silver_path or _silver_path("dcgce_geral")
+    """Fonte: sigcon_convenio_geral.parquet → model ConvenioGeral."""
+    caminho = silver_path or _silver_path("sigcon_convenio_geral")
     df = _ler_parquet(caminho)
 
     objetos = [
         ConvenioGeral(
-            convenio_codigo=_para_str(row["convenio_codigo"]),
-            convenio_codigo_sequencial=_para_str(row["convenio_codigo_sequencial"]),
-            conveno_codigo_plano_trabalho=_para_str(row["conveno_codigo_plano_trabalho"]),
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            convenio_codigo_declaracao=_para_str(row["convenio_codigo_declaracao"]),
-            convenio_data_de_publicacao=_para_date(row["convenio_data_de_publicacao"]),
-            convenio_data_alteracao_sccg=_para_date(row["convenio_data_alteracao_sccg"]),
-            convenio_data_controle_sccg_convenio=_para_date(row["convenio_data_controle_sccg_convenio"]),
-            convenio_data_assinatura_convenio=_para_date(row["convenio_data_assinatura_convenio"]),
-            convenio_data_de_cadastramento=_para_date(row["convenio_data_de_cadastramento"]),
-            convenio_ano=_para_str(row["convenio_ano"]),
-            convenio_alteracao=_para_str(row["convenio_alteracao"]),
-            convenio_matricula_tecnico_sccg=_para_str(row["convenio_matricula_tecnico_sccg"]),
-            convenio_justificativa_da_alteracao=_para_str(row["convenio_justificativa_da_alteracao"]),
-            convenio_matricula_gestor=_para_str(row["convenio_matricula_gestor"]),
+            convenio_codigo=_para_str(row["nr_convenio"]),
+            convenio_codigo_sequencial=_para_str(row["cd_convenio_sequencial"]),
+            conveno_codigo_plano_trabalho=_para_str(row["cd_plano_trabalho"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            convenio_codigo_declaracao=_para_str(row["cd_declaracao_contrapartida"]),
+            convenio_data_de_publicacao=_para_date(row["dt_publicacao"]),
+            convenio_data_alteracao_sccg=_para_date(row["dh_alteracao_sccg"]),
+            convenio_data_controle_sccg_convenio=_para_date(row["dt_controle_sccg"]),
+            convenio_data_assinatura_convenio=_para_date(row["dt_assinatura"]),
+            convenio_data_de_cadastramento=_para_date(row["dh_cadastramento"]),
+            convenio_ano=_para_str(row["nr_ano_convenio"]),
+            convenio_alteracao=_bool_para_texto(
+                row["fl_permite_alteracao"], "Pode sofrer alteração", "Não pode sofrer alteração",
+            ),
+            convenio_matricula_tecnico_sccg=_para_str(row["cd_matricula_tecnico_sccg"]),
+            convenio_justificativa_da_alteracao=_para_str(row["tx_justificativa_alteracao"]),
+            convenio_matricula_gestor=_para_str(row["cd_matricula_gestor"]),
         )
         for _, row in df.iterrows()
     ]
@@ -369,35 +379,33 @@ def carregar_convenio_geral(silver_path: Path | None = None) -> dict:
 
 
 def carregar_plano_trabalho(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_plano_trabalho.parquet (ou dcgce_plano.trabalho.parquet legado)."""
-    caminho = silver_path or _silver_path("dcgce_plano_trabalho")
-    if not caminho.exists():
-        caminho = _silver_path("dcgce_plano.trabalho")
+    """Fonte: sigcon_plano_trabalho.parquet → model PlanoTrabalho."""
+    caminho = silver_path or _silver_path("sigcon_plano_trabalho")
     df = _ler_parquet(caminho)
 
     objetos = [
         PlanoTrabalho(
-            plano_trabalho_codigo=_para_str(row["plano_trabalho_codigo"]),
-            plano_trabalho_codigo_execucao_no_exercicio=_para_str(row["plano_trabalho_codigo_execucao_no_exercicio"]),
-            plano_trabalho_tipo_siafi=_para_str(row["plano_trabalho_tipo_siafi"]),
-            plano_trabalho_cnpj_concedente=_para_str(row["plano_trabalho_cnpj_concedente"]),
-            plano_trabalho_cnpj_proponente=_para_str(row["plano_trabalho_cnpj_proponente"]),
-            plano_trabalho_data_cancelamento_sccg=_para_date(row["plano_trabalho_data_cancelamento_sccg"]),
-            plano_trabalho_data_cadastro=_para_date(row["plano_trabalho_data_cadastro"]),
-            plano_trabalho_data_envio_sccg=_para_date(row["plano_trabalho_data_envio_sccg"]),
-            plano_trabalho_titulo=_para_str(row["plano_trabalho_titulo"]),
-            plano_trabalho_objeto=_para_str(row["plano_trabalho_objeto"]),
-            plano_trabalho_justificativa=_para_str(row["plano_trabalho_justificativa"]),
-            plano_trabalho_status=_para_str(row["plano_trabalho_status"]),
-            plano_trabalho_caracteristica=_para_str(row["plano_trabalho_caracteristica"]),
-            plano_trabalho_tipo=_para_str(row["plano_trabalho_tipo"]),
-            plano_trabalho_migrado_ou_novo=_para_str(row["plano_trabalho_migrado_ou_novo"]),
-            plano_trabalho_matricula_sccg_cancelamento=_para_str(row["plano_trabalho_matricula_sccg_cancelamento"]),
-            plano_trabalho_justificativa_sccg_cancelamento=_para_str(row["plano_trabalho_justificativa_sccg_cancelamento"]),
-            plano_trabalho_cancelamento_sccg=_para_str(row["plano_trabalho_cancelamento_sccg"]),
-            plano_trabalho_ano=_para_str(row["plano_trabalho_ano"]),
-            plano_trabalho_altera_termo_aditivo=_para_str(row["plano_trabalho_altera_termo_aditivo"]),
-            plano_trabalho_razao_social_concedente=_para_str(row["plano_trabalho_razao_social_concedente"]),
+            plano_trabalho_codigo=_para_str(row["cd_plano_trabalho"]),
+            plano_trabalho_codigo_execucao_no_exercicio=_para_str(row["cd_execucao_exercicio"]),
+            plano_trabalho_tipo_siafi=_para_str(row["tp_instrumento_siafi"]),
+            plano_trabalho_cnpj_concedente=_para_str(row["nr_cnpj_concedente"]),
+            plano_trabalho_cnpj_proponente=_para_str(row["nr_cnpj_proponente"]),
+            plano_trabalho_data_cancelamento_sccg=_para_date(row["dh_cancelamento_sccg"]),
+            plano_trabalho_data_cadastro=_para_date(row["dh_cadastro"]),
+            plano_trabalho_data_envio_sccg=_para_date(row["dh_envio_sccg"]),
+            plano_trabalho_titulo=_para_str(row["nm_plano_trabalho"]),
+            plano_trabalho_objeto=_para_str(row["tx_objeto"]),
+            plano_trabalho_justificativa=_para_str(row["tx_justificativa"]),
+            plano_trabalho_status=_para_str(row["ds_status_plano_trabalho"]),
+            plano_trabalho_caracteristica=_para_str(row["ds_caracteristica_contrapartida"]),
+            plano_trabalho_tipo=_para_str(row["tp_plano_trabalho"]),
+            plano_trabalho_migrado_ou_novo=_para_str(row["ds_origem_cadastro"]),
+            plano_trabalho_matricula_sccg_cancelamento=_para_str(row["cd_matricula_cancelamento_sccg"]),
+            plano_trabalho_justificativa_sccg_cancelamento=_para_str(row["tx_justificativa_cancelamento"]),
+            plano_trabalho_cancelamento_sccg=_para_str(row["ds_cancelamento_sccg"]),
+            plano_trabalho_ano=_para_str(row["nr_ano_plano_trabalho"]),
+            plano_trabalho_altera_termo_aditivo=_para_str(row["ds_alteracao_termo_aditivo"]),
+            plano_trabalho_razao_social_concedente=_para_str(row["nm_concedente"]),
         )
         for _, row in df.iterrows()
     ]
@@ -406,77 +414,74 @@ def carregar_plano_trabalho(silver_path: Path | None = None) -> dict:
 
 def carregar_plano_aplicacao(silver_path: Path | None = None) -> dict:
     """
-    Fonte: dcgce_plano_aplicacao.parquet → model PlanoAplicacao.
+    Fonte: sigcon_plano_aplicacao.parquet → model PlanoAplicacao.
 
     convenio_codigo (Código SIGCON) é carimbado 1:1 por linha via
-    plano_trabalho_codigo, reaproveitando dcgce_geral
+    cd_plano_trabalho, reaproveitando sigcon_convenio_geral
     (core/gold/relacionamento.py::carimbar_convenio_codigo) — nunca via SIAFI,
     que é 1:N convênio.
 
     convenio_numero_sequencial_siafi é carimbado pela mesma rota usada em
-    carregar_cronograma_desembolso: Geral.convenio_codigo_sequencial →
-    CodigoConvenio.convenio_numero_sequencial_siafi.
+    carregar_cronograma_desembolso: Geral.cd_convenio_sequencial →
+    sigcon_chave_convenio.nr_siafi.
     """
     from core.gold.relacionamento import carimbar_convenio_codigo
 
-    caminho = silver_path or _silver_path("dcgce_plano_aplicacao")
+    caminho = silver_path or _silver_path("sigcon_plano_aplicacao")
     df = _ler_parquet(caminho)
-    geral = _ler_parquet(_silver_path("dcgce_geral"))
-    cod_conv = _ler_parquet(_silver_path("dcgce_codigo_convenio"))
+    geral = _ler_parquet(_silver_path("sigcon_convenio_geral"))
+    cod_conv = _ler_parquet(_silver_path("sigcon_chave_convenio"))
 
-    _normalizar_chave(df, ["codigo_plano_trabalho"])
-    _normalizar_chave(geral, ["conveno_codigo_plano_trabalho", "convenio_codigo_sequencial"])
-    _normalizar_chave(cod_conv, ["convenio_codigo_sequencial", "convenio_numero_sequencial_siafi"])
+    _normalizar_chave(df, ["cd_plano_trabalho"])
+    _normalizar_chave(geral, ["cd_plano_trabalho", "cd_convenio_sequencial"])
+    _normalizar_chave(cod_conv, ["cd_convenio_sequencial", "nr_siafi"])
 
-    # Step 1: plano_aplicacao → Geral (codigo_plano_trabalho = conveno_codigo_plano_trabalho)
+    # Step 1: plano_aplicacao → Geral (cd_plano_trabalho)
     geral_seq = (
-        geral[["conveno_codigo_plano_trabalho", "convenio_codigo_sequencial"]]
-        .drop_duplicates("conveno_codigo_plano_trabalho")
+        geral[["cd_plano_trabalho", "cd_convenio_sequencial"]]
+        .dropna(subset=["cd_plano_trabalho"])
+        .drop_duplicates("cd_plano_trabalho")
     )
     antes = len(df)
-    df = df.merge(
-        geral_seq,
-        left_on="codigo_plano_trabalho",
-        right_on="conveno_codigo_plano_trabalho",
-        how="left",
-    ).drop(columns=["conveno_codigo_plano_trabalho"])
+    df = df.merge(geral_seq, on="cd_plano_trabalho", how="left")
     assert len(df) == antes, "fan-out inesperado no join Geral->sequencial"
 
     # Step 1b: carimba convenio_codigo (Código SIGCON) 1:1 pela mesma chave
-    df = carimbar_convenio_codigo(df, geral, coluna_plano_trabalho="codigo_plano_trabalho")
+    df = carimbar_convenio_codigo(df, geral, coluna_plano_trabalho="cd_plano_trabalho")
 
-    # Step 2: → CodigoConvenio (convenio_codigo_sequencial → SIAFI)
+    # Step 2: → chave_convenio (cd_convenio_sequencial → SIAFI)
     cod_conv_sub = (
-        cod_conv[["convenio_codigo_sequencial", "convenio_numero_sequencial_siafi"]]
-        .drop_duplicates("convenio_codigo_sequencial")
+        cod_conv[["cd_convenio_sequencial", "nr_siafi"]]
+        .dropna(subset=["cd_convenio_sequencial"])
+        .drop_duplicates("cd_convenio_sequencial")
     )
     antes = len(df)
-    df = df.merge(cod_conv_sub, on="convenio_codigo_sequencial", how="left")
+    df = df.merge(cod_conv_sub, on="cd_convenio_sequencial", how="left")
     assert len(df) == antes, "fan-out inesperado no join sequencial->SIAFI"
 
     objetos = [
         PlanoAplicacao(
-            codigo_plano_trabalho=_para_str(row["codigo_plano_trabalho"]),
-            convenio_codigo=_para_str(row.get("convenio_codigo")),
-            convenio_numero_sequencial_siafi=_para_str(row.get("convenio_numero_sequencial_siafi")),
-            codigo_unidade_orcamentaria=_para_str(row["codigo_unidade_orcamentaria"]),
-            funcao_codigo=_para_str(row["funcao_codigo"]),
-            subfuncao_codigo=_para_str(row["subfuncao_codigo"]),
-            programa_codigo=_para_str(row["programa_codigo"]),
-            identificador_projeto_atividade_codigo=_para_str(row["identificador_projeto_atividade_codigo"]),
-            projeto_atividade_codigo=_para_str(row["projeto_atividade_codigo"]),
-            subprojeto_subatividade_codigo=_para_str(row["subprojeto_subatividade_codigo"]),
-            categoria_economica_despesa_codigo=_para_str(row["categoria_economica_despesa_codigo"]),
-            grupo_despesa_codigo=_para_str(row["grupo_despesa_codigo"]),
-            modalidade_aplicacao_codigo=_para_str(row["modalidade_aplicacao_codigo"]),
-            elemento_despesa_codigo=_para_str(row["elemento_despesa_codigo"]),
-            identificador_orcamento_codigo=_para_str(row["identificador_orcamento_codigo"]),
-            fonte_recurso_codigo=_para_str(row["fonte_recurso_codigo"]),
-            procedencia_codigo=_para_str(row["procedencia_codigo"]),
-            funcional_programatica_formatado=_para_str(row["funcional_programatica_formatado"]),
-            valor_concedente=_para_decimal(row["valor_concedente"]),
-            valor_proponente=_para_decimal(row["valor_proponente"]),
-            ano_exercicio_programa_trabalho=_para_str(row["ano_exercicio_programa_trabalho"]),
+            codigo_plano_trabalho=_para_str(row["cd_plano_trabalho"]),
+            convenio_codigo=_para_str(row["convenio_codigo"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            codigo_unidade_orcamentaria=_para_str(row["cd_uo"]),
+            funcao_codigo=_para_str(row["cd_funcao"]),
+            subfuncao_codigo=_para_str(row["cd_subfuncao"]),
+            programa_codigo=_para_str(row["cd_programa"]),
+            identificador_projeto_atividade_codigo=_para_str(row["cd_identificador_projeto_atividade"]),
+            projeto_atividade_codigo=_para_str(row["cd_projeto_atividade"]),
+            subprojeto_subatividade_codigo=_para_str(row["cd_subprojeto_subatividade"]),
+            categoria_economica_despesa_codigo=_para_str(row["cd_categoria_economica"]),
+            grupo_despesa_codigo=_para_str(row["cd_grupo_despesa"]),
+            modalidade_aplicacao_codigo=_para_str(row["cd_modalidade_aplicacao"]),
+            elemento_despesa_codigo=_para_str(row["cd_elemento_despesa"]),
+            identificador_orcamento_codigo=_para_str(row["cd_identificador_orcamento"]),
+            fonte_recurso_codigo=_para_str(row["cd_fonte_recurso"]),
+            procedencia_codigo=_para_str(row["cd_procedencia"]),
+            funcional_programatica_formatado=_para_str(row["cd_funcional_programatica"]),
+            valor_concedente=_para_decimal(row["vl_aplicacao_concedente"]),
+            valor_proponente=_para_decimal(row["vl_aplicacao_proponente"]),
+            ano_exercicio_programa_trabalho=_para_str(row["nr_ano_exercicio"]),
         )
         for _, row in df.iterrows()
     ]
@@ -484,28 +489,29 @@ def carregar_plano_aplicacao(silver_path: Path | None = None) -> dict:
 
 
 def carregar_termo_aditivo(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_termo_aditivo.parquet (ou dcgce_termo.aditivo.parquet legado)."""
-    caminho = silver_path or _silver_path("dcgce_termo_aditivo")
-    if not caminho.exists():
-        caminho = _silver_path("dcgce_termo.aditivo")
+    """
+    Fonte: sigcon_termo_aditivo.parquet → model TermoAditivo.
+
+    termo_aditivo_alteracao, termo_aditivo_tipo e quantidade_termo_aditivo não
+    existem mais na Silver (eram constantes ou vazias nas 7.113 linhas) e ficam
+    nulos; a tela já usa tipo_termo_aditivo (← tp_termo_aditivo).
+    """
+    caminho = silver_path or _silver_path("sigcon_termo_aditivo")
     df = _ler_parquet(caminho)
 
     objetos = [
         TermoAditivo(
-            termo_aditivo_codigo_sequencial=_para_str(row["termo_aditivo_codigo_sequencial"]),
-            termo_aditivo_numero_termo_aditivo=_para_str(row["termo_aditivo_numero_termo_aditivo"]),
-            termo_aditivo_data_assinatura=_para_date(row["termo_aditivo_data_assinatura"]),
-            termo_aditivo_data_inicio_vigencia=_para_date(row["termo_aditivo_data_inicio_vigencia"]),
-            termo_aditivo_data_termino_vigencia=_para_date(row["termo_aditivo_data_termino_vigencia"]),
-            data_termo_aditivo=_para_date(row["data_termo_aditivo"]),
-            valor_aditado_concedente_contratado=_para_decimal(row["valor_aditado_concedente_contratado"]),
-            valor_aditado_proponente_contratado=_para_decimal(row["valor_aditado_proponente_contratado"]),
-            termo_aditivo_justificativa=_para_str(row["termo_aditivo_justificativa"]),
-            termo_aditivo_ano=_para_str(row["termo_aditivo_ano"]),
-            termo_aditivo_alteracao=_para_str(row["termo_aditivo_alteracao"]),
-            termo_aditivo_tipo=_para_str(row["termo_aditivo_tipo"]),
-            tipo_termo_aditivo=_para_str(row["tipo_termo_aditivo"]),
-            quantidade_termo_aditivo=_para_str(row["quantidade_termo_aditivo"]),
+            termo_aditivo_codigo_sequencial=_para_str(row["cd_termo_aditivo"]),
+            termo_aditivo_numero_termo_aditivo=_para_str(row["nr_termo_aditivo"]),
+            termo_aditivo_data_assinatura=_para_date(row["dt_assinatura"]),
+            termo_aditivo_data_inicio_vigencia=_para_date(row["dt_vigencia_inicio"]),
+            termo_aditivo_data_termino_vigencia=_para_date(row["dt_vigencia_termino"]),
+            data_termo_aditivo=_para_date(row["dh_registro"]),
+            valor_aditado_concedente_contratado=_para_decimal(row["vl_aditivo_concedente"]),
+            valor_aditado_proponente_contratado=_para_decimal(row["vl_aditivo_proponente"]),
+            termo_aditivo_justificativa=_para_str(row["tx_justificativa"]),
+            termo_aditivo_ano=_para_str(row["nr_ano_termo_aditivo"]),
+            tipo_termo_aditivo=_para_str(row["tp_termo_aditivo"]),
         )
         for _, row in df.iterrows()
     ]
@@ -513,25 +519,25 @@ def carregar_termo_aditivo(silver_path: Path | None = None) -> dict:
 
 
 def carregar_declaracao_contrapartida(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_declaracao_contrapartida.parquet → model DeclaracaoContrapartida."""
-    caminho = silver_path or _silver_path("dcgce_declaracao_contrapartida")
+    """Fonte: sigcon_declaracao_contrapartida.parquet → model DeclaracaoContrapartida."""
+    caminho = silver_path or _silver_path("sigcon_declaracao_contrapartida")
     df = _ler_parquet(caminho)
 
     objetos = [
         DeclaracaoContrapartida(
-            declaracao_contrapartida_codigo=_para_str(row["declaracao_contrapartida_codigo"]),
-            declaracao_contrapartida_codigo_nota_tecnica=_para_str(row["declaracao_contrapartida_codigo_nota_tecnica"]),
-            declaracao_contrapartida_codigo_parecer_aprovacao=_para_str(row["declaracao_contrapartida_codigo_parecer_aprovacao"]),
-            declaracao_contrapartida_data_completa_emissao=_para_date(row["declaracao_contrapartida_data_completa_emissao"]),
-            declaracao_contrapartida_data_emissao=_para_date(row["declaracao_contrapartida_data_emissao"]),
-            declaracao_contrapartida_data_completa_parecer_aprovacao=_para_date(row["declaracao_contrapartida_data_completa_parecer_aprovacao"]),
-            declaracao_contrapartida_data_parecer_aprovacao=_para_date(row["declaracao_contrapartida_data_parecer_aprovacao"]),
-            declaracao_contrapartida_ano=_para_str(row["declaracao_contrapartida_ano"]),
-            declaracao_contrapartida_status=_para_str(row["declaracao_contrapartida_status"]),
-            declaracao_contrapartida_observacao=_para_str(row["declaracao_contrapartida_observacao"]),
-            declaracao_contrapartida_observacao_aprovacao=_para_str(row["declaracao_contrapartida_observacao_aprovacao"]),
-            declaracao_contrapartida_matricula_aprovacao=_para_str(row["declaracao_contrapartida_matricula_aprovacao"]),
-            declaracao_contrapartida_momento=_para_str(row["declaracao_contrapartida_momento"]),
+            declaracao_contrapartida_codigo=_para_str(row["cd_declaracao_contrapartida"]),
+            declaracao_contrapartida_codigo_nota_tecnica=_para_str(row["cd_nota_tecnica"]),
+            declaracao_contrapartida_codigo_parecer_aprovacao=_para_str(row["ds_parecer_aprovacao"]),
+            declaracao_contrapartida_data_completa_emissao=_para_date(row["dh_emissao"]),
+            declaracao_contrapartida_data_emissao=_para_date(row["dt_emissao"]),
+            declaracao_contrapartida_data_completa_parecer_aprovacao=_para_date(row["dh_parecer_aprovacao"]),
+            declaracao_contrapartida_data_parecer_aprovacao=_para_date(row["dt_parecer_aprovacao"]),
+            declaracao_contrapartida_ano=_para_str(row["nr_ano_declaracao"]),
+            declaracao_contrapartida_status=_para_str(row["ds_status_declaracao"]),
+            declaracao_contrapartida_observacao=_para_str(row["tx_observacao"]),
+            declaracao_contrapartida_observacao_aprovacao=_para_str(row["tx_observacao_aprovacao"]),
+            declaracao_contrapartida_matricula_aprovacao=_para_str(row["cd_matricula_aprovacao"]),
+            declaracao_contrapartida_momento=_para_str(row["ds_momento"]),
         )
         for _, row in df.iterrows()
     ]
@@ -539,19 +545,24 @@ def carregar_declaracao_contrapartida(silver_path: Path | None = None) -> dict:
 
 
 def carregar_prorrogacao_oficio(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_prorrogacao_oficio.parquet → model ProrrogacaoOficio."""
-    caminho = silver_path or _silver_path("dcgce_prorrogacao_oficio")
+    """
+    Fonte: sigcon_prorrogacao_oficio.parquet → model ProrrogacaoOficio.
+
+    prorrogacao_oficio_codigo_convenio ← cd_convenio_sequencial: na Silver a
+    coluna é o código SEQUENCIAL do convênio, não o número legível.
+    """
+    caminho = silver_path or _silver_path("sigcon_prorrogacao_oficio")
     df = _ler_parquet(caminho)
 
     objetos = [
         ProrrogacaoOficio(
-            prorrogacao_oficio_codigo=_para_str(row["prorrogacao_oficio_codigo"]),
-            prorrogacao_oficio_codigo_convenio=_para_str(row["prorrogacao_oficio_codigo_convenio"]),
-            prorrogacao_oficio_data_inicio_vigencia=_para_date(row["prorrogacao_oficio_data_inicio_vigencia"]),
-            prorrogacao_oficio_data_termino_vigencia=_para_date(row["prorrogacao_oficio_data_termino_vigencia"]),
-            prorrogacao_oficio_data_envio=_para_date(row["prorrogacao_oficio_data_envio"]),
-            prorrogacao_oficio_data_parecer=_para_date(row["prorrogacao_oficio_data_parecer"]),
-            prorrogacao_oficio_data_publicacao=_para_date(row["prorrogacao_oficio_data_publicacao"]),
+            prorrogacao_oficio_codigo=_para_str(row["cd_prorrogacao_oficio"]),
+            prorrogacao_oficio_codigo_convenio=_para_str(row["cd_convenio_sequencial"]),
+            prorrogacao_oficio_data_inicio_vigencia=_para_date(row["dt_vigencia_inicio"]),
+            prorrogacao_oficio_data_termino_vigencia=_para_date(row["dt_vigencia_termino"]),
+            prorrogacao_oficio_data_envio=_para_date(row["dt_envio"]),
+            prorrogacao_oficio_data_parecer=_para_date(row["dt_parecer"]),
+            prorrogacao_oficio_data_publicacao=_para_date(row["dt_publicacao"]),
         )
         for _, row in df.iterrows()
     ]
@@ -559,17 +570,19 @@ def carregar_prorrogacao_oficio(silver_path: Path | None = None) -> dict:
 
 
 def carregar_nt_emenda(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_sigcon_nt_emenda.parquet → model NtEmenda."""
-    caminho = silver_path or _silver_path("dcgce_sigcon_nt_emenda")
+    """Fonte: sigcon_nt_emenda.parquet → model NtEmenda."""
+    caminho = silver_path or _silver_path("sigcon_nt_emenda")
     df = _ler_parquet(caminho)
 
     objetos = [
         NtEmenda(
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
-            plano_trabalho_codigo=_para_str(row["plano_trabalho_codigo"]),
-            nt_emenda_no=_para_str(row["nt_emenda_no"]),
-            nt_emenda_nome=_para_str(row["nt_emenda_nome"]),
-            nota_tecnica_emenda_parlamentar_federal_situacao=_para_str(row["nota_tecnica_emenda_parlamentar_federal_situacao"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
+            plano_trabalho_codigo=_para_str(row["cd_plano_trabalho"]),
+            nt_emenda_no=_para_str(row["nr_emenda"]),
+            nt_emenda_nome=_para_str(row["nm_parlamentar"]),
+            nota_tecnica_emenda_parlamentar_federal_situacao=_bool_para_texto(
+                row["fl_emenda_parlamentar_federal"], "Sim", "Não",
+            ),
         )
         for _, row in df.iterrows()
     ]
@@ -577,14 +590,14 @@ def carregar_nt_emenda(silver_path: Path | None = None) -> dict:
 
 
 def carregar_esfera(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_esfera.parquet → model Esfera."""
-    caminho = silver_path or _silver_path("dcgce_esfera")
+    """Fonte: sigcon_concedente.parquet → model Esfera."""
+    caminho = silver_path or _silver_path("sigcon_concedente")
     df = _ler_parquet(caminho)
 
     objetos = [
         Esfera(
-            concedente_cnpj=_para_str(row["concedente_cnpj"]),
-            concedente_esfera=_para_str(row["concedente_esfera"]),
+            concedente_cnpj=_para_str(row["nr_cnpj_concedente"]),
+            concedente_esfera=_para_str(row["ds_esfera"]),
         )
         for _, row in df.iterrows()
     ]
@@ -592,18 +605,16 @@ def carregar_esfera(silver_path: Path | None = None) -> dict:
 
 
 def carregar_codigo_convenio(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_codigo_convenio.parquet → model CodigoConvenio."""
-    caminho = silver_path or _silver_path("dcgce_codigo_convenio")
-    if not caminho.exists():
-        caminho = _silver_path("dcgce_Codigo_convenio")
+    """Fonte: sigcon_chave_convenio.parquet → model CodigoConvenio."""
+    caminho = silver_path or _silver_path("sigcon_chave_convenio")
     df = _ler_parquet(caminho)
 
     objetos = [
         CodigoConvenio(
-            convenio_codigo=_para_str(row["convenio_codigo"]),
-            convenio_codigo_sequencial=_para_str(row["convenio_codigo_sequencial"]),
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
+            convenio_codigo=_para_str(row["nr_convenio"]),
+            convenio_codigo_sequencial=_para_str(row["cd_convenio_sequencial"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
         )
         for _, row in df.iterrows()
     ]
@@ -611,15 +622,15 @@ def carregar_codigo_convenio(silver_path: Path | None = None) -> dict:
 
 
 def carregar_codigo_plano_trabalho(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_Codigo_plano_de_trabalho.parquet → model CodigoPlanoTrabalho (legado)."""
-    caminho = silver_path or _silver_path("dcgce_Codigo_plano_de_trabalho")
+    """Fonte: sigcon_chave_plano_trabalho.parquet → model CodigoPlanoTrabalho."""
+    caminho = silver_path or _silver_path("sigcon_chave_plano_trabalho")
     df = _ler_parquet(caminho)
 
     objetos = [
         CodigoPlanoTrabalho(
-            conveno_codigo_plano_trabalho=_para_str(row["conveno_codigo_plano_trabalho"]),
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
+            conveno_codigo_plano_trabalho=_para_str(row["cd_plano_trabalho"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
         )
         for _, row in df.iterrows()
     ]
@@ -627,18 +638,16 @@ def carregar_codigo_plano_trabalho(silver_path: Path | None = None) -> dict:
 
 
 def carregar_codigo_termo_aditivo(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_codigo_ta.parquet → model CodigoTermoAditivo."""
-    caminho = silver_path or _silver_path("dcgce_codigo_ta")
-    if not caminho.exists():
-        caminho = _silver_path("dcgce_Codigo_ta")
+    """Fonte: sigcon_chave_termo_aditivo.parquet → model CodigoTermoAditivo."""
+    caminho = silver_path or _silver_path("sigcon_chave_termo_aditivo")
     df = _ler_parquet(caminho)
 
     objetos = [
         CodigoTermoAditivo(
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            termo_aditivo_codigo_sequencial=_para_str(row["termo_aditivo_codigo_sequencial"]),
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
-            plano_trabalho_codigo=_para_str(row["plano_trabalho_codigo"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            termo_aditivo_codigo_sequencial=_para_str(row["cd_termo_aditivo"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
+            plano_trabalho_codigo=_para_str(row["cd_plano_trabalho"]),
         )
         for _, row in df.iterrows()
     ]
@@ -646,17 +655,15 @@ def carregar_codigo_termo_aditivo(silver_path: Path | None = None) -> dict:
 
 
 def carregar_codigo_declaracao_contrapartida(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_codigo_dec_contrap.parquet → model CodigoDeclaracaoContrapartida."""
-    caminho = silver_path or _silver_path("dcgce_codigo_dec_contrap")
-    if not caminho.exists():
-        caminho = _silver_path("dcgce_Codigo_dec_contrap")
+    """Fonte: sigcon_chave_declaracao.parquet → model CodigoDeclaracaoContrapartida."""
+    caminho = silver_path or _silver_path("sigcon_chave_declaracao")
     df = _ler_parquet(caminho)
 
     objetos = [
         CodigoDeclaracaoContrapartida(
-            declaracao_contrapartida_codigo=_para_str(row["declaracao_contrapartida_codigo"]),
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
+            declaracao_contrapartida_codigo=_para_str(row["cd_declaracao_contrapartida"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
         )
         for _, row in df.iterrows()
     ]
@@ -820,18 +827,16 @@ def carregar_tabela_integrada(gold_path: Path | None = None) -> dict:
 
 
 def carregar_unidades_executoras(silver_path: Path | None = None) -> dict:
-    """Fonte: dcgce_unidades_executoras.parquet → model UnidadesExecutoras."""
-    caminho = silver_path or _silver_path("dcgce_unidades_executoras")
-    if not caminho.exists():
-        caminho = _silver_path("dcgce_Unidades_executoras")
+    """Fonte: sigcon_unidade_executora.parquet → model UnidadesExecutoras."""
+    caminho = silver_path or _silver_path("sigcon_unidade_executora")
     df = _ler_parquet(caminho)
 
     objetos = [
         UnidadesExecutoras(
-            unidade_orcamentaria_codigo=_para_str(row["unidade_orcamentaria_codigo"]),
-            convenio_numero_sequencial_siafi=_para_str(row["convenio_numero_sequencial_siafi"]),
-            unidade_executora=_para_str(row["unidade_executora"]),
-            convenio_codigo=_para_str(row["convenio_codigo"]),
+            unidade_orcamentaria_codigo=_para_str(row["cd_uo"]),
+            convenio_numero_sequencial_siafi=_para_str(row["nr_siafi"]),
+            unidade_executora=_para_str(row["cd_unidade_executora"]),
+            convenio_codigo=_para_str(row["nr_convenio"]),
         )
         for _, row in df.iterrows()
     ]
@@ -842,34 +847,24 @@ def carregar_controle_sei(silver_path: Path | None = None) -> dict:
     """
     Full refresh do model ControleSEI a partir do Silver controle_sei.parquet.
 
-    Deduplicação: 8 SIAFIs possuem 2 SEIs na planilha original; mantemos o primeiro
-    encontrado por SIAFI para evitar fan-out na aba Convênios.
+    TODAS as linhas entram (hoje 2.834). Antes a carga mantinha só o 1º SEI por
+    SIAFI e apagava 334 linhas (326 sem SIAFI + 8 SIAFIs com 2 processos). A
+    escolha de "um SEI por SIAFI" para a aba Convênios agora é feita na
+    consulta (apps/sigcon/services.py::enrich_convenios_page), não na carga.
 
     Mapeamento de colunas (Parquet → model):
-      no_siafi_(sigcon)   → no_siafi_sigcon   (parênteses removidos)
-      no_proposta_(siconv) → no_proposta_siconv (parênteses removidos)
+      nr_sei             → no_sei
+      nr_siafi           → no_siafi_sigcon
+      nr_proposta_siconv → no_proposta_siconv
     """
     caminho = silver_path or _silver_path("controle_sei")
     df = _ler_parquet(caminho)
 
-    # Normaliza chave SIAFI (remove artefato ".0")
-    _normalizar_chave(df, ["no_siafi_(sigcon)"])
-
-    # Deduplicação por SIAFI: mantém 1 registro por número SIAFI
-    n_antes = len(df)
-    df = df.drop_duplicates(subset=["no_siafi_(sigcon)"], keep="first")
-    n_duplicatas = n_antes - len(df)
-    if n_duplicatas:
-        logger.warning(
-            "ControleSEI: %d registros removidos por SIAFI duplicado (mantido 1º por SIAFI)",
-            n_duplicatas,
-        )
-
     objetos = [
         ControleSEI(
-            no_sei=_para_str(row["no_sei"]),
-            no_siafi_sigcon=_para_str(row["no_siafi_(sigcon)"]),
-            no_proposta_siconv=_para_str(row["no_proposta_(siconv)"]),
+            no_sei=_para_str(row["nr_sei"]),
+            no_siafi_sigcon=_para_str(row["nr_siafi"]),
+            no_proposta_siconv=_para_str(row["nr_proposta_siconv"]),
         )
         for _, row in df.iterrows()
     ]

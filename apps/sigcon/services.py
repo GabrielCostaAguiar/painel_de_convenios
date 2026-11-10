@@ -126,10 +126,14 @@ def enrich_convenios_page(page_items: list) -> dict:
         for r in rows
     }
 
+    # O banco guarda todas as linhas do Controle SEI (um SIAFI pode ter mais de
+    # um processo). A aba mostra UM por SIAFI: o primeiro carregado.
     sei_rows = ControleSEI.objects.filter(
         no_siafi_sigcon__in=siafis,
-    ).values("no_siafi_sigcon", "no_sei")
-    sei_map = {r["no_siafi_sigcon"]: r["no_sei"] for r in sei_rows}
+    ).order_by("pk").values("no_siafi_sigcon", "no_sei")
+    sei_map: dict = {}
+    for r in sei_rows:
+        sei_map.setdefault(r["no_siafi_sigcon"], r["no_sei"])
 
     siafi_uos = [
         (c.convenio_numero_sequencial_siafi or "") + (c.unidade_orcamentaria_codigo or "")
@@ -215,7 +219,10 @@ def get_cronograma_qs(
     from apps.sigcon.models import Convenio, CronogramaDesembolso
 
     context = {}
-    qs = CronogramaDesembolso.objects.all()
+    # Linhas marcadas pelo motor Silver (bloco desalinhado do relatório do BO,
+    # sem plano de trabalho) estão no banco, mas não entram nas telas, nos
+    # exports nem nas somas.
+    qs = CronogramaDesembolso.objects.filter(ds_alerta_linha__isnull=True)
 
     if cod_sigcon:
         conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()

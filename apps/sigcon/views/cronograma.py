@@ -22,6 +22,7 @@ def cronograma(request):
 
     anos = (
         CronogramaDesembolso.objects
+        .filter(ds_alerta_linha__isnull=True)
         .exclude(ano_cronograma_desembolso=None)
         .exclude(ano_cronograma_desembolso="")
         .values_list("ano_cronograma_desembolso", flat=True)

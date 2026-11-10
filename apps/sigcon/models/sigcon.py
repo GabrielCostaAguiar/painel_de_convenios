@@ -295,6 +295,15 @@ class CronogramaDesembolso(models.Model):
         "Ano", max_length=10, null=True, blank=True,
     )
 
+    # --- marcação do motor Silver ---
+    # Nenhuma linha do export é excluída. O relatório do BO traz blocos
+    # desalinhados (sem plano de trabalho): ficam aqui, marcados com o motivo
+    # (ex.: "chave_obrigatoria_vazia:plano_trabalho_codigo"), e as telas e
+    # somas filtram `ds_alerta_linha__isnull=True`.
+    ds_alerta_linha = models.CharField(
+        "Alerta da linha", max_length=255, null=True, blank=True,
+    )
+
     # --- controle de carga ---
     atualizado_em = models.DateTimeField("Atualizado em", auto_now=True)
 
