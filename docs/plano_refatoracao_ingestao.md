@@ -284,6 +284,44 @@ contagens esperadas (ex.: 29.992 linhas em sigcon_cronograma_desembolso,
 ~1.878 chaves em depara_siafi, 4 valores distintos em sigcon_concedente.ds_esfera)
 e rodar os testes V1-V16 da especificação.
 
+## Fase 5 — executada
+
+Excluídos, exatamente os itens já previstos na seção 2 (nenhum achado novo):
+
+- `core/transform/schemas/dcgce_chave.yaml`
+- `core/transform/schemas/dcgce_convenios.yaml`
+- `core/transform/schemas/dcgce_plano.trabalho.yaml`
+- `core/transform/schemas/dcgce_termo.aditivo.yaml`
+- `core/transform/schemas/dcgce_unidades.executoras.yaml`
+- `core/transform/convenios.py`
+- `core/transform/mapa_grp_instrumento.py`
+
+Confirmado antes de excluir: nenhum teste em `tests/` ou `apps/*/tests/`
+referenciava qualquer um dos 7 itens; nenhuma `FonteDados` ativa ou
+comentada em `sources.py` apontava para eles.
+
+**Efeito colateral documentado, não corrigido (fora de escopo — `apps/`):**
+`apps/sigcon/management/commands/rodar_transformacao.py` importa
+`core.transform.convenios` em nível de módulo. Esse comando já era
+legado/morto na prática — `CLAUDE.md` o marca como "legacy, do not use", e
+ele só aceitava a fonte `"convenios"`, que não existe em `FONTES` desde a
+Fase 3 (então rodá-lo já terminava em erro antes desta fase, só que em
+tempo de execução). Depois da exclusão, `python manage.py
+rodar_transformacao convenios` passa a falhar com `ImportError` no
+carregamento do comando, em vez de `FileNotFoundError`/erro de fonte
+inexistente em tempo de execução — mesmo resultado prático (comando
+inutilizável), só muda onde quebra. `apps/sigcon/management/commands/
+carregar_silver.py` (também legado, lê de um layout de Silver que não
+existe mais — `data/silver/<fonte>/<fonte>_silver_*.csv` em vez de
+`data/silver/<fonte>.parquet`) não importa nada que foi excluído, então
+continua do mesmo jeito que já estava: inutilizável, mas sem erro de
+import. Vai para o mapa de impacto da Fase 7.
+
+Regressão: suíte completa idêntica ao baseline pré-Fase-5 (641 passed, 1
+failed pré-existente, 1 skipped, 130 errors pré-existentes de Postgres —
+zero diferença linha a linha no conjunto de FAILED/ERROR). Hash SHA-256
+das 22 Parquets do GRP: 22/22 idênticos ao baseline.
+
 ## Resumo para o checkpoint
 
 - [x] Motor do GRP mapeado (`silver.py`, `utils.py`, `chaves.py`, `readers.py`, `bronze.py`)
