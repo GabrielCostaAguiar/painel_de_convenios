@@ -227,3 +227,31 @@ fora do escopo desta tarefa — registrada no mapa de impacto da Fase 7.
   ao baseline pré-Fase-6 (mesmo 1 failed e mesmo conjunto de errors,
   todos pré-existentes e fora do escopo desta tarefa: `test_rotas_smoke`
   e `django.db.utils.ProgrammingError` do Postgres de teste).
+
+## 7. Correção posterior à Fase 6 — datas ISO (Fase 8, etapa 0.1)
+
+A conferência da Fase 8 encontrou um bug que esta validação não pegou: as
+fontes legadas vindas de Excel entregam datas em ISO (`2003-02-14 00:00:00`) e
+o motor as lia com `pd.to_datetime(..., dayfirst=True)`. No pandas 3.0.3 o
+formato é inferido pela **primeira** data da coluna; quando ela tem dia ≤ 12,
+a coluna inteira é lida como `aaaa-dd-mm`. Efeito medido no Bronze: de 109.935
+datas válidas, **32.062 viraram nulo (29,2%)** e **18.446 saíram com dia e mês
+trocados (16,8%)**, em 9 colunas (`sigcon_convenio_geral.dt_publicacao` e
+`dh_cadastramento`, `sigcon_declaracao_contrapartida.dt_emissao` e
+`dh_emissao`, `sigcon_plano_trabalho.dh_cadastro`/`dh_envio_sccg`/
+`dh_cancelamento_sccg`, `sigcon_prorrogacao_oficio.dt_envio`/`dt_parecer`).
+O GRP e o SICONV não foram afetados (datas em `dd/mm/aaaa`).
+
+Correção: `core/transform/silver.py::_converter_datas` decide o formato por
+valor (ISO → `format="ISO8601"`; o resto → `dayfirst=True`). Verificação:
+- GRP: 22/22 hashes idênticos à linha de base.
+- 24 colunas ISO comparadas com o texto do Bronze: 0 diferenças.
+- Comparação com a Silver antiga (`dcgce_*`, que estava correta): 0
+  diferenças nas 11 colunas de data que a antiga cobre.
+
+**V10 refeito:** o resultado "1.408/1.408 e 2.894/2.894 (100%)" da seção 3 era
+falso-positivo — as duas colunas estavam erradas do mesmo jeito. Depois da
+correção: `dh_emissao` = `dt_emissao` em 3.956/3.956 linhas com as duas
+preenchidas (das 3.957; 1 linha sem data), e `dh_parecer_aprovacao` =
+`dt_parecer_aprovacao` em 2.894/2.894. Agora é uma conclusão válida: as colunas
+"R" da declaração são de fato redundantes.

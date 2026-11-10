@@ -665,3 +665,76 @@ class TestDesdobrar:
 
         resultado = transformar_fonte_completo("fonte_teste", bronze_path=fonte_teste)
         assert resultado["desdobrado"] is None
+
+
+class TestDatasIso:
+    """Datas ISO (Excel) não podem ser lidas como aaaa-dd-mm — o formato é
+    decidido por valor, não pela primeira linha da coluna."""
+
+    @staticmethod
+    def _rodar(tmp_path, monkeypatch, nome, tipo, linhas):
+        schema = {
+            "fonte": nome,
+            "colunas": {tipo: ["col_data"]},
+            "renomear": {"col_data": "dt_x", "col_outro": "cd_outro"},
+        }
+        csv = _criar_fonte(
+            tmp_path, monkeypatch, nome, schema,
+            "col_data,col_outro\n" + "\n".join(f"{v},a{i}" for i, v in enumerate(linhas)) + "\n",
+        )
+        from core.transform.silver import transformar_fonte
+
+        return transformar_fonte(nome, bronze_path=csv)["dt_x"]
+
+    def test_iso_primeira_data_com_dia_menor_que_13(self, tmp_path, monkeypatch):
+        s = self._rodar(
+            tmp_path, monkeypatch, "iso_a", "data",
+            ["2001-11-01 00:00:00", "2003-02-14 00:00:00", "2005-12-02 00:00:00"],
+        )
+        assert list(s) == [
+            pd.Timestamp("2001-11-01"), pd.Timestamp("2003-02-14"), pd.Timestamp("2005-12-02"),
+        ]
+
+    def test_iso_primeira_data_com_dia_maior_que_12(self, tmp_path, monkeypatch):
+        s = self._rodar(
+            tmp_path, monkeypatch, "iso_b", "data",
+            ["2003-02-14 00:00:00", "2001-11-01 00:00:00"],
+        )
+        assert list(s) == [pd.Timestamp("2003-02-14"), pd.Timestamp("2001-11-01")]
+
+    def test_coluna_br_continua_dayfirst(self, tmp_path, monkeypatch):
+        s = self._rodar(tmp_path, monkeypatch, "br_a", "data", ["05/03/2026", "25/03/2026"])
+        assert list(s) == [pd.Timestamp("2026-03-05"), pd.Timestamp("2026-03-25")]
+
+    def test_coluna_mista_iso_e_br(self, tmp_path, monkeypatch):
+        s = self._rodar(
+            tmp_path, monkeypatch, "misto", "data",
+            ["2001-11-01 00:00:00", "05/03/2026", "2003-02-14 00:00:00"],
+        )
+        assert list(s) == [
+            pd.Timestamp("2001-11-01"), pd.Timestamp("2026-03-05"), pd.Timestamp("2003-02-14"),
+        ]
+
+    def test_iso_com_vazio_mantem_nat(self, tmp_path, monkeypatch):
+        s = self._rodar(
+            tmp_path, monkeypatch, "iso_vazio", "data",
+            ["2001-11-01 00:00:00", "", "2003-02-14 00:00:00"],
+        )
+        assert s.iloc[0] == pd.Timestamp("2001-11-01")
+        assert pd.isna(s.iloc[1])
+        assert s.iloc[2] == pd.Timestamp("2003-02-14")
+
+    def test_data_hora_iso_preserva_a_hora(self, tmp_path, monkeypatch):
+        s = self._rodar(
+            tmp_path, monkeypatch, "iso_hora", "data_hora",
+            ["2011-01-06 05:54:58", "2008-12-01 11:40:30"],
+        )
+        assert list(s) == [pd.Timestamp("2011-01-06 05:54:58"), pd.Timestamp("2008-12-01 11:40:30")]
+
+    def test_data_iso_zera_a_hora(self, tmp_path, monkeypatch):
+        s = self._rodar(tmp_path, monkeypatch, "iso_zera", "data", ["2011-01-06 05:54:58"])
+        assert s.iloc[0] == pd.Timestamp("2011-01-06")
+
+    def test_dtype_continua_datetime64_us(self, tmp_path, monkeypatch):
+        s = self._rodar(tmp_path, monkeypatch, "iso_dtype", "data", ["2001-11-01 00:00:00"])
+        assert str(s.dtype) == "datetime64[us]"

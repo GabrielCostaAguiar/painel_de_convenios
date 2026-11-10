@@ -18,6 +18,8 @@ Pipeline (transformar_fonte / _transformar):
      pré-renomear — mesma convenção do bloco 'colunas'):
        data          → datetime64[us], hora zerada (errors="coerce" → NaT)
        data_hora     → datetime64[us], mantém a hora (errors="coerce" → NaT)
+                       (ambos decidem o formato por valor: ISO `aaaa-mm-dd`
+                       ou dd/mm/aaaa — ver _converter_datas)
        valor         → float64              (errors="coerce" → NaN)
        inteiro       → Int64                (errors="raise"; sentinelas → <NA>)
        identificador → StringDtype nullable (strip + remoção de artefato ".0")
@@ -118,6 +120,33 @@ def _para_numero(val: str) -> str:
     if val.count(".") > 1:
         return val.replace(".", "")
     return val
+
+
+_RE_DATA_ISO = r"^\d{4}-\d{2}-\d{2}"
+
+
+def _converter_datas(serie: pd.Series) -> pd.Series:
+    """
+    Converte texto em datetime64[us], decidindo o formato POR VALOR.
+
+    O pandas infere o formato da coluna inteira pela primeira data não-nula:
+    com `dayfirst=True`, uma coluna ISO (`2003-02-14 00:00:00`, que é como o
+    Excel exporta) cuja primeira data tem dia <= 12 vira `%Y-%d-%m` — dias <= 12
+    saem com dia e mês trocados e dias > 12 viram NaT. Por isso valores ISO
+    usam `format="ISO8601"` e o restante segue em `dayfirst=True` (dd/mm/aaaa,
+    formato do GRP e do SICONV). Coluna sem nenhum valor ISO passa pela mesma
+    chamada de antes, o que mantém a saída do GRP idêntica.
+    """
+    iso = serie.str.strip().str.match(_RE_DATA_ISO, na=False)
+    if not iso.any():
+        return pd.to_datetime(serie, errors="coerce", dayfirst=True)
+    if iso.all():
+        convertida = pd.to_datetime(serie, errors="coerce", format="ISO8601")
+    else:
+        parte_iso = pd.to_datetime(serie.where(iso), errors="coerce", format="ISO8601")
+        parte_br = pd.to_datetime(serie.where(~iso), errors="coerce", dayfirst=True)
+        convertida = parte_iso.fillna(parte_br)
+    return convertida.astype("datetime64[us]")
 
 
 def _bronze_mais_recente(nome_fonte: str) -> Path:
@@ -418,7 +447,7 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
         if col not in df.columns:
             logger.warning("  Coluna data '%s' ausente no Bronze de '%s'", col, nome)
             continue
-        convertida = pd.to_datetime(df[col], errors="coerce", dayfirst=True).dt.normalize()
+        convertida = _converter_datas(df[col]).dt.normalize()
         logger.info("  %-45s  NaT: %d", col, convertida.isna().sum())
         df[col] = convertida
 
@@ -428,7 +457,7 @@ def _transformar(nome: str, bronze_path: Path | None = None) -> dict:
         if col not in df.columns:
             logger.warning("  Coluna data_hora '%s' ausente no Bronze de '%s'", col, nome)
             continue
-        convertida = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
+        convertida = _converter_datas(df[col])
         logger.info("  %-45s  NaT: %d", col, convertida.isna().sum())
         df[col] = convertida
 
