@@ -2,50 +2,49 @@
 Sub-aba Cronograma de Desembolso.
 """
 
-from django.core.paginator import Paginator
-from django.shortcuts import render
+from apps.sigcon.services import anexar_convenio_por_plano, get_cronograma_qs
 
-from apps.sigcon.models import CronogramaDesembolso
-from apps.sigcon.services import get_cronograma_qs
-from core.web import paginas_visiveis
+from ._filtros import sigcon_render
+
+COLUNAS = [
+    "Código SIAFI",
+    "Código SIGCON",
+    "Código Plano de Trabalho",
+    "Mês",
+    "Ano",
+    "Valor Concedente R$",
+    "Valor Proponente R$",
+]
+CAMPOS = [
+    "nr_siafi_ext",            # carimbado por anexar_convenio_por_plano
+    "nr_convenio_ext",
+    "cd_plano_trabalho",
+    "nr_mes_desembolso",
+    "nr_ano_desembolso",
+    "vl_desembolso_concedente",
+    "vl_desembolso_proponente",
+]
+LARGURAS = [150, 150, 150, 80, 90, 200, 200]
+NOME_EXPORT = "cronograma_desembolso"
+
+
+def consulta(request):
+    qs, _ = get_cronograma_qs(
+        nr_convenio=request.GET.get("cod_sigcon") or None,
+        nr_siafi=request.GET.get("cod_siafi") or None,
+        plano=request.GET.get("plano") or None,
+    )
+    return qs, anexar_convenio_por_plano
+
 
 def cronograma(request):
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    plano      = request.GET.get("plano", "")
-
-    qs, ctx = get_cronograma_qs(
-        cod_sigcon=cod_sigcon or None,
-        cod_siafi=cod_siafi or None,
-        plano=plano or None,
+    qs, preparar = consulta(request)
+    return sigcon_render(
+        request, qs,
+        colunas=COLUNAS,
+        campos=CAMPOS,
+        titulo="Cronograma de Desembolso",
+        secao_sub="cronograma",
+        larguras=LARGURAS,
+        preparar=preparar,
     )
-
-    anos = (
-        CronogramaDesembolso.objects
-        .filter(ds_alerta_linha__isnull=True)
-        .exclude(ano_cronograma_desembolso=None)
-        .exclude(ano_cronograma_desembolso="")
-        .values_list("ano_cronograma_desembolso", flat=True)
-        .distinct()
-        .order_by("-ano_cronograma_desembolso")
-    )
-
-    paginator = Paginator(qs, 25)
-    page_obj  = paginator.get_page(request.GET.get("page", 1))
-
-    params = request.GET.copy()
-    params.pop("page", None)
-    querystring = params.urlencode()
-
-    return render(request, "sigcon/cronograma.html", {
-        "page_obj":       page_obj,
-        "total":          paginator.count,
-        "anos":           anos,
-        "cod_sigcon_sel": cod_sigcon,
-        "cod_siafi_sel":  ctx.get("siafi", cod_siafi),
-        "plano_sel":      ctx.get("plano_trabalho_codigo", plano),
-        "querystring":    querystring,
-        "visible_pages":  paginas_visiveis(page_obj),
-        "secao_ativa":    "sigcon",
-        "secao_sub":      "cronograma",
-    })

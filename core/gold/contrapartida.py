@@ -153,13 +153,21 @@ def tipo_por_siafi_uo(siafi_uos: list[str] | None = None) -> dict[str, str]:
     siafi_uos : lista de chaves SIAFI_UO a resolver; None = todas.
     Retorna {siafi_uo: tipo_contrapartida}.
     """
-    from apps.sigcon.models import CodigoPlanoTrabalho, PlanoTrabalho
+    from django.db.models import F
 
-    planos_qs = PlanoTrabalho.objects.values(
-        "plano_trabalho_codigo",
-        "plano_trabalho_caracteristica",
-    )
-    bridge_qs = CodigoPlanoTrabalho.objects.values(
+    from apps.sigcon.models import SigconChavePlanoTrabalho, SigconPlanoTrabalho
+
+    # _computar espera os nomes de coluna históricos; o alias é feito aqui, no
+    # limite com o ORM, para a função pura e seus testes não mudarem.
+    planos_qs = SigconPlanoTrabalho.objects.annotate(
+        plano_trabalho_codigo=F("cd_plano_trabalho"),
+        plano_trabalho_caracteristica=F("ds_caracteristica_contrapartida"),
+    ).values("plano_trabalho_codigo", "plano_trabalho_caracteristica")
+    bridge_qs = SigconChavePlanoTrabalho.objects.annotate(
+        conveno_codigo_plano_trabalho=F("cd_plano_trabalho"),
+        convenio_numero_sequencial_siafi=F("nr_siafi"),
+        unidade_orcamentaria_codigo=F("cd_uo"),
+    ).values(
         "conveno_codigo_plano_trabalho",
         "convenio_numero_sequencial_siafi",
         "unidade_orcamentaria_codigo",
@@ -167,8 +175,8 @@ def tipo_por_siafi_uo(siafi_uos: list[str] | None = None) -> dict[str, str]:
 
     if not planos_qs.exists() or not bridge_qs.exists():
         logger.warning(
-            "Contrapartida: PlanoTrabalho ou CodigoPlanoTrabalho vazio — "
-            "rode carregar_plano_trabalho e carregar_codigo_plano_trabalho."
+            "Contrapartida: SigconPlanoTrabalho ou SigconChavePlanoTrabalho vazio — "
+            "rode carregar_fonte sigcon_plano_trabalho e sigcon_chave_plano_trabalho."
         )
         return {}
 

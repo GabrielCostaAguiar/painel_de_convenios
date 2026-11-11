@@ -2,31 +2,31 @@
 Sub-aba Unidades Executoras.
 """
 
-from django.core.paginator import Paginator
-from django.shortcuts import render
-
 from apps.sigcon.services import get_unidades_executoras_qs
-from core.web import paginas_visiveis
+
+from ._filtros import sigcon_render
+
+COLUNAS = ["Código SIGCON", "Código SIAFI", "Cód. UO", "Unidade Executora"]
+CAMPOS = ["nr_convenio", "nr_siafi", "cd_uo", "cd_unidade_executora"]
+LARGURAS = [200, 150, 120, 300]
+NOME_EXPORT = "unidades_executoras"
+
+
+def consulta(request):
+    qs, _ = get_unidades_executoras_qs(
+        request.GET.get("cod_sigcon") or None, request.GET.get("cod_siafi") or None,
+    )
+    return qs, None
+
 
 def unidades_executoras(request):
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, _ = get_unidades_executoras_qs(cod_sigcon or None, cod_siafi or None)
-
-    paginator = Paginator(qs, 25)
-    page_obj  = paginator.get_page(request.GET.get("page", 1))
-
-    params = request.GET.copy()
-    params.pop("page", None)
-    querystring = params.urlencode()
-
-    return render(request, "sigcon/unidades_executoras.html", {
-        "page_obj":       page_obj,
-        "total":          paginator.count,
-        "cod_sigcon_sel": cod_sigcon,
-        "cod_siafi_sel":  cod_siafi,
-        "querystring":    querystring,
-        "visible_pages":  paginas_visiveis(page_obj),
-        "secao_ativa":    "sigcon",
-        "secao_sub":      "unidades_executoras",
-    })
+    qs, preparar = consulta(request)
+    return sigcon_render(
+        request, qs,
+        colunas=COLUNAS,
+        campos=CAMPOS,
+        titulo="Unidades Executoras",
+        secao_sub="unidades_executoras",
+        larguras=LARGURAS,
+        preparar=preparar,
+    )

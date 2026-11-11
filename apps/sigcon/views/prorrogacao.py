@@ -2,32 +2,50 @@
 Sub-aba Prorrogacao de Oficio.
 """
 
-from django.core.paginator import Paginator
-from django.shortcuts import render
+from apps.sigcon.services import anexar_convenio_por_sequencial, get_prorrogacao_qs
 
-from apps.sigcon.services import get_prorrogacao_qs
-from core.web import paginas_visiveis
+from ._filtros import sigcon_render
+
+COLUNAS = [
+    "Código SIGCON",
+    "Código Plano de Trabalho",
+    "Código Prorrogação de Ofício",
+    "Data de Publicação",
+    "Data Vigência Prorrogada",
+]
+CAMPOS = [
+    "nr_convenio_ext",         # carimbado por preparar
+    "cd_plano_trabalho_ext",
+    "cd_prorrogacao_oficio",
+    "dt_publicacao",
+    "dt_vigencia_termino",
+]
+LARGURAS = [160, 170, 200, 150, 170]
+NOME_EXPORT = "prorrogacao_oficio"
+
+
+def consulta(request):
+    qs, ctx = get_prorrogacao_qs(
+        request.GET.get("cod_sigcon") or None, request.GET.get("cod_siafi") or None,
+    )
+    plano = ctx.get("cd_plano_trabalho", "")
+
+    def preparar(objetos):
+        anexar_convenio_por_sequencial(objetos)
+        for obj in objetos:
+            obj.cd_plano_trabalho_ext = plano
+
+    return qs, preparar
+
 
 def prorrogacao(request):
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_prorrogacao_qs(cod_sigcon or None, cod_siafi or None)
-
-    paginator = Paginator(qs, 25)
-    page_obj  = paginator.get_page(request.GET.get("page", 1))
-
-    params = request.GET.copy()
-    params.pop("page", None)
-    querystring = params.urlencode()
-
-    return render(request, "sigcon/prorrogacao.html", {
-        "page_obj":         page_obj,
-        "total":            paginator.count,
-        "cod_sigcon_sel":   cod_sigcon,
-        "cod_siafi_sel":    cod_siafi,
-        "plano_sel":        ctx.get("plano_trabalho_codigo", ""),
-        "querystring":      querystring,
-        "visible_pages":    paginas_visiveis(page_obj),
-        "secao_ativa":      "sigcon",
-        "secao_sub":        "prorrogacao",
-    })
+    qs, preparar = consulta(request)
+    return sigcon_render(
+        request, qs,
+        colunas=COLUNAS,
+        campos=CAMPOS,
+        titulo="Prorrogação de Ofício",
+        secao_sub="prorrogacao",
+        larguras=LARGURAS,
+        preparar=preparar,
+    )

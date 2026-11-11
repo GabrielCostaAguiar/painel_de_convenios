@@ -1,405 +1,82 @@
 """
 Views de export CSV/XLSX das abas de Consultas SIGCON.
 
-Cada export usa a mesma função de serviço da tela correspondente, para que o
-arquivo baixado tenha exatamente as linhas — e na mesma ordem — que o usuário
-está vendo.
+Cada export usa a mesma consulta, as mesmas colunas e os mesmos campos da tela
+correspondente (módulo da sub-aba), para que o arquivo baixado tenha exatamente
+as linhas — e na mesma ordem — que o usuário está vendo.
 
 Atenção: core.export.xlsx não pode importar pandas/numpy (erro de OpenBLAS com
 múltiplos workers em produção) — não introduza esse import neste caminho.
 """
 
-import csv
+from importlib import import_module
 
-from apps.sigcon.services import (
-    enrich_convenios_page,
-    get_cronograma_qs,
-    get_plano_aplicacao_qs,
-    get_prorrogacao_qs,
-    get_sigcon_qs,
-    get_termos_aditivos_qs,
-    get_unidades_executoras_qs,
-)
-from core.export.xlsx import exportar_xlsx
-from core.web import resposta_csv
+from ._filtros import sigcon_exportar
 
-from ._filtros import ler_filtros_sigcon
+# import_module, e não `from . import cronograma`: views/__init__.py reexporta a
+# FUNÇÃO `cronograma` (e `prorrogacao`, ...), que oculta o módulo de mesmo nome
+# no atributo do pacote.
+convenios = import_module("apps.sigcon.views.convenios")
+cronograma = import_module("apps.sigcon.views.cronograma")
+plano_aplicacao = import_module("apps.sigcon.views.plano_aplicacao")
+prorrogacao = import_module("apps.sigcon.views.prorrogacao")
+termo_aditivo = import_module("apps.sigcon.views.termo_aditivo")
+unidades_executoras = import_module("apps.sigcon.views.unidades_executoras")
+
+
+def _exportar(request, modulo, nome, formato):
+    resultado = modulo.consulta(request)
+    # convenios.consulta devolve só o queryset; as demais, (queryset, preparar)
+    if isinstance(resultado, tuple):
+        qs, preparar = resultado
+    else:
+        qs, preparar = resultado, getattr(modulo, "preparar", None)
+    return sigcon_exportar(qs, modulo.COLUNAS, modulo.CAMPOS, nome, formato, preparar)
 
 
 def sigcon_export_csv(request):
-    """Exporta para CSV os Convenio que respeitam os mesmos filtros da tela."""
-    filtros = ler_filtros_sigcon(request.GET)
-    qs = get_sigcon_qs(filtros).order_by("convenio_codigo")
+    return _exportar(request, convenios, "convenios", "csv")
 
-    items = list(qs)
-    enrichment = enrich_convenios_page(items)
-
-    response = resposta_csv("convenios")
-
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow([
-        "Unidade Orçamentária", "Código SIGCON", "Código União", "Código Plano de Trabalho",
-        "Código SIAFI", "SEI", "Instrumento", "Título", "Proponente", "Concedente",
-        "Esfera Concedente", "Objeto", "Situação", "Tipo de Contrapartida",
-        "Data de Assinatura", "Data de Publicação", "Início vigência", "Término vigência",
-        "Valor proponente", "Valor concedente", "Valor total do Convênio",
-        "Fim da vigência Inicial",
-    ])
-    for conv in items:
-        extra = enrichment.get(conv.pk, {})
-        writer.writerow([
-            conv.unidade_orcamentaria_codigo or "",
-            conv.convenio_codigo,
-            extra.get("codigo_siconv", "—"),
-            conv.plano_trabalho_codigo or "",
-            conv.convenio_numero_sequencial_siafi or "",
-            extra.get("no_sei", "—"),
-            conv.instrumento or "",
-            conv.titulo or "",
-            extra.get("proponente", "—"),
-            conv.concedente or "",
-            conv.esfera or "",
-            conv.objeto or "",
-            conv.situacao or "",
-            extra.get("tipo_contrapartida", "—"),
-            conv.data_assinatura.isoformat() if conv.data_assinatura else "",
-            conv.data_publicacao.isoformat() if conv.data_publicacao else "",
-            conv.data_inicio_vigencia.isoformat() if conv.data_inicio_vigencia else "",
-            conv.data_termino_vigencia.isoformat() if conv.data_termino_vigencia else "",
-            conv.valor_proponente if conv.valor_proponente is not None else "",
-            conv.valor_concedente if conv.valor_concedente is not None else "",
-            conv.valor_total_convenio if conv.valor_total_convenio is not None else "",
-            extra.get("fim_vigencia_inicial") or "",
-        ])
-
-    return response
-
-_COLUNAS_SIGCON_XLSX = [
-    "Unidade Orçamentária", "Código SIGCON", "Código União", "Código Plano de Trabalho",
-    "Código SIAFI", "SEI", "Instrumento", "Título", "Proponente", "Concedente",
-    "Esfera Concedente", "Objeto", "Situação", "Tipo de Contrapartida",
-    "Data de Assinatura", "Data de Publicação", "Início vigência", "Término vigência",
-    "Valor proponente", "Valor concedente", "Valor total do Convênio",
-    "Fim da vigência Inicial",
-]
 
 def sigcon_export_xlsx(request):
-    """Exporta para XLSX os Convenio que respeitam os mesmos filtros e ordem da tela."""
-    filtros = ler_filtros_sigcon(request.GET)
-    items = list(get_sigcon_qs(filtros))
-    enrichment = enrich_convenios_page(items)
+    return _exportar(request, convenios, "convenios", "xlsx")
 
-    linhas = [
-        [
-            conv.unidade_orcamentaria_codigo or "",
-            conv.convenio_codigo,
-            enrichment.get(conv.pk, {}).get("codigo_siconv", "—"),
-            conv.plano_trabalho_codigo or "",
-            conv.convenio_numero_sequencial_siafi or "",
-            enrichment.get(conv.pk, {}).get("no_sei", "—"),
-            conv.instrumento or "",
-            conv.titulo or "",
-            enrichment.get(conv.pk, {}).get("proponente", "—"),
-            conv.concedente or "",
-            conv.esfera or "",
-            conv.objeto or "",
-            conv.situacao or "",
-            enrichment.get(conv.pk, {}).get("tipo_contrapartida", "—"),
-            conv.data_assinatura,
-            conv.data_publicacao,
-            conv.data_inicio_vigencia,
-            conv.data_termino_vigencia,
-            conv.valor_proponente,
-            conv.valor_concedente,
-            conv.valor_total_convenio,
-            enrichment.get(conv.pk, {}).get("fim_vigencia_inicial"),
-        ]
-        for conv in items
-    ]
-    return exportar_xlsx(linhas, _COLUNAS_SIGCON_XLSX, "convenios")
 
 def plano_aplicacao_export_csv(request):
-    """Exporta para CSV os mesmos registros e colunas exibidos na aba Plano de Aplicação."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_plano_aplicacao_qs(cod_sigcon or None, cod_siafi or None)
+    return _exportar(request, plano_aplicacao, plano_aplicacao.NOME_EXPORT, "csv")
 
-    siafi_sel = ctx.get("siafi", "")
-
-    response = resposta_csv("plano_aplicacao")
-
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow([
-        "Código SIAFI", "Código SIGCON", "Código Plano de Trabalho", "Ano Exercício",
-        "Dotação Orçamentária", "UO", "Identificador Orçamento", "Função", "Ação",
-        "Categ. Econôm. Despesa", "Grupo", "Modalidade Aplicação", "Fonte", "Fonte nova",
-        "Procedência", "Elemento Despesa", "Valor Concedente R$", "Valor Proponente R$",
-    ])
-    for pa in qs:
-        writer.writerow([
-            siafi_sel,
-            pa.convenio_codigo or "",
-            pa.codigo_plano_trabalho or "",
-            pa.ano_exercicio_programa_trabalho or "",
-            pa.funcional_programatica_formatado or "",
-            pa.codigo_unidade_orcamentaria or "",
-            pa.identificador_orcamento_codigo or "",
-            pa.funcao_codigo or "",
-            pa.identificador_projeto_atividade_codigo or "",
-            pa.categoria_economica_despesa_codigo or "",
-            pa.grupo_despesa_codigo or "",
-            pa.modalidade_aplicacao_codigo or "",
-            pa.fonte_recurso_codigo or "",
-            "— sem fonte —",
-            pa.procedencia_codigo or "",
-            pa.elemento_despesa_codigo or "",
-            pa.valor_concedente if pa.valor_concedente is not None else "",
-            pa.valor_proponente if pa.valor_proponente is not None else "",
-        ])
-
-    return response
 
 def plano_aplicacao_export_xlsx(request):
-    """Exporta para XLSX os mesmos registros e colunas exibidos na aba Plano de Aplicação."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_plano_aplicacao_qs(cod_sigcon or None, cod_siafi or None)
+    return _exportar(request, plano_aplicacao, plano_aplicacao.NOME_EXPORT, "xlsx")
 
-    siafi_sel = ctx.get("siafi", "")
-    colunas = [
-        "Código SIAFI", "Código SIGCON", "Código Plano de Trabalho", "Ano Exercício",
-        "Dotação Orçamentária", "UO", "Identificador Orçamento", "Função", "Ação",
-        "Categ. Econôm. Despesa", "Grupo", "Modalidade Aplicação", "Fonte", "Fonte nova",
-        "Procedência", "Elemento Despesa", "Valor Concedente R$", "Valor Proponente R$",
-    ]
-    linhas = [
-        [
-            siafi_sel,
-            pa.convenio_codigo or "",
-            pa.codigo_plano_trabalho or "",
-            pa.ano_exercicio_programa_trabalho or "",
-            pa.funcional_programatica_formatado or "",
-            pa.codigo_unidade_orcamentaria or "",
-            pa.identificador_orcamento_codigo or "",
-            pa.funcao_codigo or "",
-            pa.identificador_projeto_atividade_codigo or "",
-            pa.categoria_economica_despesa_codigo or "",
-            pa.grupo_despesa_codigo or "",
-            pa.modalidade_aplicacao_codigo or "",
-            pa.fonte_recurso_codigo or "",
-            "— sem fonte —",
-            pa.procedencia_codigo or "",
-            pa.elemento_despesa_codigo or "",
-            pa.valor_concedente,
-            pa.valor_proponente,
-        ]
-        for pa in qs
-    ]
-    return exportar_xlsx(linhas, colunas, "plano_aplicacao")
 
 def cronograma_export_csv(request):
-    """Exporta para CSV os mesmos registros e colunas exibidos na aba Cronograma de Desembolso."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    plano      = request.GET.get("plano", "")
+    return _exportar(request, cronograma, cronograma.NOME_EXPORT, "csv")
 
-    qs, _ = get_cronograma_qs(
-        cod_sigcon=cod_sigcon or None,
-        cod_siafi=cod_siafi or None,
-        plano=plano or None,
-    )
-
-    response = resposta_csv("cronograma_desembolso")
-
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow([
-        "Código SIAFI", "Código SIGCON", "Código Plano de Trabalho", "Mês", "Ano",
-        "Valor Concedente R$", "Valor Proponente R$",
-    ])
-    for item in qs:
-        writer.writerow([
-            item.convenio_numero_sequencial_siafi or "",
-            item.convenio_codigo or "",
-            item.plano_trabalho_codigo or "",
-            item.mes_cronograma_desembolso or "",
-            item.ano_cronograma_desembolso or "",
-            item.valor_concedente_cronograma_desembolso if item.valor_concedente_cronograma_desembolso is not None else "",
-            item.valor_proponente_cronograma_desembolso if item.valor_proponente_cronograma_desembolso is not None else "",
-        ])
-
-    return response
 
 def cronograma_export_xlsx(request):
-    """Exporta para XLSX os mesmos registros e colunas exibidos na aba Cronograma de Desembolso."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    plano      = request.GET.get("plano", "")
+    return _exportar(request, cronograma, cronograma.NOME_EXPORT, "xlsx")
 
-    qs, _ = get_cronograma_qs(
-        cod_sigcon=cod_sigcon or None,
-        cod_siafi=cod_siafi or None,
-        plano=plano or None,
-    )
-
-    colunas = [
-        "Código SIAFI", "Código SIGCON", "Código Plano de Trabalho", "Mês", "Ano",
-        "Valor Concedente R$", "Valor Proponente R$",
-    ]
-    linhas = [
-        [
-            item.convenio_numero_sequencial_siafi or "",
-            item.convenio_codigo or "",
-            item.plano_trabalho_codigo or "",
-            item.mes_cronograma_desembolso or "",
-            item.ano_cronograma_desembolso or "",
-            item.valor_concedente_cronograma_desembolso,
-            item.valor_proponente_cronograma_desembolso,
-        ]
-        for item in qs
-    ]
-    return exportar_xlsx(linhas, colunas, "cronograma_desembolso")
 
 def prorrogacao_export_csv(request):
-    """Exporta para CSV os mesmos registros e colunas exibidos na aba Prorrogação de Ofício."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_prorrogacao_qs(cod_sigcon or None, cod_siafi or None)
+    return _exportar(request, prorrogacao, prorrogacao.NOME_EXPORT, "csv")
 
-    plano_sel = ctx.get("plano_trabalho_codigo", "")
-
-    response = resposta_csv("prorrogacao_oficio")
-
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow([
-        "Código SIGCON", "Código Plano de Trabalho", "Código Prorrogação de Ofício",
-        "Data de Publicação", "Data Vigência Prorrogada",
-    ])
-    for po in qs:
-        writer.writerow([
-            po.prorrogacao_oficio_codigo_convenio or "",
-            plano_sel,
-            po.prorrogacao_oficio_codigo or "",
-            po.prorrogacao_oficio_data_publicacao.isoformat() if po.prorrogacao_oficio_data_publicacao else "",
-            po.prorrogacao_oficio_data_termino_vigencia.isoformat() if po.prorrogacao_oficio_data_termino_vigencia else "",
-        ])
-
-    return response
 
 def prorrogacao_export_xlsx(request):
-    """Exporta para XLSX os mesmos registros e colunas exibidos na aba Prorrogação de Ofício."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_prorrogacao_qs(cod_sigcon or None, cod_siafi or None)
+    return _exportar(request, prorrogacao, prorrogacao.NOME_EXPORT, "xlsx")
 
-    plano_sel = ctx.get("plano_trabalho_codigo", "")
-    colunas = [
-        "Código SIGCON", "Código Plano de Trabalho", "Código Prorrogação de Ofício",
-        "Data de Publicação", "Data Vigência Prorrogada",
-    ]
-    linhas = [
-        [
-            po.prorrogacao_oficio_codigo_convenio or "",
-            plano_sel,
-            po.prorrogacao_oficio_codigo or "",
-            po.prorrogacao_oficio_data_publicacao,
-            po.prorrogacao_oficio_data_termino_vigencia,
-        ]
-        for po in qs
-    ]
-    return exportar_xlsx(linhas, colunas, "prorrogacao_oficio")
 
 def termo_aditivo_export_csv(request):
-    """Exporta para CSV os mesmos registros e colunas exibidos na aba Termo Aditivo."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_termos_aditivos_qs(cod_sigcon or None, cod_siafi or None)
-    ta_pt_map = ctx.get("ta_pt_map", {})
+    return _exportar(request, termo_aditivo, termo_aditivo.NOME_EXPORT, "csv")
 
-    response = resposta_csv("termo_aditivo")
-
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow([
-        "Código SIGCON", "Código Plano de Trabalho", "Nº Termo Aditivo", "Tipo",
-        "Data Assinatura", "Data Término Vigência", "Justificativa",
-        "Valor Aditado Concedente R$", "Valor Aditado Proponente R$",
-    ])
-    for ta in qs:
-        writer.writerow([
-            cod_sigcon,
-            ta_pt_map.get(ta.termo_aditivo_codigo_sequencial, "—"),
-            ta.termo_aditivo_numero_termo_aditivo or "",
-            ta.termo_aditivo_tipo or ta.tipo_termo_aditivo or "",
-            ta.termo_aditivo_data_assinatura.isoformat() if ta.termo_aditivo_data_assinatura else "",
-            ta.termo_aditivo_data_termino_vigencia.isoformat() if ta.termo_aditivo_data_termino_vigencia else "",
-            ta.termo_aditivo_justificativa or "",
-            ta.valor_aditado_concedente_contratado if ta.valor_aditado_concedente_contratado is not None else "",
-            ta.valor_aditado_proponente_contratado if ta.valor_aditado_proponente_contratado is not None else "",
-        ])
-
-    return response
 
 def termo_aditivo_export_xlsx(request):
-    """Exporta para XLSX os mesmos registros e colunas exibidos na aba Termo Aditivo."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, ctx = get_termos_aditivos_qs(cod_sigcon or None, cod_siafi or None)
-    ta_pt_map = ctx.get("ta_pt_map", {})
+    return _exportar(request, termo_aditivo, termo_aditivo.NOME_EXPORT, "xlsx")
 
-    colunas = [
-        "Código SIGCON", "Código Plano de Trabalho", "Nº Termo Aditivo", "Tipo",
-        "Data Assinatura", "Data Término Vigência", "Justificativa",
-        "Valor Aditado Concedente R$", "Valor Aditado Proponente R$",
-    ]
-    linhas = [
-        [
-            cod_sigcon,
-            ta_pt_map.get(ta.termo_aditivo_codigo_sequencial, "—"),
-            ta.termo_aditivo_numero_termo_aditivo or "",
-            ta.termo_aditivo_tipo or ta.tipo_termo_aditivo or "",
-            ta.termo_aditivo_data_assinatura,
-            ta.termo_aditivo_data_termino_vigencia,
-            ta.termo_aditivo_justificativa or "",
-            ta.valor_aditado_concedente_contratado,
-            ta.valor_aditado_proponente_contratado,
-        ]
-        for ta in qs
-    ]
-    return exportar_xlsx(linhas, colunas, "termo_aditivo")
 
 def unidades_executoras_export_csv(request):
-    """Exporta para CSV os mesmos registros e colunas exibidos na aba Unidades Executoras."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, _ = get_unidades_executoras_qs(cod_sigcon or None, cod_siafi or None)
+    return _exportar(request, unidades_executoras, unidades_executoras.NOME_EXPORT, "csv")
 
-    response = resposta_csv("unidades_executoras")
-
-    writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Código SIGCON", "Código SIAFI", "Cód. UO", "Unidade Executora"])
-    for ue in qs:
-        writer.writerow([
-            ue.convenio_codigo or "",
-            ue.convenio_numero_sequencial_siafi or "",
-            ue.unidade_orcamentaria_codigo or "",
-            ue.unidade_executora or "",
-        ])
-
-    return response
 
 def unidades_executoras_export_xlsx(request):
-    """Exporta para XLSX os mesmos registros e colunas exibidos na aba Unidades Executoras."""
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    cod_siafi  = request.GET.get("cod_siafi", "")
-    qs, _ = get_unidades_executoras_qs(cod_sigcon or None, cod_siafi or None)
-
-    colunas = ["Código SIGCON", "Código SIAFI", "Cód. UO", "Unidade Executora"]
-    linhas = [
-        [
-            ue.convenio_codigo or "",
-            ue.convenio_numero_sequencial_siafi or "",
-            ue.unidade_orcamentaria_codigo or "",
-            ue.unidade_executora or "",
-        ]
-        for ue in qs
-    ]
-    return exportar_xlsx(linhas, colunas, "unidades_executoras")
+    return _exportar(request, unidades_executoras, unidades_executoras.NOME_EXPORT, "xlsx")

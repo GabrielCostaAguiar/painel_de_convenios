@@ -1,0 +1,80 @@
+<form method="get" action="{% url 'sigcon:sigcon' %}">
+<div class="panel filters">
+  <div class="filters-top">
+    <div class="ttl">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
+      Filtros da consulta
+    </div>
+    <div class="filters-actions">
+      <a href="{% url 'sigcon:sigcon' %}" class="btn ghost-danger">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Limpar filtros
+      </a>
+      <button type="submit" class="btn primary">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Aplicar
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-grid">
+    <div class="field">
+      <label for="f-ano">Ano de início da vigência</label>
+      <select id="f-ano" name="ano">
+        <option value="">Todos</option>
+        {% for v in anos %}{% if v %}<option value="{{ v }}"{% if ano_sel == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-situacao">Situação</label>
+      <select id="f-situacao" name="situacao">
+        <option value="">Todos</option>
+        {% for v in situacoes %}{% if v %}<option value="{{ v }}"{% if situacao_sel == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-cod_sigcon">Código SIGCON</label>
+      <input id="f-cod_sigcon" name="cod_sigcon" type="text" placeholder="ex.: CV 98/2020" value="{{ cod_sigcon_sel }}" autocomplete="off" list="lista-cod_sigcon">
+      <datalist id="lista-cod_sigcon">
+        {% for v in sigcons %}{% if v %}<option value="{{ v }}">{% endif %}{% endfor %}
+      </datalist>
+    </div>
+    <div class="field">
+      <label for="f-cod_siafi">Código SIAFI</label>
+      <input id="f-cod_siafi" name="cod_siafi" type="text" placeholder="ex.: 9032193" value="{{ cod_siafi_sel }}" autocomplete="off" list="lista-cod_siafi">
+      <datalist id="lista-cod_siafi">
+        {% for v in siafis %}{% if v %}<option value="{{ v }}">{% endif %}{% endfor %}
+      </datalist>
+    </div>
+    <div class="field">
+      <label for="f-instrumento">Instrumento</label>
+      <select id="f-instrumento" name="instrumento">
+        <option value="">Todos</option>
+        {% for v in instrumentos %}{% if v %}<option value="{{ v }}"{% if instrumento_sel == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-termo_aditivo">Termo aditivo</label>
+      <select id="f-termo_aditivo" name="termo_aditivo">
+        <option value="">Todos</option>
+        {% for v in termos_aditivo %}{% if v %}<option value="{{ v }}"{% if termo_aditivo_sel == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-concedente">Concedente</label>
+      <input id="f-concedente" name="concedente" type="text" placeholder="Parte do nome" value="{{ concedente_sel }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="f-proponente">Proponente (CNPJ)</label>
+      <input id="f-proponente" name="proponente" type="text" placeholder="Parte do CNPJ" value="{{ proponente_sel }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="f-tipo_contrapartida">Tipo de contrapartida</label>
+      <select id="f-tipo_contrapartida" name="tipo_contrapartida">
+        <option value="">Todos</option>
+        {% for v in tipos_contrapartida %}{% if v %}<option value="{{ v }}"{% if tipo_contrapartida_sel == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+</form>

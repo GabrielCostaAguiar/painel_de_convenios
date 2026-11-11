@@ -33,13 +33,13 @@ em "pk" — ver a nota nas constantes ORDENACAO_* abaixo.
 
 def get_anos_disponiveis() -> list[int]:
     """Lista de anos com convênios registrados, em ordem decrescente."""
-    from apps.sigcon.models import Convenio
+    from apps.sigcon.models import SigconConvenio
     from django.db.models.functions import ExtractYear
 
     return list(
-        Convenio.objects
-        .exclude(data_inicio_vigencia=None)
-        .annotate(ano=ExtractYear("data_inicio_vigencia"))
+        SigconConvenio.objects
+        .exclude(dt_vigencia_inicio=None)
+        .annotate(ano=ExtractYear("dt_vigencia_inicio"))
         .values_list("ano", flat=True)
         .distinct()
         .order_by("-ano")
@@ -47,40 +47,80 @@ def get_anos_disponiveis() -> list[int]:
 
 
 ORDENACAO_PLANO_APLICACAO = (
-    "convenio_numero_sequencial_siafi",
-    "convenio_codigo",
-    "ano_exercicio_programa_trabalho",
-    "funcional_programatica_formatado",
+    "cd_plano_trabalho",
+    "nr_ano_exercicio",
+    "cd_funcional_programatica",
     "pk",
 )
 
 ORDENACAO_CRONOGRAMA = (
-    "convenio_numero_sequencial_siafi",
-    "convenio_codigo",
-    "ano_cronograma_desembolso",
-    "mes_cronograma_desembolso",
+    "cd_plano_trabalho",
+    "nr_ano_desembolso",
+    "nr_mes_desembolso",
     "pk",
 )
 
 ORDENACAO_PRORROGACAO = (
-    "prorrogacao_oficio_codigo_convenio",
-    "prorrogacao_oficio_codigo",
+    "cd_convenio_sequencial",
+    "cd_prorrogacao_oficio",
     "pk",
 )
 
 ORDENACAO_TERMO_ADITIVO = (
-    "termo_aditivo_codigo_sequencial",
-    "termo_aditivo_numero_termo_aditivo",
+    "cd_termo_aditivo",
+    "nr_termo_aditivo",
     "pk",
 )
 
 ORDENACAO_UNIDADES_EXECUTORAS = (
-    "convenio_codigo",
-    "convenio_numero_sequencial_siafi",
-    "unidade_orcamentaria_codigo",
-    "unidade_executora",
+    "nr_convenio",
+    "nr_siafi",
+    "cd_uo",
+    "cd_unidade_executora",
     "pk",
 )
+
+
+# ---------------------------------------------------------------------------
+# Ligações entre as tabelas SIGCON (todas planas, sem ForeignKey)
+# ---------------------------------------------------------------------------
+# SigconConvenio.siafi_uo é a chave de ligação com as pontes sigcon_chave_*:
+#   SigconChaveConvenio       siafi_uo -> cd_convenio_sequencial
+#   SigconChavePlanoTrabalho  siafi_uo -> cd_plano_trabalho (plano original)
+#   SigconChaveTermoAditivo   siafi_uo -> cd_termo_aditivo + cd_plano_trabalho
+
+def _planos_dos_siafi_uo(siafi_uos) -> set:
+    """cd_plano_trabalho do plano original e dos planos dos aditivos dos siafi_uo dados."""
+    from apps.sigcon.models import SigconChavePlanoTrabalho, SigconChaveTermoAditivo
+
+    siafi_uos = [s for s in siafi_uos if s]
+    if not siafi_uos:
+        return set()
+    planos = set(
+        SigconChavePlanoTrabalho.objects.filter(siafi_uo__in=siafi_uos)
+        .values_list("cd_plano_trabalho", flat=True)
+    )
+    planos |= set(
+        SigconChaveTermoAditivo.objects.filter(siafi_uo__in=siafi_uos)
+        .values_list("cd_plano_trabalho", flat=True)
+    )
+    planos.discard(None)
+    planos.discard("")
+    return planos
+
+
+def _plano_original(siafi_uo: str | None) -> str:
+    """cd_plano_trabalho do plano original do convênio, ou '' se não houver."""
+    from apps.sigcon.models import SigconChavePlanoTrabalho
+
+    if not siafi_uo:
+        return ""
+    return (
+        SigconChavePlanoTrabalho.objects.filter(siafi_uo=siafi_uo)
+        .exclude(cd_plano_trabalho=None)
+        .values_list("cd_plano_trabalho", flat=True)
+        .first()
+    ) or ""
 
 
 # ---------------------------------------------------------------------------
@@ -89,349 +129,384 @@ ORDENACAO_UNIDADES_EXECUTORAS = (
 
 def enrich_convenios_page(page_items: list) -> dict:
     """
-    Enriquece uma página de objetos Convenio com campos de ConvenioIntegrado,
-    ControleSEI e tipo de contrapartida (Gold).
+    Enriquece uma lista de SigconConvenio com dados das tabelas ligadas pelo
+    siafi_uo: plano de trabalho original, convênio geral, concedente e tipo de
+    contrapartida (Gold).
 
     Retorna dict[pk_convenio → {
-        'codigo_siconv', 'proponente', 'fim_vigencia_inicial',
-        'no_sei', 'tipo_contrapartida'
+        'codigo_siconv', 'no_sei', 'proponente', 'fim_vigencia_inicial',
+        'tipo_contrapartida', 'plano_trabalho', 'instrumento', 'titulo',
+        'concedente', 'esfera', 'objeto', 'dt_assinatura', 'dt_publicacao'
     }].
 
-    Chaves de join:
-      ConvenioIntegrado:  (siafi, uo)  — chave composta
-      ControleSEI:        siafi puro   — NÃO siafi_uo
-      tipo_contrapartida: siafi_uo     — siafi + uo concatenados (sem separador)
+    O modelo SIGCON não traz SICONV nem Controle SEI (fontes de ondas futuras):
+    'codigo_siconv' e 'no_sei' saem como "—". 'proponente' é o CNPJ do proponente
+    do plano de trabalho original.
     """
-    from apps.sigcon.models import ControleSEI, ConvenioIntegrado
+    from apps.sigcon.models import (
+        SigconChaveConvenio,
+        SigconChavePlanoTrabalho,
+        SigconConcedente,
+        SigconConvenioGeral,
+        SigconPlanoTrabalho,
+    )
     from core.gold.contrapartida import tipo_por_siafi_uo
 
     if not page_items:
         return {}
 
-    siafis = [c.convenio_numero_sequencial_siafi for c in page_items if c.convenio_numero_sequencial_siafi]
-    if not siafis:
-        return {}
+    siafi_uos = [c.siafi_uo for c in page_items if c.siafi_uo]
 
-    # O Gold guarda TODAS as linhas; as telas usam só as "válidas": sem a marca
-    # de "nenhuma data G_" (limpeza_g=1) e de UO operacional.
-    rows = ConvenioIntegrado.objects.filter(
-        convenio_numero_sequencial_siafi__in=siafis,
-        fl_uo_excluida=False,
-    ).exclude(limpeza_g=1).values(
-        "convenio_numero_sequencial_siafi",
-        "unidade_orcamentaria_codigo",
-        "codigo_siconv",
-        "g_proponente_pad",
-        "g_fim_vigencia_inicial",
+    plano_por_siafi_uo = {}
+    for siafi_uo, plano in (
+        SigconChavePlanoTrabalho.objects.filter(siafi_uo__in=siafi_uos)
+        .exclude(cd_plano_trabalho=None)
+        .order_by("-pk")
+        .values_list("siafi_uo", "cd_plano_trabalho")
+    ):
+        plano_por_siafi_uo[siafi_uo] = plano
+
+    planos = {}
+    for pt in (
+        SigconPlanoTrabalho.objects.filter(cd_plano_trabalho__in=set(plano_por_siafi_uo.values()))
+        .order_by("-pk")
+        .values("cd_plano_trabalho", "nm_plano_trabalho", "tx_objeto", "nm_concedente",
+                "nr_cnpj_concedente", "nr_cnpj_proponente", "tp_instrumento_siafi")
+    ):
+        planos[pt["cd_plano_trabalho"]] = pt
+
+    esfera_por_cnpj = dict(
+        SigconConcedente.objects
+        .filter(nr_cnpj_concedente__in={p["nr_cnpj_concedente"] for p in planos.values() if p["nr_cnpj_concedente"]})
+        .values_list("nr_cnpj_concedente", "ds_esfera")
     )
-    integ_map = {
-        (r["convenio_numero_sequencial_siafi"], r["unidade_orcamentaria_codigo"]): r
-        for r in rows
-    }
 
-    # O banco guarda todas as linhas do Controle SEI (um SIAFI pode ter mais de
-    # um processo). A aba mostra UM por SIAFI: o primeiro carregado.
-    sei_rows = ControleSEI.objects.filter(
-        no_siafi_sigcon__in=siafis,
-    ).order_by("pk").values("no_siafi_sigcon", "no_sei")
-    sei_map: dict = {}
-    for r in sei_rows:
-        sei_map.setdefault(r["no_siafi_sigcon"], r["no_sei"])
+    seq_por_siafi_uo = {}
+    for siafi_uo, seq in (
+        SigconChaveConvenio.objects.filter(siafi_uo__in=siafi_uos)
+        .exclude(cd_convenio_sequencial=None)
+        .order_by("-pk")
+        .values_list("siafi_uo", "cd_convenio_sequencial")
+    ):
+        seq_por_siafi_uo[siafi_uo] = seq
+    geral_por_seq = {}
+    for g in (
+        SigconConvenioGeral.objects.filter(cd_convenio_sequencial__in=set(seq_por_siafi_uo.values()))
+        .order_by("-pk")
+        .values("cd_convenio_sequencial", "dt_assinatura", "dt_publicacao")
+    ):
+        geral_por_seq[g["cd_convenio_sequencial"]] = g
 
-    siafi_uos = [
-        (c.convenio_numero_sequencial_siafi or "") + (c.unidade_orcamentaria_codigo or "")
-        for c in page_items
-        if c.convenio_numero_sequencial_siafi
-    ]
-    contra_map = tipo_por_siafi_uo(siafi_uos)
+    contra_map = tipo_por_siafi_uo(siafi_uos) if siafi_uos else {}
 
     result = {}
     for conv in page_items:
-        key = (conv.convenio_numero_sequencial_siafi, conv.unidade_orcamentaria_codigo)
-        extra = integ_map.get(key, {})
-        siafi_uo = (conv.convenio_numero_sequencial_siafi or "") + (conv.unidade_orcamentaria_codigo or "")
+        plano_cd = plano_por_siafi_uo.get(conv.siafi_uo)
+        pt = planos.get(plano_cd, {})
+        geral = geral_por_seq.get(seq_por_siafi_uo.get(conv.siafi_uo), {})
         result[conv.pk] = {
-            "codigo_siconv":      extra.get("codigo_siconv") or "—",
-            "proponente":         extra.get("g_proponente_pad") or "—",
-            "fim_vigencia_inicial": extra.get("g_fim_vigencia_inicial"),
-            "no_sei":             sei_map.get(conv.convenio_numero_sequencial_siafi) or "—",
-            "tipo_contrapartida": contra_map.get(siafi_uo) or "—",
+            "codigo_siconv":        "—",
+            "no_sei":               "—",
+            "proponente":           pt.get("nr_cnpj_proponente") or "—",
+            "fim_vigencia_inicial": conv.dt_vigencia_termino_inicial,
+            "tipo_contrapartida":   contra_map.get(conv.siafi_uo) or "—",
+            "plano_trabalho":       plano_cd or "",
+            "instrumento":          pt.get("tp_instrumento_siafi") or "",
+            "titulo":               pt.get("nm_plano_trabalho") or "",
+            "concedente":           pt.get("nm_concedente") or "",
+            "esfera":               esfera_por_cnpj.get(pt.get("nr_cnpj_concedente")) or "",
+            "objeto":               pt.get("tx_objeto") or "",
+            "dt_assinatura":        geral.get("dt_assinatura"),
+            "dt_publicacao":        geral.get("dt_publicacao"),
         }
     return result
 
-def get_plano_aplicacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
-    """
-    Retorna (QuerySet[PlanoAplicacao], context_dict) para a aba Plano de Aplicação.
 
-    Chave de ligação: Convenio.plano_trabalho_codigo → PlanoAplicacao.codigo_plano_trabalho
-    context_dict fornece siafi e uo ao template (campos não presentes diretamente em
-    PlanoAplicacao). O Código SIGCON de cada linha vem do próprio model
-    (PlanoAplicacao.convenio_codigo, carimbado no loader) — não pertence a este context,
-    que é por página, não por linha (SIAFI é 1:N convênio).
-
-    cod_sigcon tem prioridade; cod_siafi (filtro global) é usado quando cod_sigcon
-    não foi informado — resolve plano_trabalho_codigo via Convenio, pois
-    PlanoAplicacao não tem SIAFI diretamente.
+def anexar_convenio_por_plano(items) -> None:
     """
-    from apps.sigcon.models import Convenio, PlanoAplicacao
+    Carimba nr_convenio_ext e nr_siafi_ext em cada linha que tem cd_plano_trabalho
+    (cronograma, plano de aplicação). O novo model é plano: o convênio chega pelo
+    plano → siafi_uo (plano original ou de aditivo) → SigconConvenio.
+    """
+    from apps.sigcon.models import SigconChavePlanoTrabalho, SigconChaveTermoAditivo, SigconConvenio
+
+    items = list(items)
+    planos = {i.cd_plano_trabalho for i in items if i.cd_plano_trabalho}
+    siafi_uo_por_plano: dict = {}
+    for modelo in (SigconChavePlanoTrabalho, SigconChaveTermoAditivo):
+        for plano, siafi_uo in (
+            modelo.objects.filter(cd_plano_trabalho__in=planos)
+            .exclude(siafi_uo=None)
+            .order_by("pk")
+            .values_list("cd_plano_trabalho", "siafi_uo")
+        ):
+            siafi_uo_por_plano.setdefault(plano, siafi_uo)
+    conv_por_siafi_uo = {
+        siafi_uo: (nr_convenio, nr_siafi)
+        for siafi_uo, nr_convenio, nr_siafi in SigconConvenio.objects.filter(
+            siafi_uo__in=set(siafi_uo_por_plano.values()),
+        ).values_list("siafi_uo", "nr_convenio", "nr_siafi")
+    }
+    for item in items:
+        nr_convenio, nr_siafi = conv_por_siafi_uo.get(siafi_uo_por_plano.get(item.cd_plano_trabalho), (None, None))
+        item.nr_convenio_ext = nr_convenio
+        item.nr_siafi_ext = nr_siafi
+
+
+def anexar_convenio_por_sequencial(items) -> None:
+    """Carimba nr_convenio_ext em cada linha com cd_convenio_sequencial (prorrogação)."""
+    from apps.sigcon.models import SigconChaveConvenio
+
+    items = list(items)
+    nr_por_seq = dict(
+        SigconChaveConvenio.objects
+        .filter(cd_convenio_sequencial__in={i.cd_convenio_sequencial for i in items if i.cd_convenio_sequencial})
+        .order_by("-pk")
+        .values_list("cd_convenio_sequencial", "nr_convenio")
+    )
+    for item in items:
+        item.nr_convenio_ext = nr_por_seq.get(item.cd_convenio_sequencial)
+
+def get_plano_aplicacao_qs(nr_convenio: str | None = None, nr_siafi: str | None = None):
+    """
+    Retorna (QuerySet[SigconPlanoAplicacao], context_dict) para a aba Plano de Aplicação.
+
+    Chave de ligação: cd_plano_trabalho, resolvido a partir do convênio pelas
+    pontes sigcon_chave_plano_trabalho / sigcon_chave_termo_aditivo.
+    context_dict fornece siafi e uo ao template.
+
+    nr_convenio tem prioridade; nr_siafi (filtro global) é usado quando nr_convenio
+    não foi informado.
+    """
+    from apps.sigcon.models import SigconConvenio, SigconPlanoAplicacao
 
     context = {}
 
-    if cod_sigcon:
-        conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
+    if nr_convenio:
+        conv = SigconConvenio.objects.filter(nr_convenio=nr_convenio).first()
         if not conv:
             # Mesmo vazio, sai ordenado: o contrato da funcao e sempre
             # devolver queryset ordenado, e a view pagina o resultado.
-            return PlanoAplicacao.objects.none().order_by(*ORDENACAO_PLANO_APLICACAO), context
-        context["siafi"] = conv.convenio_numero_sequencial_siafi or "—"
-        context["uo"] = conv.unidade_orcamentaria_codigo or "—"
-        context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
-        if conv.plano_trabalho_codigo:
-            qs = PlanoAplicacao.objects.filter(codigo_plano_trabalho=conv.plano_trabalho_codigo)
-        else:
-            qs = PlanoAplicacao.objects.none()
-    elif cod_siafi:
-        context.update({"siafi": cod_siafi, "uo": "", "plano_trabalho_codigo": ""})
-        planos = set(
-            Convenio.objects.filter(convenio_numero_sequencial_siafi=cod_siafi)
-            .exclude(plano_trabalho_codigo=None).exclude(plano_trabalho_codigo="")
-            .values_list("plano_trabalho_codigo", flat=True)
-        )
-        qs = PlanoAplicacao.objects.filter(codigo_plano_trabalho__in=planos) if planos else PlanoAplicacao.objects.none()
+            return SigconPlanoAplicacao.objects.none().order_by(*ORDENACAO_PLANO_APLICACAO), context
+        context["siafi"] = conv.nr_siafi or "—"
+        context["uo"] = conv.cd_uo or "—"
+        context["cd_plano_trabalho"] = _plano_original(conv.siafi_uo) or "—"
+        planos = _planos_dos_siafi_uo([conv.siafi_uo])
+        qs = SigconPlanoAplicacao.objects.filter(cd_plano_trabalho__in=planos)
+    elif nr_siafi:
+        context.update({"siafi": nr_siafi, "uo": "", "cd_plano_trabalho": ""})
+        siafi_uos = SigconConvenio.objects.filter(nr_siafi=nr_siafi).values_list("siafi_uo", flat=True)
+        planos = _planos_dos_siafi_uo(siafi_uos)
+        qs = SigconPlanoAplicacao.objects.filter(cd_plano_trabalho__in=planos)
     else:
-        context.update({"siafi": "", "uo": "", "plano_trabalho_codigo": ""})
-        qs = PlanoAplicacao.objects.all()
+        context.update({"siafi": "", "uo": "", "cd_plano_trabalho": ""})
+        qs = SigconPlanoAplicacao.objects.all()
 
     return qs.order_by(*ORDENACAO_PLANO_APLICACAO), context
 
 def get_cronograma_qs(
-    cod_sigcon: str | None = None,
-    cod_siafi: str | None = None,
+    nr_convenio: str | None = None,
+    nr_siafi: str | None = None,
     plano: str | None = None,
 ):
     """
-    Retorna (QuerySet[CronogramaDesembolso], context_dict).
+    Retorna (QuerySet[SigconCronogramaDesembolso], context_dict).
 
-    Modo detalhe (cod_sigcon): filtra por siafi+uo derivados de Convenio.
-    Modo standalone: filtra por cod_siafi e/ou plano (comportamento existente).
-
-    O Código SIGCON de cada linha vem do próprio model
-    (CronogramaDesembolso.convenio_codigo, carimbado no loader) — não pertence a
-    este context, que é por página, não por linha (SIAFI é 1:N convênio).
+    Modo detalhe (nr_convenio): planos do convênio (original + aditivos).
+    Modo standalone: filtra por nr_siafi e/ou plano.
     """
-    from apps.sigcon.models import Convenio, CronogramaDesembolso
+    from apps.sigcon.models import SigconConvenio, SigconCronogramaDesembolso
 
     context = {}
     # Linhas marcadas pelo motor Silver (bloco desalinhado do relatório do BO,
     # sem plano de trabalho) estão no banco, mas não entram nas telas, nos
     # exports nem nas somas.
-    qs = CronogramaDesembolso.objects.filter(ds_alerta_linha__isnull=True)
+    qs = SigconCronogramaDesembolso.objects.filter(ds_alerta_linha__isnull=True)
 
-    if cod_sigcon:
-        conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
+    if nr_convenio:
+        conv = SigconConvenio.objects.filter(nr_convenio=nr_convenio).first()
         if not conv:
             # Mesmo vazio, sai ordenado (ver nota em get_plano_aplicacao_qs).
-            return CronogramaDesembolso.objects.none().order_by(*ORDENACAO_CRONOGRAMA), context
-        context["siafi"] = conv.convenio_numero_sequencial_siafi or "—"
-        context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
-        # CronogramaDesembolso carrega siafi+uo via loader (ver loader.py)
-        if conv.convenio_numero_sequencial_siafi:
-            qs = qs.filter(
-                convenio_numero_sequencial_siafi=conv.convenio_numero_sequencial_siafi,
-                unidade_orcamentaria_codigo=conv.unidade_orcamentaria_codigo,
-            )
-        elif conv.plano_trabalho_codigo:
-            qs = qs.filter(plano_trabalho_codigo=conv.plano_trabalho_codigo)
-        else:
-            qs = CronogramaDesembolso.objects.none()
+            return SigconCronogramaDesembolso.objects.none().order_by(*ORDENACAO_CRONOGRAMA), context
+        context["siafi"] = conv.nr_siafi or "—"
+        context["cd_plano_trabalho"] = _plano_original(conv.siafi_uo) or "—"
+        qs = qs.filter(cd_plano_trabalho__in=_planos_dos_siafi_uo([conv.siafi_uo]))
     else:
-        context["siafi"] = cod_siafi or ""
-        context["plano_trabalho_codigo"] = plano or ""
-        if cod_siafi:
-            qs = qs.filter(convenio_numero_sequencial_siafi__icontains=cod_siafi)
+        context["siafi"] = nr_siafi or ""
+        context["cd_plano_trabalho"] = plano or ""
+        if nr_siafi:
+            siafi_uos = SigconConvenio.objects.filter(nr_siafi__icontains=nr_siafi).values_list("siafi_uo", flat=True)
+            qs = qs.filter(cd_plano_trabalho__in=_planos_dos_siafi_uo(siafi_uos))
         if plano:
-            qs = qs.filter(plano_trabalho_codigo__icontains=plano)
+            qs = qs.filter(cd_plano_trabalho__icontains=plano)
 
     return qs.order_by(*ORDENACAO_CRONOGRAMA), context
 
-def get_prorrogacao_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
+def get_prorrogacao_qs(nr_convenio: str | None = None, nr_siafi: str | None = None):
     """
-    Retorna (QuerySet[ProrrogacaoOficio], context_dict).
+    Retorna (QuerySet[SigconProrrogacaoOficio], context_dict).
 
-    Chave de ligação DIRETA: ProrrogacaoOficio.prorrogacao_oficio_codigo_convenio = convenio_codigo
-    Não há plano_trabalho_codigo nem SIAFI em ProrrogacaoOficio; exibe-os via Convenio.
+    Chave de ligação: SigconProrrogacaoOficio.cd_convenio_sequencial, que se
+    traduz em convênio pela ponte SigconChaveConvenio (siafi_uo).
 
-    cod_sigcon tem prioridade; cod_siafi (filtro global) resolve os convenio_codigo
-    correspondentes via Convenio quando cod_sigcon não foi informado.
+    nr_convenio tem prioridade; nr_siafi (filtro global) resolve os códigos
+    sequenciais via SigconChaveConvenio quando nr_convenio não foi informado.
     """
-    from apps.sigcon.models import Convenio, ProrrogacaoOficio
+    from apps.sigcon.models import SigconChaveConvenio, SigconConvenio, SigconProrrogacaoOficio
 
-    context = {"convenio_codigo": cod_sigcon or ""}
-    qs = ProrrogacaoOficio.objects.all()
+    context = {"convenio_codigo": nr_convenio or ""}
+    qs = SigconProrrogacaoOficio.objects.all()
 
-    if cod_sigcon:
-        qs = qs.filter(prorrogacao_oficio_codigo_convenio=cod_sigcon)
-        conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
-        context["plano_trabalho_codigo"] = (conv.plano_trabalho_codigo or "—") if conv else "—"
-    elif cod_siafi:
+    if nr_convenio:
         codigos = set(
-            Convenio.objects.filter(convenio_numero_sequencial_siafi=cod_siafi)
-            .values_list("convenio_codigo", flat=True)
+            SigconChaveConvenio.objects.filter(nr_convenio=nr_convenio)
+            .values_list("cd_convenio_sequencial", flat=True)
         )
-        qs = qs.filter(prorrogacao_oficio_codigo_convenio__in=codigos) if codigos else qs.none()
-        context["plano_trabalho_codigo"] = ""
+        qs = qs.filter(cd_convenio_sequencial__in=codigos) if codigos else qs.none()
+        conv = SigconConvenio.objects.filter(nr_convenio=nr_convenio).first()
+        context["cd_plano_trabalho"] = (_plano_original(conv.siafi_uo) or "—") if conv else "—"
+    elif nr_siafi:
+        codigos = set(
+            SigconChaveConvenio.objects.filter(nr_siafi=nr_siafi)
+            .values_list("cd_convenio_sequencial", flat=True)
+        )
+        qs = qs.filter(cd_convenio_sequencial__in=codigos) if codigos else qs.none()
+        context["cd_plano_trabalho"] = ""
     else:
-        context["plano_trabalho_codigo"] = ""
+        context["cd_plano_trabalho"] = ""
 
     return qs.order_by(*ORDENACAO_PRORROGACAO), context
 
-def get_termos_aditivos_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
+def get_termos_aditivos_qs(nr_convenio: str | None = None, nr_siafi: str | None = None):
     """
-    Retorna (QuerySet[TermoAditivo], context_dict).
+    Retorna (QuerySet[SigconTermoAditivo], context_dict).
 
-    Chave de ligação: Convenio.(siafi, uo)
-        → CodigoTermoAditivo.(siafi, uo) → termo_aditivo_codigo_sequencial
-        → TermoAditivo.termo_aditivo_codigo_sequencial
-    CodigoTermoAditivo também fornece plano_trabalho_codigo por termo.
-    context_dict inclui 'ta_pt_map': {ta_codigo_seq → plano_trabalho_codigo}.
+    Chave de ligação: SigconConvenio.siafi_uo
+        → SigconChaveTermoAditivo.siafi_uo → cd_termo_aditivo
+        → SigconTermoAditivo.cd_termo_aditivo
+    SigconChaveTermoAditivo também fornece cd_plano_trabalho por termo.
+    context_dict inclui 'ta_pt_map': {cd_termo_aditivo → cd_plano_trabalho}.
 
-    cod_sigcon tem prioridade (resolve siafi+uo via Convenio); cod_siafi (filtro
-    global) consulta a ponte CodigoTermoAditivo direto pelo SIAFI, sem exigir UO.
+    nr_convenio tem prioridade (resolve siafi_uo via SigconConvenio); nr_siafi
+    (filtro global) consulta a ponte direto pelo SIAFI, sem exigir UO.
     """
-    from apps.sigcon.models import Convenio, CodigoTermoAditivo, TermoAditivo
+    from apps.sigcon.models import SigconChaveTermoAditivo, SigconConvenio, SigconTermoAditivo
 
-    context = {"convenio_codigo": cod_sigcon or "", "ta_pt_map": {}}
+    context = {"convenio_codigo": nr_convenio or "", "ta_pt_map": {}}
 
-    if cod_sigcon:
-        conv = Convenio.objects.filter(convenio_codigo=cod_sigcon).first()
+    if nr_convenio:
+        conv = SigconConvenio.objects.filter(nr_convenio=nr_convenio).first()
         if not conv:
             # Mesmo vazio, sai ordenado (ver nota em get_plano_aplicacao_qs).
-            return TermoAditivo.objects.none().order_by(*ORDENACAO_TERMO_ADITIVO), context
+            return SigconTermoAditivo.objects.none().order_by(*ORDENACAO_TERMO_ADITIVO), context
 
-        context["plano_trabalho_codigo"] = conv.plano_trabalho_codigo or "—"
+        context["cd_plano_trabalho"] = _plano_original(conv.siafi_uo) or "—"
         ta_rows = list(
-            CodigoTermoAditivo.objects.filter(
-                convenio_numero_sequencial_siafi=conv.convenio_numero_sequencial_siafi,
-                unidade_orcamentaria_codigo=conv.unidade_orcamentaria_codigo,
-            ).values("termo_aditivo_codigo_sequencial", "plano_trabalho_codigo")
-        )
-        ta_codes = [r["termo_aditivo_codigo_sequencial"] for r in ta_rows if r["termo_aditivo_codigo_sequencial"]]
-        context["ta_pt_map"] = {
-            r["termo_aditivo_codigo_sequencial"]: r["plano_trabalho_codigo"] or "—"
-            for r in ta_rows
-            if r["termo_aditivo_codigo_sequencial"]
-        }
-        qs = TermoAditivo.objects.filter(termo_aditivo_codigo_sequencial__in=ta_codes)
-    elif cod_siafi:
-        context["plano_trabalho_codigo"] = ""
+            SigconChaveTermoAditivo.objects.filter(siafi_uo=conv.siafi_uo)
+            .values("cd_termo_aditivo", "cd_plano_trabalho")
+        ) if conv.siafi_uo else []
+    elif nr_siafi:
+        context["cd_plano_trabalho"] = ""
         ta_rows = list(
-            CodigoTermoAditivo.objects.filter(
-                convenio_numero_sequencial_siafi=cod_siafi,
-            ).values("termo_aditivo_codigo_sequencial", "plano_trabalho_codigo")
+            SigconChaveTermoAditivo.objects.filter(nr_siafi=nr_siafi)
+            .values("cd_termo_aditivo", "cd_plano_trabalho")
         )
-        ta_codes = [r["termo_aditivo_codigo_sequencial"] for r in ta_rows if r["termo_aditivo_codigo_sequencial"]]
-        context["ta_pt_map"] = {
-            r["termo_aditivo_codigo_sequencial"]: r["plano_trabalho_codigo"] or "—"
-            for r in ta_rows
-            if r["termo_aditivo_codigo_sequencial"]
-        }
-        qs = TermoAditivo.objects.filter(termo_aditivo_codigo_sequencial__in=ta_codes) if ta_codes else TermoAditivo.objects.none()
     else:
-        context["plano_trabalho_codigo"] = ""
-        qs = TermoAditivo.objects.all()
+        context["cd_plano_trabalho"] = ""
+        return SigconTermoAditivo.objects.all().order_by(*ORDENACAO_TERMO_ADITIVO), context
+
+    ta_codes = [r["cd_termo_aditivo"] for r in ta_rows if r["cd_termo_aditivo"]]
+    context["ta_pt_map"] = {
+        r["cd_termo_aditivo"]: r["cd_plano_trabalho"] or "—"
+        for r in ta_rows
+        if r["cd_termo_aditivo"]
+    }
+    qs = SigconTermoAditivo.objects.filter(cd_termo_aditivo__in=ta_codes)
 
     return qs.order_by(*ORDENACAO_TERMO_ADITIVO), context
 
-def get_unidades_executoras_qs(cod_sigcon: str | None = None, cod_siafi: str | None = None):
+def get_unidades_executoras_qs(nr_convenio: str | None = None, nr_siafi: str | None = None):
     """
-    Retorna (QuerySet[UnidadesExecutoras], context_dict).
+    Retorna (QuerySet[SigconUnidadeExecutora], context_dict).
 
-    Chave de ligação DIRETA: UnidadesExecutoras.convenio_codigo = convenio_codigo.
-    cod_siafi (filtro global) usa convenio_numero_sequencial_siafi, presente
-    diretamente no model — sem precisar passar por Convenio.
+    SigconUnidadeExecutora traz nr_convenio (redundante) e nr_siafi direto,
+    sem precisar passar por SigconConvenio.
     """
-    from apps.sigcon.models import UnidadesExecutoras
+    from apps.sigcon.models import SigconUnidadeExecutora
 
-    context = {"convenio_codigo": cod_sigcon or ""}
-    qs = UnidadesExecutoras.objects.all()
+    context = {"convenio_codigo": nr_convenio or ""}
+    qs = SigconUnidadeExecutora.objects.all()
 
-    if cod_sigcon:
-        qs = qs.filter(convenio_codigo=cod_sigcon)
-    elif cod_siafi:
-        qs = qs.filter(convenio_numero_sequencial_siafi=cod_siafi)
+    if nr_convenio:
+        qs = qs.filter(nr_convenio=nr_convenio)
+    elif nr_siafi:
+        qs = qs.filter(nr_siafi=nr_siafi)
 
     return qs.order_by(*ORDENACAO_UNIDADES_EXECUTORAS), context
 
-def _filtrar_por_siafi_uo_pares(qs, pares):
-    """Restringe qs aos Convenio cujo (siafi, uo) está no conjunto de pares dado."""
-    from django.db.models import Q
-
-    if not pares:
-        return qs.none()
-    condicao = Q()
-    for siafi, uo in pares:
-        condicao |= Q(convenio_numero_sequencial_siafi=siafi, unidade_orcamentaria_codigo=uo)
-    return qs.filter(condicao)
-
 def get_sigcon_qs(filtros: dict):
     """
-    Retorna QuerySet[Convenio] filtrado para a aba Convênios (tela mestre).
+    Retorna QuerySet[SigconConvenio] filtrado para a aba Convênios (tela mestre).
 
-    `filtros` é um dict com as chaves: ano, situacao, cod_sigcon, cod_siafi,
+    `filtros` é um dict com as chaves: ano, situacao, nr_convenio, nr_siafi,
     instrumento, termo_aditivo, concedente, proponente, tipo_contrapartida
     (todas strings; "" significa "sem filtro").
 
-    termo_aditivo, proponente e tipo_contrapartida não são campos diretos do
-    model Convenio — resolvidos via (siafi, uo) a partir das tabelas-ponte e
-    da Gold, no mesmo padrão usado em enrich_convenios_page.
+    instrumento, concedente e proponente vêm do plano de trabalho original;
+    termo_aditivo vem da ponte SigconChaveTermoAditivo. Todos são resolvidos
+    para um conjunto de siafi_uo.
     """
-    from apps.sigcon.models import Convenio, TermoAditivo, CodigoTermoAditivo, ConvenioIntegrado
+    from apps.sigcon.models import (
+        SigconChavePlanoTrabalho,
+        SigconChaveTermoAditivo,
+        SigconConvenio,
+        SigconPlanoTrabalho,
+        SigconTermoAditivo,
+    )
     from core.gold.contrapartida import tipo_por_siafi_uo
 
-    qs = Convenio.objects.all()
+    qs = SigconConvenio.objects.all()
 
     if filtros.get("ano", "").isdigit():
-        qs = qs.filter(data_inicio_vigencia__year=int(filtros["ano"]))
+        qs = qs.filter(dt_vigencia_inicio__year=int(filtros["ano"]))
     if filtros.get("situacao"):
-        qs = qs.filter(situacao=filtros["situacao"])
-    if filtros.get("cod_sigcon"):
-        qs = qs.filter(convenio_codigo=filtros["cod_sigcon"])
-    if filtros.get("cod_siafi"):
-        qs = qs.filter(convenio_numero_sequencial_siafi=filtros["cod_siafi"])
+        qs = qs.filter(ds_situacao_convenio=filtros["situacao"])
+    # A tela envia cod_sigcon/cod_siafi (ver views/_filtros.py); nr_* também é aceito.
+    nr_convenio = filtros.get("cod_sigcon") or filtros.get("nr_convenio")
+    nr_siafi = filtros.get("cod_siafi") or filtros.get("nr_siafi")
+    if nr_convenio:
+        qs = qs.filter(nr_convenio=nr_convenio)
+    if nr_siafi:
+        qs = qs.filter(nr_siafi=nr_siafi)
+
+    filtros_plano = {}
     if filtros.get("instrumento"):
-        qs = qs.filter(instrumento=filtros["instrumento"])
+        filtros_plano["tp_instrumento_siafi"] = filtros["instrumento"]
     if filtros.get("concedente"):
-        qs = qs.filter(concedente__icontains=filtros["concedente"])
+        filtros_plano["nm_concedente__icontains"] = filtros["concedente"]
+    if filtros.get("proponente"):
+        filtros_plano["nr_cnpj_proponente__icontains"] = filtros["proponente"]
+    if filtros_plano:
+        planos = SigconPlanoTrabalho.objects.filter(**filtros_plano).values_list("cd_plano_trabalho", flat=True)
+        siafi_uos = SigconChavePlanoTrabalho.objects.filter(
+            cd_plano_trabalho__in=planos,
+        ).values_list("siafi_uo", flat=True)
+        qs = qs.filter(siafi_uo__in=siafi_uos)
 
     if filtros.get("termo_aditivo"):
-        ta_codes = TermoAditivo.objects.filter(
-            tipo_termo_aditivo=filtros["termo_aditivo"],
-        ).values_list("termo_aditivo_codigo_sequencial", flat=True)
-        pares = set(
-            CodigoTermoAditivo.objects.filter(
-                termo_aditivo_codigo_sequencial__in=ta_codes,
-            ).values_list("convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo")
-        )
-        qs = _filtrar_por_siafi_uo_pares(qs, pares)
-
-    if filtros.get("proponente"):
-        pares = set(
-            ConvenioIntegrado.objects.filter(
-                g_proponente_pad__icontains=filtros["proponente"],
-                fl_uo_excluida=False,
-            ).exclude(limpeza_g=1).values_list("convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo")
-        )
-        qs = _filtrar_por_siafi_uo_pares(qs, pares)
+        ta_codes = SigconTermoAditivo.objects.filter(
+            tp_termo_aditivo=filtros["termo_aditivo"],
+        ).values_list("cd_termo_aditivo", flat=True)
+        siafi_uos = SigconChaveTermoAditivo.objects.filter(
+            cd_termo_aditivo__in=ta_codes,
+        ).values_list("siafi_uo", flat=True)
+        qs = qs.filter(siafi_uo__in=siafi_uos)
 
     if filtros.get("tipo_contrapartida"):
         contra_map = tipo_por_siafi_uo()
         ids_validos = [
-            c.pk for c in qs.only(
-                "pk", "convenio_numero_sequencial_siafi", "unidade_orcamentaria_codigo",
-            )
-            if contra_map.get(
-                (c.convenio_numero_sequencial_siafi or "") + (c.unidade_orcamentaria_codigo or "")
-            ) == filtros["tipo_contrapartida"]
+            c.pk for c in qs.only("pk", "siafi_uo")
+            if contra_map.get(c.siafi_uo or "") == filtros["tipo_contrapartida"]
         ]
         qs = qs.filter(pk__in=ids_validos)
 

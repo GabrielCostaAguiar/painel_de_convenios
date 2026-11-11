@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load painel_filters %}
+{% block title %}SIGCON — {{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="crumbs">Consultas <span>›</span> <b>SIGCON</b></div>
+<div class="page-h"><h1>{{ titulo }}</h1></div>
+
+{% include "sigcon/_subtabs.html" %}
+
+{% if filtros_template %}{% include filtros_template %}{% else %}{% include "painel/_filtro_global.html" %}{% endif %}
+
+<div class="panel table-wrap">
+  <div class="table-head">
+    <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+    <div class="table-tools">
+      <div class="export-wrap">
+        <button class="btn" id="exportBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+          Exportar
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="export-pop" id="exportPop">
+          <a href="{{ url_export_xlsx }}{% if querystring %}?{{ querystring }}{% endif %}">📊 Excel (.xlsx)</a>
+          <a href="{{ url_export_csv }}{% if querystring %}?{{ querystring }}{% endif %}">📄 CSV (.csv)</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabela-container">
+    <table{% if largura_total %} style="width: {{ largura_total }}px"{% endif %}>
+      {% if larguras %}
+      <colgroup>
+        {% for w in larguras %}<col style="width: {{ w }}px">{% endfor %}
+      </colgroup>
+      {% endif %}
+      <thead>
+        <tr>{% for col in colunas %}<th{% if forloop.counter0 in colunas_numericas %} class="num"{% endif %}>{{ col }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for linha in linhas %}
+          <tr>
+            {% for celula in linha %}<td class="{% if forloop.counter0 in colunas_numericas %}val num{% else %}mono{% endif %}">{{ celula|default:"—" }}</td>{% endfor %}
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="{{ colunas|length }}" style="text-align:center;padding:40px;color:var(--ink-3);">
+              Nenhum registro encontrado.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <div class="info">
+      {% if total %}
+        Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
+      {% else %}
+        <b>0</b> resultados
+      {% endif %}
+    </div>
+    <div class="pages">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="nav"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+      {% endif %}
+
+      {% for p in visible_pages %}
+        {% if p == page_obj.number %}
+          <button class="cur" disabled>{{ p }}</button>
+        {% elif p %}
+          <a href="?page={{ p }}{% if querystring %}&{{ querystring }}{% endif %}">{{ p }}</a>
+        {% else %}
+          <button disabled style="cursor:default;border:none;background:none;color:var(--ink-3)">…</button>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="nav"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></a>
+      {% else %}
+        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
