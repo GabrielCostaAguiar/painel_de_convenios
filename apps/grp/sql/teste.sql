@@ -1,8 +1,15 @@
-SELECT nr_grp,
-        SUM(vl_total_item) AS vl_total_item
-FROM grp_item_executar
-WHERE nr_grp = '1085520'
-GROUP BY nr_grp
+SELECT i.nr_grp,
+        -- e.qt_item,
+        i.ds_status_instrumento,
+        i.vl_instrumento_total,
+        SUM(e.vl_total_item) AS vl_soma_items,
+        i.vl_instrumento_total - SUM(e.vl_total_item) AS diferenca
+FROM grp_instrumento i
+JOIN grp_item_executar e ON e.nr_grp = i.nr_grp
+WHERE i.ds_status_instrumento IN ('INSTRUMENTO_EM_EXECUCAO', 'AGUARDANDO_PRESTACAO_CONTAS')
+GROUP BY i.nr_grp, i.ds_status_instrumento, i.vl_instrumento_total
+HAVING (i.vl_instrumento_total - SUM(e.vl_total_item)) > 0
+
 ;
 
 -- SELECT table_name
