@@ -64,6 +64,14 @@ python manage.py gerar_schemas --sobrescrever       # force regeneration of exis
 
 ### Ingestão legada (SIGCON e apoio)
 
+**Escopo atual: o modelo é estritamente SIGCON — 15 tabelas** (`docs/modelo_extracao_sigcon.pdf`,
+consultas `dcgce_*` do BusinessObjects). `siconv_convenio`, `sigcon_chave_siconv`, `depara_siafi`
+(onda TransfereGov) e `controle_sei` (+ `controle_sei_documento`), `depara_parlamentar` (onda OneDrive)
+estão fora do modelo e não são validadas até essas ondas; ver "Fontes adiadas" em
+`docs/relatorio_ingestao_legado.md` (o código ainda lê `sigcon_chave_siconv`, `depara_siafi` e
+`siconv_convenio` pelos nomes novos, então não foram devolvidas às chaves originais). Os parágrafos
+abaixo descrevem a refatoração que originou as 21 fontes.
+
 As 20 fontes legadas do SIGCON-MG (+ 1 tabela derivada) foram renomeadas e
 migradas para o mesmo motor declarativo do GRP (ver "Fase 2 — generaliza o
 motor Silver" no histórico de commits `refactor/ingestao-legado`). Nomes

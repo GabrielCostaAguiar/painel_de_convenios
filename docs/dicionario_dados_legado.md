@@ -1,4 +1,6 @@
-# Dicionário de dados — ingestão legada (SIGCON e apoio)
+# Dicionário de dados — ingestão SIGCON (15 tabelas)
+
+Modelo de Extração SIGCON v1.0 (`docs/modelo_extracao_sigcon.pdf`). Fontes fora do modelo (`siconv_convenio`, `sigcon_chave_siconv`, `depara_siafi`, `controle_sei`, `controle_sei_documento`, `depara_parlamentar`) não constam aqui; ver "Fontes adiadas" em `docs/relatorio_ingestao_legado.md`.
 
 Gerado automaticamente a partir de `core/transform/schemas/*.yaml` (Fase 7 — não escrito à mão; qualquer mudança deve ser feita no YAML da fonte e este arquivo regenerado).
 
@@ -280,46 +282,7 @@ Ponte ETL: mapeia cd_declaracao_contrapartida → SIAFI+UO. Grão: 1 linha por c
 **Colunas derivadas:**
 - `siafi_uo` = `montar_siafi_uo(nr_siafi, cd_uo)`
 
-### 15 · `sigcon_chave_siconv`
-
-Ponte de relacionamento SIGCON↔SICONV. Grão: 1 linha por convênio (siafi_uo). Encoding latin-1 (arquivo não é UTF-8) — ver sources.py.
-
-**Grão:** `siafi_uo`
-
-| nome bruto (normalizado) | nome final | tipo | sentinelas → nulo | mapa booleano | LGPD |
-|---|---|---|---|---|---|
-| `plano_trabalho_tipo_siafi` | `tp_instrumento_siafi` | texto |  |  |  |
-| `unidade_orcamentaria_codigo` | `cd_uo` | identificador |  |  |  |
-| `convenio_numero_sequencial_siafi` | `nr_siafi` | identificador | '0' |  |  |
-| `situacao` | `ds_situacao_convenio` | texto | '0' |  |  |
-| `codigo_siconv` | `nr_convenio_siconv` | identificador | '0' |  |  |
-| `siconv` | `fl_siconv` | texto | '?' | Sim→True; Nao→False; Não→False; N?o→False |  |
-
-**Colunas derivadas:**
-- `siafi_uo` = `montar_siafi_uo(nr_siafi, cd_uo)`
-
-### 16 · `depara_siafi`
-
-De-para de números SIAFI (SIAFI2.csv). Grão: 1 linha por SIAFI de origem (siafi_uo_origem). Chaves repetidas com o MESMO destino colapsam em uma só linha (dedup); com destino DIVERGENTE vão para quarentena.parquet.
-
-**Grão:** `siafi_uo_origem`
-
-| nome bruto (normalizado) | nome final | tipo | sentinelas → nulo | mapa booleano | LGPD |
-|---|---|---|---|---|---|
-| `siafi1` | `nr_siafi_1` | identificador |  |  |  |
-| `uo1` | `cd_uo_1` | identificador |  |  |  |
-| `siafi2` | `nr_siafi_origem` | identificador |  |  |  |
-| `uo2` | `cd_uo_origem` | identificador |  |  |  |
-| `siafiatual` | `nr_siafi_atual` | identificador |  |  |  |
-| `uoatual` | `cd_uo_atual` | identificador |  |  |  |
-
-**Colunas derivadas:**
-- `siafi_uo_origem` = `montar_siafi_uo(nr_siafi_origem, cd_uo_origem)`
-- `siafi_uo_atual` = `montar_siafi_uo(nr_siafi_atual, cd_uo_atual)`
-
-**Quarentena:** linhas em que o grão `['siafi_uo_origem']` se repete com destino `['siafi_uo_atual']` divergente vão para `quarentena.parquet` no diretório silver da fonte, não para a tabela principal.
-
-### 17 · `sigcon_concedente`
+### 15 · `sigcon_concedente`
 
 Dimensão de concedentes/esferas do SIGCON-MG. Grão: 1 linha por concedente (nr_cnpj_concedente). Esperado: 4 valores distintos de ds_esfera (o trim genérico de texto já resolve o 'Federal ' com espaço à direita do export).
 
@@ -329,117 +292,3 @@ Dimensão de concedentes/esferas do SIGCON-MG. Grão: 1 linha por concedente (nr
 |---|---|---|---|---|---|
 | `concedente_esfera` | `ds_esfera` | texto |  |  |  |
 | `concedente_cnpj` | `nr_cnpj_concedente` | identificador |  |  |  |
-
-### 18 · `depara_parlamentar`
-
-De-para de nomes de parlamentares. Grão: 1 linha por grafia de origem (ds_parlamentar_origem).
-
-**Grão:** `ds_parlamentar_origem`
-
-| nome bruto (normalizado) | nome final | tipo | sentinelas → nulo | mapa booleano | LGPD |
-|---|---|---|---|---|---|
-| `de` | `ds_parlamentar_origem` | texto |  |  |  |
-| `para` | `nm_parlamentar` | texto |  |  |  |
-
-### 19 · `siconv_convenio`
-
-Convênios Transferegov/SICONV (dados abertos da União). Grão: 1 linha por convênio federal (nr_convenio_siconv). Encoding utf-8-sig em sources.py (corrige o BOM que, lido como latin-1, sobrava como lixo antes do nome da 1ª coluna — "nr_convenio", não "i»¿nr_convenio").
-
-**Grão:** `nr_convenio_siconv`
-
-| nome bruto (normalizado) | nome final | tipo | sentinelas → nulo | mapa booleano | LGPD |
-|---|---|---|---|---|---|
-| `nr_convenio` | `nr_convenio_siconv` | identificador |  |  |  |
-| `id_proposta` | `cd_proposta_siconv` | identificador |  |  |  |
-| `dia_assin_conv` | `dt_assinatura` | data |  |  |  |
-| `sit_convenio` | `ds_situacao_convenio` | texto |  |  |  |
-| `subsituacao_conv` | `ds_subsituacao_convenio` | texto |  |  |  |
-| `situacao_publicacao` | `ds_situacao_publicacao` | texto |  |  |  |
-| `instrumento_ativo` | `fl_instrumento_ativo` | texto |  | SIM→True; NÃO→False |  |
-| `ind_opera_obtv` | `fl_obtv` | texto |  | SIM→True; NÃO→False |  |
-| `nr_processo` | `nr_processo` | identificador | '000' |  |  |
-| `ug_emitente` | `cd_ug_emitente` | texto |  |  |  |
-| `dia_publ_conv` | `dt_publicacao` | data |  |  |  |
-| `dia_inic_vigenc_conv` | `dt_vigencia_inicio` | data |  |  |  |
-| `dia_fim_vigenc_conv` | `dt_vigencia_termino` | data |  |  |  |
-| `dia_fim_vigenc_original_conv` | `dt_vigencia_termino_inicial` | data |  |  |  |
-| `dias_prest_contas` | `qt_dias_prestacao_contas` | inteiro |  |  |  |
-| `dia_limite_prest_contas` | `dt_pc_limite` | data |  |  |  |
-| `data_suspensiva` | `dt_clausula_suspensiva` | data |  |  |  |
-| `data_retirada_suspensiva` | `dt_retirada_suspensiva` | data |  |  |  |
-| `dias_clausula_suspensiva` | `qt_dias_clausula_suspensiva` | inteiro |  |  |  |
-| `situacao_contratacao` | `ds_situacao_contratacao` | texto |  |  |  |
-| `ind_assinado` | `fl_assinado` | texto |  | SIM→True; NÃO→False |  |
-| `motivo_suspensao` | `tx_motivo_suspensao` | texto |  |  |  |
-| `ind_foto` | `fl_foto` | texto |  | SIM→True; NÃO→False |  |
-| `qtd_ta` | `qt_termo_aditivo` | inteiro |  |  |  |
-| `qtd_prorroga` | `qt_prorrogacao` | inteiro |  |  |  |
-| `vl_global_conv` | `vl_global` | valor |  |  |  |
-| `vl_repasse_conv` | `vl_repasse` | valor |  |  |  |
-| `vl_contrapartida_conv` | `vl_contrapartida` | valor |  |  |  |
-| `vl_empenhado_conv` | `vl_empenhado` | valor |  |  |  |
-| `vl_desembolsado_conv` | `vl_desembolsado` | valor |  |  |  |
-| `vl_saldo_reman_tesouro` | `vl_saldo_remanescente_tesouro` | valor |  |  |  |
-| `vl_saldo_reman_convenente` | `vl_saldo_remanescente_convenente` | valor |  |  |  |
-| `vl_rendimento_aplicacao` | `vl_rendimento_aplicacao` | valor |  |  |  |
-| `vl_ingresso_contrapartida` | `vl_ingresso_contrapartida` | valor |  |  |  |
-| `vl_saldo_conta` | `vl_saldo_conta` | valor |  |  |  |
-| `valor_global_original_conv` | `vl_global_inicial` | valor |  |  |  |
-
-**Descartadas (não vão para a silver):** `ano`, `dia`, `mes`, `qtde_convenios`
-
-### 20 · `controle_sei`
-
-Controle interno DCGCE do nº SEI por convênio. Grão: 1 linha por processo SEI (nr_sei). As colunas de documento (Instrumento, TA n, Prorrogação de Ofício) alimentam a tabela derivada controle_sei_documento via 'desdobrar:' e são descartadas desta tabela principal.
-
-**Grão:** `nr_sei`
-
-| nome bruto (normalizado) | nome final | tipo | sentinelas → nulo | mapa booleano | LGPD |
-|---|---|---|---|---|---|
-| `no_sei` | `nr_sei` | identificador |  |  |  |
-| `no_siafi_(sigcon)` | `nr_siafi` | identificador |  |  |  |
-| `no_proposta_(siconv)` | `nr_proposta_siconv` | identificador |  |  |  |
-| `obs` | `tx_observacao` | texto |  |  |  |
-| `monitorar?` | `fl_monitorar` | texto |  | Sim→True; Não→False |  |
-
-**Descartadas (não vão para a silver):** `instrumento`, `instrumento_2`, `instrumento_3`, `prorrogacao_de_oficio`, `ta_1`, `ta_10`, `ta_11`, `ta_12`, `ta_13`, `ta_16`, `ta_17`, `ta_2`, `ta_20`, `ta_21`, `ta_22`, `ta_3`, `ta_4`, `ta_5`, `ta_6`, `ta_7`, `ta_8`, `ta_9`
-
-### 21 · `controle_sei_documento`  _(derivada — sem YAML próprio)_
-
-Gerada na silver a partir do mesmo bronze de `controle_sei`, pelo bloco `desdobrar:` declarado em `controle_sei.yaml`. Não é uma `FonteDados` em `sources.py` — o motor desdobra na mesma passagem que gera a tabela 20.
-
-**Grão:** `nr_sei, tp_documento, nr_ordem`
-
-| coluna | tipo | origem |
-|---|---|---|
-| `nr_sei` | identificador (G/FK) | chave: `['nr_sei']` |
-| `tp_documento` | texto (G) | 2ª parte do `mapa:` abaixo |
-| `nr_ordem` | inteiro (G) | 3ª parte do `mapa:` abaixo |
-| `nr_documento_sei` | texto | valor da coluna de origem, campo `nr_documento_sei` |
-
-**Mapa coluna de origem → (tp_documento, nr_ordem):**
-
-| coluna de origem (em `controle_sei`) | tp_documento | nr_ordem |
-|---|---|---|
-| `instrumento` | Instrumento | 1 |
-| `instrumento_2` | Instrumento | 2 |
-| `instrumento_3` | Instrumento | 3 |
-| `ta_1` | Termo Aditivo | 1 |
-| `ta_2` | Termo Aditivo | 2 |
-| `ta_3` | Termo Aditivo | 3 |
-| `ta_4` | Termo Aditivo | 4 |
-| `ta_5` | Termo Aditivo | 5 |
-| `ta_6` | Termo Aditivo | 6 |
-| `ta_7` | Termo Aditivo | 7 |
-| `ta_8` | Termo Aditivo | 8 |
-| `ta_9` | Termo Aditivo | 9 |
-| `ta_10` | Termo Aditivo | 10 |
-| `ta_11` | Termo Aditivo | 11 |
-| `ta_12` | Termo Aditivo | 12 |
-| `ta_13` | Termo Aditivo | 13 |
-| `ta_16` | Termo Aditivo | 16 |
-| `ta_17` | Termo Aditivo | 17 |
-| `ta_20` | Termo Aditivo | 20 |
-| `ta_21` | Termo Aditivo | 21 |
-| `ta_22` | Termo Aditivo | 22 |
-| `prorrogacao_de_oficio` | Prorrogação de Ofício | 1 |

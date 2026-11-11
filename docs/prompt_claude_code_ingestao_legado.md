@@ -2,7 +2,7 @@
 
 ## 1. Papel e objetivo
 
-Você é o engenheiro de dados responsável por refatorar a **camada de ingestão (bronze → silver)** das bases legadas do Painel de Convênios, aplicando o "Modelo de Extração das Bases Legadas v1.0" (o PDF está em `docs/modelo_extracao_bases_legadas.pdf`; a especificação completa e suficiente está na seção 9 deste prompt).
+Você é o engenheiro de dados responsável por refatorar a **camada de ingestão (bronze → silver)** das bases legadas do Painel de Convênios, aplicando o "Modelo de Extração das Bases Legadas v1.0" (o PDF está em `docs/modelo_extracao_sigcon.pdf`; a especificação completa e suficiente está na seção 9 deste prompt).
 
 **Resultado esperado ao final:** as 21 tabelas da especificação saindo da silver com nomes normalizados, tipos corretos, sentinelas tratados e grão validado; `sources.py` e YAMLs reescritos; motor de transformação único (o mesmo do GRP, generalizado); todo o código e todos os schemas que não são mais usados removidos; e um relatório que mostre exatamente o que precisa mudar em models, loaders e gold na próxima fase.
 

@@ -1,7 +1,7 @@
-# Relatório final — refatoração da ingestão legada (SIGCON e apoio)
+# Relatório final — refatoração da ingestão SIGCON (15 tabelas)
 
-Branch `refactor/ingestao-legado`. Resultado das Fases 0–6: as 21 tabelas
-da especificação ("Modelo de Extração das Bases Legadas v1.0") saindo da
+Branch `refactor/ingestao-legado`. Resultado das Fases 0–6: as 15 tabelas
+do "Modelo de Extração SIGCON v1.0" (`docs/modelo_extracao_sigcon.pdf`) saindo da
 camada Silver com o mesmo motor declarativo do GRP, nomes/tipos
 normalizados pela seção 9 do prompt, e a Silver do GRP bit a bit idêntica
 à linha de base do início do trabalho.
@@ -40,8 +40,7 @@ normalizados pela seção 9 do prompt, e a Silver do GRP bit a bit idêntica
   executados, 7 divergências registradas (nenhuma corrigida inventando
   regra nova).
 - **Dicionário de dados gerado** (Fase 7, não escrito à mão):
-  `docs/dicionario_dados_legado.md`, a partir dos 20 YAMLs + o bloco
-  `desdobrar:` de `controle_sei.yaml` (tabela 21).
+  `docs/dicionario_dados_legado.md`, a partir dos YAMLs das 15 tabelas do modelo.
 
 ## 2. Tudo o que foi excluído (arquivo/função + evidência)
 
@@ -88,13 +87,7 @@ coleta de 3 módulos de teste). `apps/grp/views/_filtros.py` migrado para
 | 12 | `sigcon_chave_termo_aditivo` | `dcgce_codigo_ta` |
 | 13 | `sigcon_chave_plano_trabalho` | `dcgce_Codigo_plano_de_trabalho` |
 | 14 | `sigcon_chave_declaracao` | `dcgce_codigo_dec_contrap` |
-| 15 | `sigcon_chave_siconv` | `chaves_convenio` |
-| 16 | `depara_siafi` | `siafi2` |
-| 17 | `sigcon_concedente` | `dcgce_esfera` |
-| 18 | `depara_parlamentar` | `parlamentares` |
-| 19 | `siconv_convenio` | `siconv_convenio` (sem mudança) |
-| 20 | `controle_sei` | `controle_sei` (sem mudança) |
-| 21 | `controle_sei_documento` | _(nova — derivada de `controle_sei` via `desdobrar:`)_ |
+| 15 | `sigcon_concedente` | `dcgce_esfera` |
 
 Nomes de coluna: ver `docs/dicionario_dados_legado.md` (tabela completa
 bruto→final por fonte, gerada dos YAMLs).
@@ -132,8 +125,6 @@ padrão `nr_/cd_/...` — então mesmo apontando para o arquivo certo, os
 | 615 | `_silver_path("dcgce_Codigo_plano_de_trabalho")` | `_silver_path("sigcon_chave_plano_trabalho")` |
 | 631, 633 | `_silver_path("dcgce_codigo_ta")`/`dcgce_Codigo_ta` | `_silver_path("sigcon_chave_termo_aditivo")` |
 | 650, 652 | `_silver_path("dcgce_codigo_dec_contrap")`/`dcgce_Codigo_dec_contrap` | `_silver_path("sigcon_chave_declaracao")` |
-| 717 | `_silver_path("chaves_convenio")` | `_silver_path("sigcon_chave_siconv")` |
-| 718 | `_silver_path("siafi2")` | `_silver_path("depara_siafi")` |
 
 ### `apps/sigcon/management/commands/carregar_fonte.py`
 `_LOADERS` (linhas 27–40) é um dict chave→função usando os 13 nomes
@@ -193,10 +184,7 @@ Os models mantêm os nomes de campo históricos (`convenio_codigo`, `unidade_orc
 ## 5. Divergências pendentes
 
 Ver detalhamento completo em `docs/validacao_ingestao_legado.md`, seção 4
-(D1–D7). Resumo:
-- **D1/D2** `depara_siafi`: volume de chaves repetidas e redundância das
-  colunas "R" não batem com a referência original da especificação —
-  base real mais "suja"/maior.
+(D3–D7). Resumo:
 - **D3** 1 linha-sentinela sem regra em `sigcon_plano_aplicacao`.
 - **D4** `ds_esfera` tem 5 valores, não 4 (`'Não Informado'`, 1 linha).
 - **D5** string vazia residual em colunas de texto longo com
@@ -207,7 +195,7 @@ Ver detalhamento completo em `docs/validacao_ingestao_legado.md`, seção 4
   separador decimal trocado na origem).
 - **D7** "4 linhas sem SIAFI" da especificação (tabela 01) são 8 na base
   real.
-- **Gap de persistência** (não é divergência de dados): `rodar_silver`
+- **Gap de persistência** (só vale para as fontes adiadas): `rodar_silver`
   nunca grava `quarentena:`/`desdobrar:` em disco — só a tabela
   principal. Os artefatos da tabela 21 e da quarentena da 16 foram
   gerados por um script avulso para esta validação; estender o comando é
@@ -219,7 +207,7 @@ Ver detalhamento completo em `docs/validacao_ingestao_legado.md`, seção 4
 
 ## 6. Definição de pronto
 
-- [x] 21 tabelas geradas na silver, com os nomes e tipos da seção 9 do prompt
+- [x] 15 tabelas geradas na silver, com os nomes e tipos da seção 9 do prompt
 - [x] Silver do GRP idêntica à linha de base (22/22 hashes SHA-256)
 - [x] Testes do motor e da ingestão passando; falhas restantes só em `apps/`/`core/gold/` (pré-existentes, listadas na seção 5)
 - [x] Nenhum YAML, função ou módulo sem uso dentro do escopo (Fase 5)
@@ -235,15 +223,34 @@ Ver detalhamento completo em `docs/validacao_ingestao_legado.md`, seção 4
    **`apps/sigcon/management/commands/carregar_fonte.py::_LOADERS`** (13
    chaves) precisam das chaves novas em conjunto — um sem o outro não
    resolve.
-3. **`sigcon_chave_siconv`/`depara_siafi`** (ex-`chaves_convenio`/`siafi2`)
-   alimentam `carregar_relacionamento` → Gold `ConvenioIntegrado`: sem
-   ajustar essas duas, a carga Gold inteira para.
-4. **D1/D2 (`depara_siafi`)** merecem decisão de produto antes de ligar
-   o Gold de novo: a tabela tem muito mais duplicidade de chave do que a
-   especificação original previa, e a coluna "R" não é mais redundante —
-   quem for montar o de-para precisa saber disso.
+3. _(removido: ver "Fontes adiadas")_
+4. _(removido: ver "Fontes adiadas")_
 5. **O gap de persistência de `rodar_silver`** (não grava
    `quarentena:`/`desdobrar:`) precisa ser resolvido antes de qualquer
    rotina automatizada depender da tabela 21 ou da quarentena da 16 em
    produção — hoje só existem porque foram geradas manualmente para esta
    validação.
+
+## 8. Fontes adiadas
+
+O modelo atual é estritamente SIGCON (15 tabelas, todas consultas `dcgce_*`
+do BusinessObjects). Cinco fontes (seis tabelas) saíram dele e entram em ondas futuras:
+
+| Fonte (chave na branch) | Chave original | Onda |
+|---|---|---|
+| `siconv_convenio` | `siconv_convenio` | TransfereGov |
+| `sigcon_chave_siconv` | `chaves_convenio` | TransfereGov |
+| `depara_siafi` | `siafi2` | TransfereGov |
+| `controle_sei` (+ `controle_sei_documento`) | `controle_sei` | OneDrive |
+| `depara_parlamentar` | `parlamentares` | OneDrive |
+
+**Estado real hoje:** os YAMLs, o `sources.py` e a Silver dessas fontes **continuam com
+as chaves e o bloco `desdobrar:`/`quarentena:` da refatoração**. Elas não foram
+devolvidas às chaves originais porque `apps/sigcon/loader.py`,
+`apps/sigcon/management/commands/carregar_relacionamento.py`, `core/pipeline.py` e
+`core/gold/relacionamento.py` já leem `sigcon_chave_siconv`, `depara_siafi` e
+`siconv_convenio` pelos nomes novos (o Gold `ConvenioIntegrado` depende deles).
+A restauração fica para a onda de cada uma, junto com o ajuste desses arquivos.
+A correção do BOM do `siconv_convenio` (`utf-8-sig`) está no Apêndice C do modelo.
+Divergências D1/D2 (`depara_siafi`) e o V7/V8 antigos (de-para SIAFI e ponte SICONV)
+saíram da validação e voltam nessa onda.
