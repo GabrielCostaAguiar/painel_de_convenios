@@ -37,11 +37,11 @@
 
   <div class="filter-grid">
     <div class="field">
-      <label for="f-uo_cod">UO do instrumento</label>
-      <select id="f-uo_cod" name="uo_cod">
+      <label for="f-cd_uo">UO do instrumento</label>
+      <select id="f-cd_uo" name="cd_uo">
         <option value="">Todas</option>
         {% for uo in uos %}
-          <option value="{{ uo }}"{% if uo_cod_sel == uo|stringformat:"s" %} selected{% endif %}>{{ uo }}</option>
+          <option value="{{ uo }}"{% if cd_uo_sel == uo|stringformat:"s" %} selected{% endif %}>{{ uo }}</option>
         {% endfor %}
       </select>
     </div>

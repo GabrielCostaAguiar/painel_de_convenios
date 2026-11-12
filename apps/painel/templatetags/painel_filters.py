@@ -35,7 +35,7 @@ def querystring_global(context):
 # Filtros globais da aba GRP — propagados entre as 7 sub-abas do GRP.
 # Lista própria (não reaproveita GLOBAL_PARAMS) para que mexer no GRP nunca
 # altere o que as abas do SIGCON propagam entre si.
-GRP_PARAMS = ("nr_grp", "nr_instrumento", "uo_cod")
+GRP_PARAMS = ("nr_grp", "nr_instrumento", "cd_uo")
 
 
 @register.simple_tag(takes_context=True)
