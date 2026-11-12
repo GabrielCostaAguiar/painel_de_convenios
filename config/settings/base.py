@@ -93,6 +93,11 @@ GOLD_CACHE_SECONDS = env.int("GOLD_CACHE_SECONDS", default=3600)
 # `python manage.py carregar_grp`, independente deste setting.
 PIPELINE_INCLUIR_GRP = env.bool("PIPELINE_INCLUIR_GRP", default=False)
 
+# Idade máxima, em dias, dos arquivos de entrada do SIGCON em data/raw/sigcon.
+# Acima disso, o teste de arquivos de `validar_sigcon` reporta ALERTA (o painel
+# estaria mostrando um retrato velho). Arquivo ausente é sempre ERRO.
+SIGCON_RAW_MAX_DIAS = env.int("SIGCON_RAW_MAX_DIAS", default=7)
+
 # CACHES nao e definido aqui: cada ambiente escolhe o seu (LocMemCache em
 # dev.py, Redis ou banco em prod.py). Ver a nota em prod.py sobre por que o
 # LocMemCache nao serve para producao.

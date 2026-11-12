@@ -215,3 +215,161 @@ deve ser investigada antes de atualizar a camada gold.
 | T-G05 | 13 linhas | Qualquer aumento |
 | T-G06 | 2019 linhas | Aumento acima de 50 |
 | T-G07 | 4452 linhas | Aumento acima de 100 |
+
+
+---
+---
+
+# Qualidade dos dados SIGCON: exceções conhecidas
+
+Catálogo: `apps/sigcon/validacao/catalogo.py` (comando `validar_sigcon`, resultados em
+`dq_resultado_validacao_sigcon`). Limites: `apps/sigcon/validacao/limites.py`.
+Medido no banco real em 12/11/2026, na primeira execução completa do catálogo
+(111 testes; 24 falharam, 23 em ALERTA e 1 em ERRO).
+
+Regra geral, igual à do GRP: a fonte não é corrigida. Cada exceção conhecida vira um
+**limite**: até o número registrado o teste grava ALERTA; acima dele, ERRO. Uma contagem
+que cai continua em ALERTA; uma que sobe é defeito novo e bloqueia a gold. Depois de
+corrigir a fonte, baixe o limite em `limites.py` para a regressão voltar a ser pega.
+
+## S1. Contagens reais x modelo de extração SIGCON v1.0
+
+O PDF (`docs/modelo_extracao_sigcon.pdf`) cita contagens anteriores à carga atual. O PDF
+é um documento fechado, não regenerável daqui: estas são as contagens a usar na próxima
+revisão do modelo.
+
+| Item | PDF v1.0 | Banco (12/11/2026) | Onde |
+|---|---|---|---|
+| Convênios sem SIAFI (sem `siafi_uo`) | 4 | **8** (3 são registros de teste) | T-D01 |
+| Declarações sem ponte `chave_declaracao` | 2.437 | **2.438** | T-F13 |
+| Pontes sem `siafi_uo`: chave_plano_trabalho / chave_declaracao | não cita | **8 / 7** | T-D13, T-D14 |
+| Unidades executoras sem `siafi_uo` | não cita | **1** | T-D08 |
+| Colisões de `cd_plano_trabalho` em convenio_geral | 38 | **18 códigos, 51 linhas** | T-C17 |
+| Linhas do cronograma de desembolso | 48.394 | **48.392** | T-A01 |
+| Linhas do plano de aplicação sem plano de trabalho | não cita | **842** | T-F11 |
+| Planos com desembolso diferente da aplicação (concedente / proponente) | "diferenças explicáveis" | **484 / 248** | T-G01, T-G02 |
+| Valores distintos de `ds_esfera` | 4 (V13) | **5** (o 5º é "Não Informado", da linha sentinela) | T-H13 |
+| Prorrogação de ofício órfã | 1 | 1 | T-F03 |
+
+## S2. Exceções com limite (ALERTA até o limite, ERRO acima)
+
+| Teste | Tabela | Limite | Classificação |
+|---|---|---|---|
+| T-D01 | sigcon_convenio | 8 | Convênio sem SIAFI |
+| T-D08 | sigcon_unidade_executora | 1 | Derivado do SIAFI nulo |
+| T-D10 | sigcon_nt_emenda | 216 | Sentinela 99999999 vira nulo (T4) |
+| T-D13 / T-D14 | sigcon_chave_plano_trabalho / chave_declaracao | 8 / 7 | Derivado do SIAFI nulo |
+| T-E02 | sigcon_plano_trabalho | 4 | Erro da fonte: UO no campo de CNPJ |
+| T-E03 | sigcon_concedente | 1 | Erro da fonte: zero à esquerda perdido |
+| T-E05 | sigcon_plano_aplicacao | 1 | Linha sentinela 99999999 |
+| T-F03 | sigcon_prorrogacao_oficio | 1 | Órfão conhecido (P7) |
+| T-F11 | sigcon_plano_aplicacao | 842 | Plano de aplicação sem plano de trabalho |
+| T-F13 | sigcon_declaracao_contrapartida | 2.438 | Declaração sem ponte (P5/V9) |
+| T-G01 / T-G02 | sigcon_cronograma_desembolso | 484 / 248 | Desembolso diferente da aplicação (V11) |
+
+### T-D01 (+ T-D08, T-D13, T-D14): convênios sem SIAFI
+
+- **Evidência:** 8 convênios sem `nr_siafi`, logo sem `siafi_uo`. Pelo `nr_convenio` e UO:
+  `019/2011 (764558/2011)` (2421), `042/06` (2311), `240/2009` (1481),
+  `2606.0276497-23/2008` (2321), `2606027670104` (1451), `Te DUPLITESTE` (1501),
+  `Te TESTEDupli` (1501) e `Te TESTEDupli` (4691).
+- **Classificação:** 3 são registros de teste criados no SIGCON; os outros 5 são convênios
+  antigos sem número SIAFI.
+- **Impacto:** não entram nas ligações por `siafi_uo`; ficam sem plano, aditivo e contrapartida.
+- **Decisão:** manter na silver. Registros de teste: pedir a exclusão à equipe do SIGCON.
+- **Volta a ERRO quando:** a origem corrigir os 8 e o limite for zerado.
+
+### T-D10: notas técnicas de emenda sem plano
+
+- **Evidência:** 216 linhas com o sentinela `99999999`, que a silver converte em nulo (T4).
+- **Decisão:** manter. São emendas sem plano de trabalho vinculado.
+
+### T-E02: CNPJ do proponente com 4 dígitos
+
+- **Evidência:** 4 planos com o código da UO no campo de CNPJ: plano `9624` ("1231"),
+  `8819` ("1471"), `9719` ("1691") e `14051` ("1401").
+- **Decisão:** manter. Quem usar o CNPJ do proponente deve ignorar valores de 4 dígitos.
+
+### T-E03: CNPJ do concedente com 13 dígitos
+
+- **Evidência:** `0161248000181` (concedente municipal), 13 dígitos. O CNPJ válido tem 14,
+  o que sugere um zero à esquerda perdido na exportação para Excel. Não foi corrigido.
+- **Decisão:** manter; confirmar o CNPJ correto com a equipe do SIGCON.
+
+### T-E05 (+ T-E22, T-E24, T-E26): a linha sentinela 99999999
+
+- **Evidência:** o plano `99999999` aparece em `sigcon_plano_trabalho`,
+  `sigcon_declaracao_contrapartida` e `sigcon_plano_aplicacao`, com `cd_uo = 9999999999`
+  (T-E05) e ano `9999` (T-E22, E24, E26, em ALERTA). Os textos vêm como "Não Informado".
+- **Classificação:** registro de "sem plano / sem declaração" criado pelo SIGCON.
+- **Decisão:** manter. Na gold, excluir `99999999` das somas e contagens.
+
+### T-F03: prorrogação órfã
+
+- **Evidência:** prorrogação `45`, convênio sequencial `1234`, sem linha em `sigcon_chave_convenio`.
+- **Decisão:** manter; já listada na premissa P7 do modelo.
+
+### T-F11: plano de aplicação sem plano de trabalho (842)
+
+- **Evidência:** 842 linhas, por exemplo planos `1222`, `1225` e `1230`, exercício 2006.
+- **Classificação:** planos antigos que não existem em `sigcon_plano_trabalho`. A hipótese
+  (planos de 2006 anteriores ao cadastro) não foi confirmada.
+- **Decisão:** manter. Na gold, a ligação plano de aplicação → convênio é LEFT.
+
+### T-F13: declarações sem ponte (2.438)
+
+- **Evidência:** declarações `1`, `10` e `100` entre outras (61,6% do total).
+- **Classificação:** declarações de propostas não conveniadas; premissa P5, a confirmar
+  com a equipe do SIGCON (V9).
+- **Decisão:** manter; não são perda de dado.
+
+### T-G01 / T-G02: desembolso x aplicação
+
+- **Evidência:** 484 planos (concedente) e 248 (proponente) com soma diferente. Os primeiros
+  casos são planos com aplicação e **sem nenhum cronograma de desembolso**: `5510`
+  (450.000,00 do concedente), `3202` (719.200,78) e `6064` (312.555,20).
+- **Decisão:** manter. O desembolso é fluxo previsto, não igual ao plano de aplicação.
+
+## S3. Falhas sem limite: exceção documentada, mas ainda não calibrada (ALERTA)
+
+| Teste | Falhas | Observação |
+|---|---|---|
+| T-F04 | 8 | Termos aditivos sem linha na ponte 12 (TAs 294, 520, 600; 2007 a 2009) |
+| T-F06 | 7 | Ponte de aditivo cujo convênio não está na tabela 01 (siafi_uo 90006592411, 90012621581) |
+| T-I01 | 8 | Vigência com término anterior ao início (siafi_uo 982101, 65772271, 25314291) |
+| T-I03 | 2 | Aditivo com término anterior ao início |
+| T-I04 | 65 | Prorrogação que não termina depois do término original do convênio |
+| T-I05 | 282 | Aditivo de vigência que não termina depois do término original |
+| T-A06 | 15 | Arquivos de data/raw/sigcon com mais de 7 dias (156 dias; só `sigcon_tabela_uo.csv` é novo) |
+
+## S4. Falha em ERRO sem exceção aceita
+
+### T-E28: mojibake em colunas de texto
+
+- **Evidência:** 5.009 células com UTF-8 lido como cp1252 ("ConstruÃ§Ã£o", "nÂº", "Ã¿"):
+  `sigcon_plano_trabalho.nm_plano_trabalho` (1.638), `.tx_objeto` (1.927),
+  `.tx_justificativa` (2) e `sigcon_termo_aditivo.tx_justificativa` (1.442).
+- **Causa:** não apurada. Os dados já chegam assim na silver; pode ser do relatório do BO
+  ou do Excel. O padrão ignora "NÃO", "AÇÃO" e demais maiúsculas legítimas.
+- **Decisão pendente:** é ERRO sem limite e bloqueia a gold. Decidir entre limite
+  temporário (a contagem atual) ou corrigir na origem.
+
+## S5. Falsos positivos resolvidos
+
+- **T-G09 (dt_ x dh_ da declaração; hoje T-G08, pois a vigência foi para T-I01):** 5 divergências desapareceram ao comparar no fuso
+  America/Sao_Paulo. As `dh_` estão em UTC e as `dt_` no horário de Brasília (00:51 UTC de
+  08/02/2011 é 22:51 de 07/02 em Brasília). As colunas `dt_` são redundantes e podem sair (V8).
+
+## S6. Referências medidas para os próximos testes
+
+- **Domínios (T-H):** os valores de situação e tipo de cada tabela estão em `DOMINIOS`,
+  incluindo "Não Informado" (placeholder da linha 99999999) e `tp_instrumento_siafi` com
+  os códigos `11`, `15`, `17` e `99` ao lado dos nomes. `ds_situacao_convenio` inclui
+  `BLOQUEADO` (715 convênios).
+- **Planos compartilhados (T-C17):** 18 códigos em `PLANOS_COMPARTILHADOS_CONHECIDOS`,
+  todos colisões legítimas (T6). Código novo gera ALERTA.
+- **Prorrogação de ofício:** a tabela não tem coluna de plano de trabalho. Nenhum
+  `cd_convenio_sequencial` é "0" ou "999999". 205 de 660 (31%) têm 7 dígitos (formato de
+  SIAFI) e são legítimos: casam com `sigcon_chave_convenio`.
+- **Volumetria histórica (T-A03, T-A04):** o histórico começa na primeira `carregar_sigcon`
+  depois da migration 0021. A primeira carga só registra; a comparação vale a partir da segunda.
