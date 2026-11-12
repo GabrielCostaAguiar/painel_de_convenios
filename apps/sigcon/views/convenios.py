@@ -25,7 +25,7 @@ COLUNAS = [
     "SEI",
     "Instrumento",
     "Título",
-    "CNPJ do Proponente",
+    "Proponente",
     "Concedente",
     "Esfera Concedente",
     "Objeto",
@@ -52,7 +52,7 @@ CAMPOS = [
     "nr_sei",                         # fora do modelo SIGCON v1.0 (sempre "—")
     "tp_instrumento",
     "nm_plano_trabalho",
-    "nr_cnpj_proponente",             # troque aqui se passar a existir o NOME do proponente
+    "nm_uo",             # troque aqui se passar a existir o NOME do proponente
     "nm_concedente",
     "ds_esfera",
     "tx_objeto",
@@ -80,7 +80,7 @@ _ENRIQUECIMENTO = {
     "plano_trabalho": "cd_plano_trabalho",
     "instrumento": "tp_instrumento",
     "titulo": "nm_plano_trabalho",
-    "proponente": "nr_cnpj_proponente",
+    "proponente": "nm_uo",
     "concedente": "nm_concedente",
     "esfera": "ds_esfera",
     "objeto": "tx_objeto",
