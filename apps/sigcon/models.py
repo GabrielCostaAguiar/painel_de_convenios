@@ -10,6 +10,8 @@ O grão é declarado em cada classe mas NÃO é imposto por constraint: a carga 
 linhas com dado, e duplicidades de grão são só alertadas na silver.
 """
 
+from django.core.serializers.json import DjangoJSONEncoder
+
 from django.db import models
 
 
@@ -37,8 +39,8 @@ class SigconConvenio(models.Model):
         max_length=10, db_index=True, null=True, blank=True
     )  # Unidade Orçamentária Código
     siafi_uo = models.CharField(
-        max_length=30, unique=True, null=True, blank=True
-    )  # (derivada: nr_siafi || cd_uo)
+        max_length=30, null=True, blank=True, db_index=True
+    )  # (derivada: nr_siafi || cd_uo); o grão é garantido por T-C01, não por constraint
     ds_situacao_convenio = models.TextField(null=True, blank=True)  # Situação
 
     # --- Vigência ---
@@ -77,6 +79,12 @@ class SigconConvenio(models.Model):
         db_table = "sigcon_convenio"
         verbose_name = "Convênio SIGCON"
         verbose_name_plural = "Convênios SIGCON"
+        indexes = [
+            models.Index(fields=["nr_siafi"], name="idx_nr_siafi"),
+            models.Index(fields=["cd_uo"], name="idx_cd_uo"),
+            models.Index(fields=["nr_convenio"], name="idx_nr_convenio"),
+            models.Index(fields=["ds_situacao_convenio"], name="idx_ds_situacao_convenio"),
+        ]
 
     def __str__(self):
         return self.siafi_uo or f"Convênio {self.nr_convenio}"
@@ -109,7 +117,7 @@ class SigconConvenioGeral(models.Model):
         max_length=30, db_index=True, null=True, blank=True
     )  # Convênio Código Plano Trabalho
     nr_siafi = models.CharField(
-        max_length=20, null=True, blank=True
+        max_length=20, db_index=True, null=True, blank=True
     )  # Convênio Número Sequencial SIAFI
 
     # --- Dados do convênio ---
@@ -129,7 +137,7 @@ class SigconConvenioGeral(models.Model):
 
     # --- Controle SCCG ---
     cd_matricula_tecnico_sccg = models.CharField(
-        max_length=30, null=True, blank=True
+        max_length=30, null=True, blank=True, db_index=True
     )  # Convênio Matrícula Técnico SCCG (LGPD)
     dh_alteracao_sccg = models.DateTimeField(
         null=True, blank=True
@@ -141,13 +149,16 @@ class SigconConvenioGeral(models.Model):
         null=True, blank=True
     )  # Convênio Data Controle SCCG Convênio
     cd_matricula_gestor = models.CharField(
-        max_length=30, null=True, blank=True
+        max_length=30, null=True, blank=True, db_index=True
     )  # Convênio Matrícula Gestor (LGPD)
 
     class Meta:
         db_table = "sigcon_convenio_geral"
         verbose_name = "Convênio Geral SIGCON"
         verbose_name_plural = "Convênios Gerais SIGCON"
+        indexes = [
+            models.Index(fields=["nr_ano_convenio"], name="idx_nr_ano_convenio"),
+        ]
 
     def __str__(self):
         return self.cd_convenio_sequencial or "—"
@@ -237,7 +248,10 @@ class SigconPlanoTrabalho(models.Model):
         db_table = "sigcon_plano_trabalho"
         verbose_name = "Plano de Trabalho SIGCON"
         verbose_name_plural = "Planos de Trabalho SIGCON"
-
+        indexes = [
+            models.Index(fields=["ds_alteracao_termo_aditivo"], name="idx_ds_alteracao_termo_aditivo"),
+            models.Index(fields=["nm_concedente"], name="idx_nm_concedente"),
+        ]
     def __str__(self):
         return self.cd_plano_trabalho or "—"
 
@@ -371,7 +385,7 @@ class SigconDeclaracaoContrapartida(models.Model):
         null=True, blank=True
     )  # Declaração Contrapartida Status
     cd_nota_tecnica = models.CharField(
-        max_length=30, null=True, blank=True
+        max_length=30, null=True, blank=True, db_index=True
     )  # Declaração Contrapartida Código Nota Técnica
     tx_observacao = models.TextField(
         null=True, blank=True
@@ -394,7 +408,7 @@ class SigconDeclaracaoContrapartida(models.Model):
         null=True, blank=True
     )  # Declaração Contrapartida Observação Aprovação
     cd_matricula_aprovacao = models.CharField(
-        max_length=30, null=True, blank=True
+        max_length=30, null=True, blank=True, db_index=True
     )  # Declaração Contrapartida Matrícula Aprovação (LGPD)
 
     class Meta:
@@ -574,6 +588,9 @@ class SigconUnidadeExecutora(models.Model):
         db_table = "sigcon_unidade_executora"
         verbose_name = "Unidade Executora SIGCON"
         verbose_name_plural = "Unidades Executoras SIGCON"
+        indexes = [
+            models.Index(fields=["cd_unidade_executora"], name="idx_cd_unidade_executora"),
+        ]
 
     def __str__(self):
         return f"{self.siafi_uo or '—'} / {self.cd_unidade_executora or '—'}"
@@ -781,3 +798,73 @@ class SigconConcedente(models.Model):
 
     def __str__(self):
         return self.nr_cnpj_concedente or "—"
+
+# ---------------------------------------------------------------------------
+# 16. sigcon_tabela_uo (Ainda não está no Modelo de Extração SIGCON v1.0)
+# Grão: várias linhas por unidade orçamentária (cd_uo). Prioridade: Must. Carga: full refresh a partir da silver.
+# ---------------------------------------------------------------------------
+class SigconTabelaUo(models.Model):
+    """
+    Tabela de unidades orçamentárias (UO) com seus códigos, nomes e anos de exercício. A chave natural é o código da UO.
+
+    Fonte: data/silver/sigcon_tabela_uo.parquet
+    """
+
+    # --- Dados ---
+    cd_uo = models.CharField(
+        max_length=10, db_index=True, null=False, blank=True
+    )  # Unidade Orçamentária Código
+    nm_uo = models.TextField(null=False, blank=True)  # Unidade Orçamentária Nome
+    nr_ano_exercicio = models.IntegerField(null=False, blank=True)  # Unidade Orçamentária Ano de Exercício
+
+    class Meta:
+        db_table = "sigcon_tabela_uo"
+        verbose_name = "Tabela de Unidade Orçamentária SIGCON"
+        verbose_name_plural = "Tabelas de Unidade Orçamentária SIGCON"
+
+    def __str__(self):
+        return self.cd_uo or "—"
+
+class SigconHistoricoCarga(models.Model):
+    """
+    Uma linha por tabela a cada carga bem-sucedida (`carregar_sigcon`), com a
+    quantidade de linhas carregadas. O teste de volumetria histórica de
+    `validar_sigcon` compara a carga mais recente com a anterior.
+
+    Fica fora do prefixo `sigcon_` de propósito: não é uma tabela do modelo de
+    extração, então não entra nos testes de grão, tipo e volumetria.
+    """
+
+    dt_carga = models.DateTimeField(auto_now_add=True, db_index=True)
+    tabela = models.CharField(max_length=80, db_index=True)
+    qt_linhas = models.IntegerField()
+
+    class Meta:
+        db_table = "dq_historico_carga_sigcon"
+        ordering = ["-dt_carga", "-id"]
+
+
+class ResultadoValidacao(models.Model):
+    """
+    Tabela para gerenciado pelo próprio Django do histórico de full refesh.
+    o banco só guarda a fotografia de hoje. O resultado dos testes é o seu histórico de qualidade,
+    e também é evidência para auditoria
+    """
+
+    execucao = models.UUIDField(db_index=True)
+    dt_execucao = models.DateTimeField(auto_now_add=True)
+    id_teste = models.CharField(max_length=20)
+    tabela = models.CharField(max_length=80)
+    descricao = models.TextField(null=True, blank=True)
+    severidade = models.CharField(
+        max_length=6, choices=[("ERRO", "Erro"), ("ALERTA", "Alerta")]
+    )
+    status = models.CharField(
+        max_length=6, choices=[("PASSOU", "Passou"), ("FALHOU", "Falhou")]
+    )  # "PASSOU" ou "FALHOU"
+    qt_falhas = models.IntegerField(null=True, blank=True)
+    amostra = models.JSONField(default=list, encoder=DjangoJSONEncoder)
+
+    class Meta:
+        db_table = "dq_resultado_validacao_sigcon"
+        ordering = ["-dt_execucao", "id_teste"]
