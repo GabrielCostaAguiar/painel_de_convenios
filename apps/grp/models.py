@@ -1137,6 +1137,7 @@ class GrpTabelaUo(models.Model):
 class GrpGoldInstrumento(models.Model):
     """View que consolida os dados do instrumento GRP, incluindo informações de planejamento, execução, financeiro e partes envolvidas."""
 
+    cd_uo = models.CharField(max_length=10, null=True, blank=True)  # Código da Unidade Orçamentária
     nr_grp = models.CharField(max_length=10, primary_key=True)  # Número InstrumentoGRP
     ds_tipo_instrumento_juridico = models.CharField(
         max_length=30, null=True, blank=True

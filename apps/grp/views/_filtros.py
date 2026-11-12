@@ -35,7 +35,7 @@ def _ler_filtros_grp(get_params):
     return {
         "nr_grp": get_params.get("nr_grp", ""),
         "nr_instrumento": get_params.get("nr_instrumento", ""),
-        "uo_cod": get_params.get("uo_cod", ""),
+        "cd_uo": get_params.get("cd_uo", ""),
     }
 
 
@@ -47,7 +47,7 @@ from core.web import paginas_visiveis
 
 
 def _grp_listas():
-    """Opções dos campos de filtro do GRP — uo_cod vem de GrpTabelaUo (cd_uo),
+    """Opções dos campos de filtro do GRP — cd_uo vem de GrpTabelaUo (cd_uo),
     nr_instrumento/nr_grp vêm de GrpInstrumento."""
     return {
         "uos": (
@@ -121,7 +121,7 @@ def _grp_render(
         "secao_sub": secao_sub,
         "nr_grp_sel": filtros["nr_grp"],
         "nr_instrumento_sel": filtros["nr_instrumento"],
-        "uo_cod_sel": filtros["uo_cod"],
+        "cd_uo_sel": filtros["cd_uo"],
         "filtro_nao_aplicavel": filtro_nao_aplicavel and any(filtros.values()),
         "larguras": larguras,
         "largura_total": largura_total,

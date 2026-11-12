@@ -25,6 +25,7 @@ def grp_instrumentos(request):
     # monta as linhas da tabela
     colunas = [
         "Origem do Instrumento",
+        "UO",
         "Nº GRP",
         "Tipo do Instrumento",
         "Nº Instrumento",
@@ -49,6 +50,7 @@ def grp_instrumentos(request):
     ]
     campos = [
         "ds_origem_instrumento",
+        "cd_uo",
         "nr_grp",
         "ds_tipo_instrumento_juridico",
         "nr_instrumento",
@@ -77,6 +79,7 @@ def grp_instrumentos(request):
 
     larguras = [
         150,
+        90,
         90,
         150,
         170,
@@ -110,7 +113,7 @@ def grp_instrumentos(request):
         "largura_total": sum(larguras),
         "nr_grp_sel": filtros["nr_grp"],
         "nr_instrumento_sel": filtros["nr_instrumento"],
-        "uo_cod_sel": filtros["uo_cod"],
+        "cd_uo_sel": filtros["cd_uo"],
         "querystring": querystring,
         "visible_pages": paginas_visiveis(page_obj),
         "secao_ativa": "grp",

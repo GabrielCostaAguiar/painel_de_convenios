@@ -1,7 +1,7 @@
 """
 Consultas das telas do GRP.
 
-Os 3 filtros (nr_grp, nr_instrumento, uo_cod) valem para todas as sub-abas —
+Os 3 filtros (nr_grp, nr_instrumento, cd_uo) valem para todas as sub-abas —
 ver _grp_filtrar_por_nr_grp.
 """
 
@@ -12,7 +12,7 @@ from functools import reduce
 from django.db.models import Q
 
 from apps.grp import models
-from apps.grp.models import GrpCronogramaFisico
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ def get_grp_dados_qs(filtros: dict):
     qs = _filtrar_nr_grp_multiplo(qs, filtros.get("nr_grp", ""))
     if filtros.get("nr_instrumento"):
         qs = qs.filter(nr_instrumento__icontains=filtros["nr_instrumento"])
-    if filtros.get("uo_cod"):
-        qs = qs.filter(uo_cod=filtros["uo_cod"])
+    if filtros.get("cd_uo"):
+        qs = qs.filter(cd_uo=filtros["cd_uo"])
 
     return qs.order_by("nr_grp")
 
@@ -68,8 +68,8 @@ def get_grp_dados_qs(filtros: dict):
 # GRP — sub-abas ligadas por nr_grp
 #
 # As 6 sub-abas abaixo reaproveitam os mesmos 3 filtros da aba Dados
-# (nr_grp, nr_instrumento, uo_cod), com as MESMAS chaves de querystring.
-# Só `nr_grp` existe em todas as tabelas; `nr_instrumento` e `uo_cod` são
+# (nr_grp, nr_instrumento, cd_uo), com as MESMAS chaves de querystring.
+# Só `nr_grp` existe em todas as tabelas; `nr_instrumento` e `cd_uo` são
 # resolvidos em GrpGoldInstrumento e aplicados como conjunto de nr_grp, para
 # que o recorte visto em cada sub-aba seja exatamente o da aba Dados.
 # ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ def get_grp_dados_qs(filtros: dict):
 def _grp_filtrar_por_nr_grp(qs, filtros: dict):
     """Aplica os filtros do GRP a qualquer QuerySet que tenha o campo nr_grp.
 
-    nr_instrumento e uo_cod só existem no instrumento: são resolvidos em
+    nr_instrumento e cd_uo só existem no instrumento: são resolvidos em
     GrpGoldInstrumento (mesma base da aba Dados) e aplicados como
     'nr_grp IN (subquery)'.
     """
@@ -91,10 +91,10 @@ def _grp_filtrar_por_nr_grp(qs, filtros: dict):
         dados = GrpGoldInstrumento.objects.filter(
             nr_instrumento__icontains=filtros["nr_instrumento"]
         )
-    if filtros.get("uo_cod"):
+    if filtros.get("cd_uo"):
         dados = (
             dados if dados is not None else GrpGoldInstrumento.objects.all()
-        ).filter(uo_cod=filtros["uo_cod"])
+        ).filter(cd_uo=filtros["cd_uo"])
     if dados is not None:
         qs = qs.filter(nr_grp__in=dados.values("nr_grp"))
 
