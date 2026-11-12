@@ -59,3 +59,57 @@ grupo `sigcon`. Sem `FonteDados` cadastrada (TODO já no código):
 
 Cadastrar uma fonte exige confirmar formato/separador/encoding reais
 (`gerar_schemas`) — não dá pra fazer sem uma amostra real do arquivo.
+
+
+---
+
+# Pendências abertas em 12/11/2026 (refatoração SIGCON)
+
+## 5. [FORA DE ESCOPO, v1.2] Gold de indicadores desligado
+
+`core/gold/convenios.py` (`kpis`, `por_situacao`, `por_ano`, `recentes`) está inteiro
+comentado desde a migração para os models `Sigcon*`, porque dependia do model `Convenio`
+antigo. Os indicadores são da v1.2.
+
+Para a tela não quebrar, `apps/painel/services.py` define `_GOLD_INDICADORES_ATIVO` e
+`get_indicadores` devolve `{"vazio": True}` enquanto as quatro funções não existirem.
+Foram apagados `tests/test_gold_convenios.py` e o teste de recálculo do cache; o
+`test_cache_invalidacao.py` ganhou um teste do estado desligado.
+
+Quando o Gold voltar: reescrever `core/gold/convenios.py` sobre `SigconConvenio`, devolver
+o teste de recálculo após invalidação e o `test_gold_convenios.py`, e remover o guarda.
+
+## 6. [BUG] `rodar_pipeline` chama comandos de carga que não existem
+
+`core/pipeline.py::CARGAS_ORM` ainda chama `carregar_convenios`, `carregar_fonte`,
+`carregar_cronograma` e outros, removidos na refatoração (`carregar_sigcon` os substituiu).
+A etapa de carga do pipeline falha depois de extrair e ingerir. O teste
+`test_cargas_orm_do_pipeline_apontam_para_comandos_existentes` está como `xfail(strict)`
+e passará quando o pipeline for ligado ao `carregar_sigcon`; aí remova o `xfail`.
+`FONTES_SILVER` também lista `depara_siafi`, `controle_sei` e `siconv_convenio`
+(fontes de ondas futuras).
+
+## 7. Resíduos da fonte `sigcon_chave_siconv`
+
+Saiu de `core/ingestion/sources.py` e de `FONTES_SILVER`, mas continuam referenciando-a:
+o YAML `core/transform/schemas/sigcon_chave_siconv.yaml`, `core/gold/relacionamento.py` e
+seu teste `tests/test_gold_preservacao.py`, e três menções no `CLAUDE.md`. Pertencem à
+onda TransfereGov; limpar quando ela começar.
+
+## 8. Mojibake no plano de trabalho e no termo aditivo
+
+5.009 células (ver `docs/qualidade_dados.md`, S4). Descobrir se o defeito nasce no
+relatório do BO, no Excel ou na leitura, e decidir limite temporário ou correção na origem.
+
+## 9. Datas com hora entram como horário ingênuo
+
+O loader recebe `dh_*` como datetime sem fuso e o Django avisa
+(`RuntimeWarning: DateTimeField ... received a naive datetime`, milhares de vezes por
+carga). O valor é gravado como UTC. O teste T-G09 depende de as `dh_` estarem em UTC;
+confirmar com a equipe e tornar a conversão explícita no loader.
+
+## 10. Telas GRP que leem views do schema `gold`
+
+`grp_dados`, `grp_instrumentos` e `grp_plano_aplicacao` dependem de `gold.vw_*`, criadas
+por `aplicar_gold` e não pelas migrations. O smoke test as pula quando a view não existe.
+Se quiser cobertura, rode `aplicar_gold` numa fixture do banco de teste.

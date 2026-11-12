@@ -87,27 +87,16 @@ def test_invalidar_sobe_a_versao_mesmo_sem_contador_previo():
     assert versao_indicadores() == segunda
 
 
-@pytest.mark.django_db
-def test_get_indicadores_recalcula_apos_invalidacao():
+def test_get_indicadores_devolve_vazio_enquanto_o_gold_esta_desligado():
     """
-    Popula o cache pela própria get_indicadores, invalida e confirma que a
-    camada Gold é consultada de novo em vez de devolver o valor cacheado.
+    O Gold de indicadores (core/gold/convenios.py) está fora de escopo até a v1.2.
+    Enquanto isso, get_indicadores não pode estourar: devolve o estado "vazio".
+    Quando o Gold voltar, o teste de recálculo após invalidação deve voltar junto.
     """
     from apps.painel import services
 
-    with mock.patch.object(services.gold, "kpis", return_value={"total_convenios": 1}) as kpis, \
-         mock.patch.object(services.gold, "por_situacao", return_value=[]), \
-         mock.patch.object(services.gold, "por_ano", return_value=[]), \
-         mock.patch.object(services.gold, "recentes", return_value=[]):
-
-        services.get_indicadores(ano=2024)
-        services.get_indicadores(ano=2024)
-        assert kpis.call_count == 1, "segunda chamada deveria vir do cache"
-
-        invalidar_cache_indicadores()
-
-        services.get_indicadores(ano=2024)
-        assert kpis.call_count == 2, "após invalidar, deveria recalcular"
+    assert services._GOLD_INDICADORES_ATIVO is False
+    assert services.get_indicadores(ano=2024) == {"vazio": True}
 
 
 def test_invalidar_cache_do_services_delega_para_core():
