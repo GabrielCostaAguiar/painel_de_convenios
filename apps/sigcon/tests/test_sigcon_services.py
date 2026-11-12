@@ -11,7 +11,12 @@ Por que testar a camada de services e não a view?
   Resultado: testes mais rápidos, isolados e reutilizáveis por qualquer consumidor
   dos serviços (views, commands de exportação, APIs futuras).
 
-Um teste por aba que tenha fonte. Aba Unidades Executoras não tem fonte — sem teste.
+As tabelas do SIGCON são planas (sem ForeignKey) e se ligam por siafi_uo e pelos
+códigos de plano, termo aditivo e convênio sequencial. Os testes montam essas
+ligações pelas pontes sigcon_chave_*.
+
+Fora do escopo deste arquivo (e do modelo SIGCON v1.0): SICONV, Controle SEI e
+ConvenioIntegrado — saem como "—" em enrich_convenios_page.
 """
 
 import datetime
@@ -19,16 +24,17 @@ import datetime
 from django.test import TestCase
 
 from apps.sigcon.models import (
-    Convenio,
-    ConvenioIntegrado,
-    CodigoPlanoTrabalho,
-    CodigoTermoAditivo,
-    CronogramaDesembolso,
-    PlanoAplicacao,
-    PlanoTrabalho,
-    ProrrogacaoOficio,
-    TermoAditivo,
-    UnidadesExecutoras,
+    SigconChaveConvenio,
+    SigconChavePlanoTrabalho,
+    SigconChaveTermoAditivo,
+    SigconConcedente,
+    SigconConvenio,
+    SigconCronogramaDesembolso,
+    SigconPlanoAplicacao,
+    SigconPlanoTrabalho,
+    SigconProrrogacaoOficio,
+    SigconTermoAditivo,
+    SigconUnidadeExecutora,
 )
 from apps.sigcon.services import (
     enrich_convenios_page,
@@ -42,210 +48,367 @@ from apps.sigcon.services import (
 
 
 # ---------------------------------------------------------------------------
-# Fixtures de amostra reutilizáveis
+# Dados de amostra reutilizáveis
 # ---------------------------------------------------------------------------
 
 SIAFI = "9309074"
 UO = "1261"
-COD_SIGCON = "811906/2014"
-PT_CODIGO = "PT-0001"
-COD_SICONV = "SICONV-123"
+SIAFI_UO = SIAFI + UO
+NR_CONVENIO = "811906/2014"
+SEQ = "1234"
+PT = "PT-0001"
+
+OUTRO_SIAFI = "999"
+OUTRO_UO = "5555"
 
 
-def _make_convenio(**kwargs):
-    defaults = dict(
-        convenio_codigo=COD_SIGCON,
-        convenio_numero_sequencial_siafi=SIAFI,
-        unidade_orcamentaria_codigo=UO,
-        plano_trabalho_codigo=PT_CODIGO,
-        situacao="EM EXECUÇÃO",
+def _make_convenio(nr_convenio=NR_CONVENIO, nr_siafi=SIAFI, cd_uo=UO, **kwargs):
+    """Convênio + as pontes de plano original e de convênio sequencial."""
+    siafi_uo = f"{nr_siafi}{cd_uo}"
+    conv = SigconConvenio.objects.create(
+        nr_convenio=nr_convenio,
+        nr_siafi=nr_siafi,
+        cd_uo=cd_uo,
+        siafi_uo=siafi_uo,
+        ds_situacao_convenio=kwargs.pop("ds_situacao_convenio", "EM EXECUÇÃO"),
+        **kwargs,
     )
-    defaults.update(kwargs)
-    return Convenio.objects.create(**defaults)
+    return conv
+
+
+def _ponte_plano(cd_plano_trabalho=PT, nr_siafi=SIAFI, cd_uo=UO):
+    SigconChavePlanoTrabalho.objects.create(
+        cd_plano_trabalho=cd_plano_trabalho,
+        nr_siafi=nr_siafi,
+        cd_uo=cd_uo,
+        siafi_uo=f"{nr_siafi}{cd_uo}",
+    )
+
+
+def _ponte_convenio(cd_convenio_sequencial=SEQ, nr_convenio=NR_CONVENIO, nr_siafi=SIAFI, cd_uo=UO):
+    SigconChaveConvenio.objects.create(
+        cd_convenio_sequencial=cd_convenio_sequencial,
+        nr_convenio=nr_convenio,
+        nr_siafi=nr_siafi,
+        cd_uo=cd_uo,
+        siafi_uo=f"{nr_siafi}{cd_uo}",
+    )
+
+
+def _ponte_termo(cd_termo_aditivo, cd_plano_trabalho=None, nr_siafi=SIAFI, cd_uo=UO):
+    SigconChaveTermoAditivo.objects.create(
+        cd_termo_aditivo=cd_termo_aditivo,
+        cd_plano_trabalho=cd_plano_trabalho,
+        nr_siafi=nr_siafi,
+        cd_uo=cd_uo,
+        siafi_uo=f"{nr_siafi}{cd_uo}",
+    )
 
 
 # ---------------------------------------------------------------------------
 # Aba Convênios — enrich_convenios_page
 # ---------------------------------------------------------------------------
 
+
 class EnrichConveniosPageTest(TestCase):
-    def test_retorna_codigo_siconv_e_proponente(self):
-        conv = _make_convenio()
-        ConvenioIntegrado.objects.create(
-            siafi_uo=SIAFI + UO,
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-            codigo_siconv=COD_SICONV,
-            g_proponente_pad="Prefeitura de Teste",
-            g_fim_vigencia_inicial=datetime.date(2025, 12, 31),
+    def test_lista_vazia_devolve_dict_vazio(self):
+        self.assertEqual(enrich_convenios_page([]), {})
+
+    def test_traz_plano_concedente_esfera_e_datas_pelo_siafi_uo(self):
+        conv = _make_convenio(dt_vigencia_termino_inicial=datetime.date(2025, 12, 31))
+        _ponte_plano()
+        _ponte_convenio()
+        SigconPlanoTrabalho.objects.create(
+            cd_plano_trabalho=PT,
+            nm_plano_trabalho="Plano de teste",
+            tx_objeto="Obra",
+            nm_concedente="Ministério X",
+            nr_cnpj_concedente="11111111000111",
+            nr_cnpj_proponente="22222222000122",
+            tp_instrumento_siafi="Convênio",
         )
+        SigconConcedente.objects.create(nr_cnpj_concedente="11111111000111", ds_esfera="Federal")
 
-        resultado = enrich_convenios_page([conv])
+        extra = enrich_convenios_page([conv])[conv.pk]
 
-        self.assertIn(conv.pk, resultado)
-        extra = resultado[conv.pk]
-        self.assertEqual(extra["codigo_siconv"], COD_SICONV)
-        self.assertEqual(extra["proponente"], "Prefeitura de Teste")
+        self.assertEqual(extra["plano_trabalho"], PT)
+        self.assertEqual(extra["titulo"], "Plano de teste")
+        self.assertEqual(extra["concedente"], "Ministério X")
+        self.assertEqual(extra["esfera"], "Federal")
+        self.assertEqual(extra["instrumento"], "Convênio")
+        self.assertEqual(extra["proponente"], "22222222000122")
         self.assertEqual(extra["fim_vigencia_inicial"], datetime.date(2025, 12, 31))
 
-    def test_retorna_fallback_quando_sem_integrado(self):
-        conv = _make_convenio(convenio_codigo="SEM-INTEGRADO/2024")
-        resultado = enrich_convenios_page([conv])
-        extra = resultado[conv.pk]
-        self.assertEqual(extra["codigo_siconv"], "—")
+    def test_sem_ligacoes_devolve_fallbacks(self):
+        conv = _make_convenio(nr_convenio="SEM-LIGACAO/2024")
+
+        extra = enrich_convenios_page([conv])[conv.pk]
+
         self.assertEqual(extra["proponente"], "—")
+        self.assertEqual(extra["plano_trabalho"], "")
+        self.assertEqual(extra["titulo"], "")
         self.assertIsNone(extra["fim_vigencia_inicial"])
+
+    def test_siconv_e_sei_estao_fora_do_modelo_e_saem_como_traco(self):
+        conv = _make_convenio()
+
+        extra = enrich_convenios_page([conv])[conv.pk]
+
+        self.assertEqual(extra["codigo_siconv"], "—")
+        self.assertEqual(extra["no_sei"], "—")
+
+    def test_convenio_sem_siafi_uo_nao_herda_dado_de_outro(self):
+        """siafi_uo nulo não pode casar com ponte de siafi_uo nulo."""
+        sem_chave = SigconConvenio.objects.create(nr_convenio="C-SEM-SIAFI", siafi_uo=None)
+        SigconChavePlanoTrabalho.objects.create(cd_plano_trabalho="PT-ORFAO", siafi_uo=None)
+        SigconPlanoTrabalho.objects.create(cd_plano_trabalho="PT-ORFAO", nm_plano_trabalho="Órfão")
+
+        extra = enrich_convenios_page([sem_chave])[sem_chave.pk]
+
+        self.assertEqual(extra["plano_trabalho"], "")
+        self.assertEqual(extra["titulo"], "")
 
 
 # ---------------------------------------------------------------------------
 # Aba Plano de Aplicação — get_plano_aplicacao_qs
 # ---------------------------------------------------------------------------
 
-class PlanoAplicacaoQsTest(TestCase):
-    def test_filtra_por_plano_trabalho_codigo(self):
-        _make_convenio()
-        PlanoAplicacao.objects.create(
-            codigo_plano_trabalho=PT_CODIGO,
-            ano_exercicio_programa_trabalho="2024",
-            valor_concedente=1000,
-        )
-        # registro de outro convênio — não deve aparecer
-        PlanoAplicacao.objects.create(
-            codigo_plano_trabalho="OUTRO-PT",
-            ano_exercicio_programa_trabalho="2024",
-        )
 
-        qs, ctx = get_plano_aplicacao_qs(cod_sigcon=COD_SIGCON)
+class PlanoAplicacaoQsTest(TestCase):
+    def test_filtra_pelos_planos_do_convenio(self):
+        _make_convenio()
+        _ponte_plano()
+        SigconPlanoAplicacao.objects.create(
+            cd_plano_trabalho=PT, nr_ano_exercicio=2024, vl_aplicacao_concedente=1000
+        )
+        # plano de outro convênio — não deve aparecer
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho="OUTRO-PT", nr_ano_exercicio=2024)
+
+        qs, ctx = get_plano_aplicacao_qs(nr_convenio=NR_CONVENIO)
 
         self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().codigo_plano_trabalho, PT_CODIGO)
+        self.assertEqual(qs.first().cd_plano_trabalho, PT)
         self.assertEqual(ctx["siafi"], SIAFI)
-        self.assertEqual(ctx["plano_trabalho_codigo"], PT_CODIGO)
+        self.assertEqual(ctx["uo"], UO)
+        self.assertEqual(ctx["cd_plano_trabalho"], PT)
+
+    def test_inclui_o_plano_dos_termos_aditivos(self):
+        _make_convenio()
+        _ponte_plano()
+        _ponte_termo("TA-1", cd_plano_trabalho="PT-ADITIVO")
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho=PT)
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho="PT-ADITIVO")
+
+        qs, _ = get_plano_aplicacao_qs(nr_convenio=NR_CONVENIO)
+
+        self.assertEqual(
+            sorted(qs.values_list("cd_plano_trabalho", flat=True)), [PT, "PT-ADITIVO"]
+        )
 
     def test_convenio_inexistente_retorna_vazio(self):
-        qs, ctx = get_plano_aplicacao_qs(cod_sigcon="INEXISTENTE/9999")
+        qs, _ = get_plano_aplicacao_qs(nr_convenio="INEXISTENTE/9999")
+
         self.assertEqual(qs.count(), 0)
 
     def test_sem_filtro_retorna_todos(self):
-        PlanoAplicacao.objects.create(codigo_plano_trabalho="A")
-        PlanoAplicacao.objects.create(codigo_plano_trabalho="B")
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho="A")
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho="B")
+
         qs, _ = get_plano_aplicacao_qs()
+
         self.assertEqual(qs.count(), 2)
+
+    def test_filtro_global_por_siafi_resolve_via_convenio(self):
+        _make_convenio()
+        _ponte_plano()
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho=PT)
+        SigconPlanoAplicacao.objects.create(cd_plano_trabalho="OUTRO-PT")
+
+        qs, ctx = get_plano_aplicacao_qs(nr_siafi=SIAFI)
+
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().cd_plano_trabalho, PT)
+        self.assertEqual(ctx["siafi"], SIAFI)
 
 
 # ---------------------------------------------------------------------------
 # Aba Cronograma — get_cronograma_qs
 # ---------------------------------------------------------------------------
 
+
 class CronogramaQsTest(TestCase):
-    def test_filtra_por_siafi_uo_no_modo_detalhe(self):
+    def test_filtra_pelos_planos_do_convenio_no_modo_detalhe(self):
         _make_convenio()
-        CronogramaDesembolso.objects.create(
-            plano_trabalho_codigo=PT_CODIGO,
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-            mes_cronograma_desembolso="01",
-            ano_cronograma_desembolso="2024",
+        _ponte_plano()
+        SigconCronogramaDesembolso.objects.create(
+            cd_plano_trabalho=PT, nr_mes_desembolso=1, nr_ano_desembolso=2024
         )
-        # registro de outro convênio
-        CronogramaDesembolso.objects.create(
-            plano_trabalho_codigo="OUTRO-PT",
-            convenio_numero_sequencial_siafi="9999999",
-            unidade_orcamentaria_codigo="9999",
-            mes_cronograma_desembolso="02",
-            ano_cronograma_desembolso="2024",
+        SigconCronogramaDesembolso.objects.create(
+            cd_plano_trabalho="OUTRO-PT", nr_mes_desembolso=2, nr_ano_desembolso=2024
         )
 
-        qs, ctx = get_cronograma_qs(cod_sigcon=COD_SIGCON)
+        qs, ctx = get_cronograma_qs(nr_convenio=NR_CONVENIO)
 
         self.assertEqual(qs.count(), 1)
-        item = qs.first()
-        self.assertEqual(item.convenio_numero_sequencial_siafi, SIAFI)
+        self.assertEqual(qs.first().cd_plano_trabalho, PT)
+        self.assertEqual(ctx["siafi"], SIAFI)
 
     def test_modo_standalone_sem_filtro(self):
-        CronogramaDesembolso.objects.create(
-            plano_trabalho_codigo="X",
-            mes_cronograma_desembolso="03",
-            ano_cronograma_desembolso="2023",
+        SigconCronogramaDesembolso.objects.create(
+            cd_plano_trabalho="X", nr_mes_desembolso=3, nr_ano_desembolso=2023
         )
+
         qs, _ = get_cronograma_qs()
-        self.assertGreaterEqual(qs.count(), 1)
+
+        self.assertEqual(qs.count(), 1)
+
+    def test_linhas_marcadas_pelo_motor_silver_nao_entram_na_tela(self):
+        """O bloco desalinhado do BO fica no banco, mas fora da tela, dos exports e das somas."""
+        SigconCronogramaDesembolso.objects.create(cd_plano_trabalho="X", nr_mes_desembolso=3)
+        SigconCronogramaDesembolso.objects.create(
+            cd_plano_trabalho=None, nr_mes_desembolso=684, ds_alerta_linha="bloco desalinhado"
+        )
+
+        qs, _ = get_cronograma_qs()
+
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(SigconCronogramaDesembolso.objects.count(), 2)
+
+    def test_filtro_por_plano(self):
+        SigconCronogramaDesembolso.objects.create(cd_plano_trabalho="ABC-1")
+        SigconCronogramaDesembolso.objects.create(cd_plano_trabalho="XYZ-2")
+
+        qs, _ = get_cronograma_qs(plano="abc")
+
+        self.assertEqual(qs.count(), 1)
 
 
 # ---------------------------------------------------------------------------
 # Aba Prorrogação de Ofício — get_prorrogacao_qs
 # ---------------------------------------------------------------------------
 
+
 class ProrrogacaoQsTest(TestCase):
-    def test_filtra_direto_por_convenio_codigo(self):
+    def test_filtra_pelo_sequencial_do_convenio(self):
         _make_convenio()
-        ProrrogacaoOficio.objects.create(
-            prorrogacao_oficio_codigo="PRORROGA-001",
-            prorrogacao_oficio_codigo_convenio=COD_SIGCON,
-            prorrogacao_oficio_data_publicacao=datetime.date(2024, 6, 1),
-            prorrogacao_oficio_data_termino_vigencia=datetime.date(2025, 6, 1),
+        _ponte_plano()
+        _ponte_convenio()
+        SigconProrrogacaoOficio.objects.create(
+            cd_prorrogacao_oficio="PRORROGA-001",
+            cd_convenio_sequencial=SEQ,
+            dt_publicacao=datetime.date(2024, 6, 1),
+            dt_vigencia_termino=datetime.date(2025, 6, 1),
         )
-        # prorrogação de outro convênio
-        ProrrogacaoOficio.objects.create(
-            prorrogacao_oficio_codigo="PRORROGA-002",
-            prorrogacao_oficio_codigo_convenio="OUTRO/2010",
+        SigconProrrogacaoOficio.objects.create(
+            cd_prorrogacao_oficio="PRORROGA-002", cd_convenio_sequencial="9999"
         )
 
-        qs, ctx = get_prorrogacao_qs(cod_sigcon=COD_SIGCON)
+        qs, ctx = get_prorrogacao_qs(nr_convenio=NR_CONVENIO)
 
         self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().prorrogacao_oficio_codigo, "PRORROGA-001")
-        self.assertEqual(ctx["convenio_codigo"], COD_SIGCON)
-        self.assertEqual(ctx["plano_trabalho_codigo"], PT_CODIGO)
+        self.assertEqual(qs.first().cd_prorrogacao_oficio, "PRORROGA-001")
+        self.assertEqual(ctx["convenio_codigo"], NR_CONVENIO)
+        self.assertEqual(ctx["cd_plano_trabalho"], PT)
 
     def test_convenio_sem_prorrogacao_retorna_vazio(self):
         _make_convenio()
-        qs, _ = get_prorrogacao_qs(cod_sigcon=COD_SIGCON)
+        _ponte_convenio()
+
+        qs, _ = get_prorrogacao_qs(nr_convenio=NR_CONVENIO)
+
         self.assertEqual(qs.count(), 0)
+
+    def test_filtro_global_por_siafi_resolve_via_ponte(self):
+        _ponte_convenio()
+        SigconProrrogacaoOficio.objects.create(
+            cd_prorrogacao_oficio="PRORROGA-001", cd_convenio_sequencial=SEQ
+        )
+        SigconProrrogacaoOficio.objects.create(
+            cd_prorrogacao_oficio="PRORROGA-002", cd_convenio_sequencial="9999"
+        )
+
+        qs, _ = get_prorrogacao_qs(nr_siafi=SIAFI)
+
+        self.assertEqual(
+            list(qs.values_list("cd_prorrogacao_oficio", flat=True)), ["PRORROGA-001"]
+        )
 
 
 # ---------------------------------------------------------------------------
 # Aba Termo Aditivo — get_termos_aditivos_qs
 # ---------------------------------------------------------------------------
 
+
 class TermoAditivoQsTest(TestCase):
-    def test_filtra_via_codigo_ta(self):
+    def test_filtra_via_ponte_do_termo_aditivo(self):
         _make_convenio()
-        # ponte: SIAFI+UO → código do TA
-        CodigoTermoAditivo.objects.create(
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-            termo_aditivo_codigo_sequencial="TA-SEQ-001",
-            plano_trabalho_codigo=PT_CODIGO,
-        )
-        TermoAditivo.objects.create(
-            termo_aditivo_codigo_sequencial="TA-SEQ-001",
-            termo_aditivo_numero_termo_aditivo="1",
-            termo_aditivo_tipo="Prazo",
+        _ponte_plano()
+        _ponte_termo("TA-001", cd_plano_trabalho=PT)
+        SigconTermoAditivo.objects.create(
+            cd_termo_aditivo="TA-001", nr_termo_aditivo="1", tp_termo_aditivo="Prazo"
         )
         # TA de outro convênio — não deve aparecer
-        TermoAditivo.objects.create(
-            termo_aditivo_codigo_sequencial="TA-SEQ-999",
-            termo_aditivo_numero_termo_aditivo="99",
-        )
+        SigconTermoAditivo.objects.create(cd_termo_aditivo="TA-999", nr_termo_aditivo="99")
 
-        qs, ctx = get_termos_aditivos_qs(cod_sigcon=COD_SIGCON)
+        qs, ctx = get_termos_aditivos_qs(nr_convenio=NR_CONVENIO)
 
         self.assertEqual(qs.count(), 1)
-        ta = qs.first()
-        self.assertEqual(ta.termo_aditivo_codigo_sequencial, "TA-SEQ-001")
-        self.assertEqual(ctx["convenio_codigo"], COD_SIGCON)
-        self.assertEqual(ctx["ta_pt_map"]["TA-SEQ-001"], PT_CODIGO)
+        self.assertEqual(qs.first().cd_termo_aditivo, "TA-001")
+        self.assertEqual(ctx["convenio_codigo"], NR_CONVENIO)
+        self.assertEqual(ctx["ta_pt_map"]["TA-001"], PT)
 
     def test_convenio_sem_ta_retorna_vazio(self):
         _make_convenio()
-        qs, _ = get_termos_aditivos_qs(cod_sigcon=COD_SIGCON)
+
+        qs, _ = get_termos_aditivos_qs(nr_convenio=NR_CONVENIO)
+
         self.assertEqual(qs.count(), 0)
+
+    def test_filtro_global_por_siafi_resolve_direto_pela_ponte(self):
+        _ponte_termo("TA-001", cd_plano_trabalho=PT)
+        SigconTermoAditivo.objects.create(cd_termo_aditivo="TA-001")
+        SigconTermoAditivo.objects.create(cd_termo_aditivo="TA-999")
+
+        qs, ctx = get_termos_aditivos_qs(nr_siafi=SIAFI)
+
+        self.assertEqual(list(qs.values_list("cd_termo_aditivo", flat=True)), ["TA-001"])
+        self.assertEqual(ctx["ta_pt_map"]["TA-001"], PT)
+
+
+# ---------------------------------------------------------------------------
+# Aba Unidades Executoras — get_unidades_executoras_qs
+# ---------------------------------------------------------------------------
+
+
+class UnidadesExecutorasQsTest(TestCase):
+    def test_filtra_direto_por_siafi(self):
+        SigconUnidadeExecutora.objects.create(
+            nr_convenio=NR_CONVENIO, nr_siafi=SIAFI, cd_unidade_executora="UE-1"
+        )
+        SigconUnidadeExecutora.objects.create(
+            nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_unidade_executora="UE-2"
+        )
+
+        qs, _ = get_unidades_executoras_qs(nr_siafi=SIAFI)
+
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().nr_convenio, NR_CONVENIO)
+
+    def test_nr_convenio_tem_prioridade_sobre_nr_siafi(self):
+        """Com os dois na querystring (navegação entre abas), o convênio decide."""
+        SigconUnidadeExecutora.objects.create(nr_convenio=NR_CONVENIO, nr_siafi=SIAFI)
+        SigconUnidadeExecutora.objects.create(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI)
+
+        qs, _ = get_unidades_executoras_qs(nr_convenio=NR_CONVENIO, nr_siafi=OUTRO_SIAFI)
+
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().nr_convenio, NR_CONVENIO)
 
 
 # ---------------------------------------------------------------------------
 # Aba Convênios — get_sigcon_qs (filtros da tela mestre)
 # ---------------------------------------------------------------------------
+
 
 def _filtros(**kwargs):
     base = dict(
@@ -259,160 +422,79 @@ def _filtros(**kwargs):
 class GetSigconQsTest(TestCase):
     def test_sem_filtro_retorna_todos(self):
         _make_convenio()
-        _make_convenio(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999")
-        qs = get_sigcon_qs(_filtros())
-        self.assertEqual(qs.count(), 2)
+        _make_convenio(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO)
+
+        self.assertEqual(get_sigcon_qs(_filtros()).count(), 2)
 
     def test_filtra_por_cod_siafi(self):
         _make_convenio()
-        _make_convenio(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999")
+        _make_convenio(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO)
+
         qs = get_sigcon_qs(_filtros(cod_siafi=SIAFI))
+
         self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().convenio_codigo, COD_SIGCON)
+        self.assertEqual(qs.first().nr_convenio, NR_CONVENIO)
+
+    def test_filtra_por_situacao_e_por_ano(self):
+        _make_convenio(dt_vigencia_inicio=datetime.date(2024, 3, 1))
+        _make_convenio(
+            nr_convenio="OUTRO/2023", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO,
+            dt_vigencia_inicio=datetime.date(2023, 3, 1), ds_situacao_convenio="ENCERRADO",
+        )
+
+        self.assertEqual(get_sigcon_qs(_filtros(ano="2024")).count(), 1)
+        self.assertEqual(get_sigcon_qs(_filtros(situacao="ENCERRADO")).first().nr_convenio, "OUTRO/2023")
 
     def test_filtra_por_concedente_icontains(self):
-        _make_convenio(concedente="Ministério da Saúde")
-        _make_convenio(convenio_codigo="OUTRO/2024", concedente="Ministério da Educação")
+        _make_convenio()
+        _ponte_plano()
+        SigconPlanoTrabalho.objects.create(cd_plano_trabalho=PT, nm_concedente="Ministério da Saúde")
+        _make_convenio(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO)
+        _ponte_plano("PT-OUTRO", OUTRO_SIAFI, OUTRO_UO)
+        SigconPlanoTrabalho.objects.create(cd_plano_trabalho="PT-OUTRO", nm_concedente="Ministério da Educação")
+
         qs = get_sigcon_qs(_filtros(concedente="saúde"))
+
         self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().concedente, "Ministério da Saúde")
+        self.assertEqual(qs.first().nr_convenio, NR_CONVENIO)
+
+    def test_filtra_por_proponente_pelo_cnpj(self):
+        _make_convenio()
+        _ponte_plano()
+        SigconPlanoTrabalho.objects.create(cd_plano_trabalho=PT, nr_cnpj_proponente="22222222000122")
+        _make_convenio(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO)
+
+        qs = get_sigcon_qs(_filtros(proponente="22222222"))
+
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().nr_convenio, NR_CONVENIO)
 
     def test_filtra_por_termo_aditivo_sem_crashar(self):
         """
-        Regressão: tipo_termo_aditivo não é campo de Convenio (é de TermoAditivo).
-        Filtrar direto via qs.filter(tipo_termo_aditivo=...) levanta FieldError.
+        Regressão: tp_termo_aditivo não é campo de SigconConvenio (é de
+        SigconTermoAditivo). Filtrar direto levantaria FieldError; o filtro tem
+        de passar pela ponte sigcon_chave_termo_aditivo.
         """
         conv = _make_convenio()
-        CodigoTermoAditivo.objects.create(
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-            termo_aditivo_codigo_sequencial="TA-SEQ-001",
-        )
-        TermoAditivo.objects.create(
-            termo_aditivo_codigo_sequencial="TA-SEQ-001",
-            tipo_termo_aditivo="Prazo",
-        )
-        # outro convênio, sem esse tipo de termo aditivo
-        _make_convenio(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999")
+        _ponte_termo("TA-001")
+        SigconTermoAditivo.objects.create(cd_termo_aditivo="TA-001", tp_termo_aditivo="Prazo")
+        _make_convenio(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO)
 
         qs = get_sigcon_qs(_filtros(termo_aditivo="Prazo"))
 
         self.assertEqual(qs.count(), 1)
         self.assertEqual(qs.first().pk, conv.pk)
 
-    def test_filtra_por_proponente(self):
-        _make_convenio()
-        ConvenioIntegrado.objects.create(
-            siafi_uo=SIAFI + UO,
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-            g_proponente_pad="Prefeitura de Teste",
-        )
-        _make_convenio(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999")
-
-        qs = get_sigcon_qs(_filtros(proponente="prefeitura"))
-
-        self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().convenio_codigo, COD_SIGCON)
-
     def test_filtra_por_tipo_contrapartida(self):
         _make_convenio()
-        PlanoTrabalho.objects.create(
-            plano_trabalho_codigo=PT_CODIGO,
-            plano_trabalho_caracteristica="Contrapartida",
+        _ponte_plano()
+        SigconPlanoTrabalho.objects.create(
+            cd_plano_trabalho=PT, ds_caracteristica_contrapartida="Contrapartida"
         )
-        CodigoPlanoTrabalho.objects.create(
-            conveno_codigo_plano_trabalho=PT_CODIGO,
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-        )
-        _make_convenio(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999",
-                        plano_trabalho_codigo="PT-OUTRO")
+        _make_convenio(nr_convenio="OUTRO/2024", nr_siafi=OUTRO_SIAFI, cd_uo=OUTRO_UO)
+        _ponte_plano("PT-OUTRO", OUTRO_SIAFI, OUTRO_UO)
 
         qs = get_sigcon_qs(_filtros(tipo_contrapartida="Contrapartida financeira"))
 
         self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().convenio_codigo, COD_SIGCON)
-
-
-# ---------------------------------------------------------------------------
-# Filtro global cod_siafi nas 4 abas-detalhe (sem cod_sigcon)
-#
-# Essas abas não têm SIAFI nem plano_trabalho_codigo de forma autoexplicativa
-# em todos os models — os testes abaixo cobrem a resolução via Convenio (ou,
-# quando o model já tem o campo, o caminho direto) descrita nos docstrings
-# de cada get_*_qs em services.py.
-# ---------------------------------------------------------------------------
-
-class FiltroGlobalCodSiafiTest(TestCase):
-    def test_plano_aplicacao_resolve_via_convenio(self):
-        _make_convenio()
-        PlanoAplicacao.objects.create(codigo_plano_trabalho=PT_CODIGO)
-        PlanoAplicacao.objects.create(codigo_plano_trabalho="OUTRO-PT")
-
-        qs, ctx = get_plano_aplicacao_qs(cod_siafi=SIAFI)
-
-        self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().codigo_plano_trabalho, PT_CODIGO)
-        self.assertEqual(ctx["siafi"], SIAFI)
-
-    def test_prorrogacao_resolve_via_convenio(self):
-        _make_convenio()
-        ProrrogacaoOficio.objects.create(
-            prorrogacao_oficio_codigo="PRORROGA-001",
-            prorrogacao_oficio_codigo_convenio=COD_SIGCON,
-        )
-        ProrrogacaoOficio.objects.create(
-            prorrogacao_oficio_codigo="PRORROGA-002",
-            prorrogacao_oficio_codigo_convenio="OUTRO/2010",
-        )
-
-        qs, _ = get_prorrogacao_qs(cod_siafi=SIAFI)
-
-        self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().prorrogacao_oficio_codigo, "PRORROGA-001")
-
-    def test_termo_aditivo_resolve_direto_via_bridge(self):
-        _make_convenio()
-        CodigoTermoAditivo.objects.create(
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_orcamentaria_codigo=UO,
-            termo_aditivo_codigo_sequencial="TA-SEQ-001",
-            plano_trabalho_codigo=PT_CODIGO,
-        )
-        TermoAditivo.objects.create(termo_aditivo_codigo_sequencial="TA-SEQ-001")
-        TermoAditivo.objects.create(termo_aditivo_codigo_sequencial="TA-SEQ-999")
-
-        qs, ctx = get_termos_aditivos_qs(cod_siafi=SIAFI)
-
-        self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().termo_aditivo_codigo_sequencial, "TA-SEQ-001")
-        self.assertEqual(ctx["ta_pt_map"]["TA-SEQ-001"], PT_CODIGO)
-
-    def test_unidades_executoras_filtra_direto_por_siafi(self):
-        UnidadesExecutoras.objects.create(
-            convenio_codigo=COD_SIGCON,
-            convenio_numero_sequencial_siafi=SIAFI,
-            unidade_executora="Secretaria de Teste",
-        )
-        UnidadesExecutoras.objects.create(
-            convenio_codigo="OUTRO/2024",
-            convenio_numero_sequencial_siafi="999",
-        )
-
-        qs, _ = get_unidades_executoras_qs(cod_siafi=SIAFI)
-
-        self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().convenio_codigo, COD_SIGCON)
-
-    def test_cod_sigcon_tem_prioridade_sobre_cod_siafi(self):
-        """Quando os dois vêm na querystring (navegação entre abas), cod_sigcon decide."""
-        _make_convenio()
-        _make_convenio(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999")
-        UnidadesExecutoras.objects.create(convenio_codigo=COD_SIGCON, convenio_numero_sequencial_siafi=SIAFI)
-        UnidadesExecutoras.objects.create(convenio_codigo="OUTRO/2024", convenio_numero_sequencial_siafi="999")
-
-        qs, _ = get_unidades_executoras_qs(cod_sigcon=COD_SIGCON, cod_siafi="999")
-
-        self.assertEqual(qs.count(), 1)
-        self.assertEqual(qs.first().convenio_codigo, COD_SIGCON)
+        self.assertEqual(qs.first().nr_convenio, NR_CONVENIO)

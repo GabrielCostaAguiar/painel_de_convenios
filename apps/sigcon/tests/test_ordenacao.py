@@ -54,7 +54,7 @@ def test_ordenacao_vale_tambem_com_filtro_aplicado(nome, servico, ordenacao):
     Os exports e a tela filtrada passam pelos mesmos serviços. Um filtro não
     pode descartar o order_by — senão o arquivo baixado sai fora de ordem.
     """
-    qs, _ = servico(cod_sigcon="INEXISTENTE-123")
+    qs, _ = servico(nr_convenio="INEXISTENTE-123")
 
     assert qs.ordered
     assert tuple(qs.query.order_by) == tuple(ordenacao)
