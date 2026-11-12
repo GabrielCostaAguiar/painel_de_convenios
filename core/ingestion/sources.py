@@ -147,21 +147,13 @@ FONTES: dict[str, FonteDados] = {
         descricao="Dimensão de esferas — chave: concedente_cnpj → concedente_esfera",
         opcoes_leitura={"header": 1, "engine": "openpyxl"},
     ),
-
-    # ---- Tabela de relacionamento SIGCON↔SICONV ----
-
-    "sigcon_chave_siconv": FonteDados(
-        nome="sigcon_chave_siconv",
-        arquivo="sigcon/Chaves_convenio.csv",
+    "sigcon_tabela_uo": FonteDados(
+        nome="sigcon_tabela_uo",
+        arquivo="sigcon/sigcon_tabela_uo.csv",
         formato="csv",
-        descricao=(
-            "Ponte de relacionamento SIGCON↔SICONV. "
-            "Colunas-chave: convenio_numero_sequencial_siafi + unidade_orcamentaria_codigo → SIAFI_UO; "
-            "codigo_siconv → NR_CONVENIO (chave para SICONV); "
-            "plano_trabalho_tipo_siafi → tipo do instrumento (11=Acordo, 15=Transf. Especial)."
-        ),
-        opcoes_leitura={"sep": ";", "encoding": "latin-1"},
-    ),
+        descricao="Tabela de unidades orçamentárias — chave: uo_codigo → uo_nome",
+        opcoes_leitura={"sep": ",", "encoding": "UTF-8"},
+    ), # sep ',' (com todos os campos entre aspas): os campos de texto livre têm vírgulas e quebravam a leitura; exportado com aspas, a ',' dentro do texto fica protegida e não vira coluna extra.
 
     # ---- Pontes ETL (carimbo de chaves; usadas só no loader, não geram aba no painel) ----
 

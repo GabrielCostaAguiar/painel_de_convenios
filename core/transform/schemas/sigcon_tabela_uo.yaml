@@ -1,0 +1,16 @@
+fonte: sigcon_tabela_uo
+gerado_em: '2026-11-12'
+descricao: >
+  Relação dos códigos das unidades orçamentárias e seus respectivos nomes, separados por exercício. 
+  Grão: 1 linha por unidade orçamentária (uo_codigo) e ano de exercício (nr_ano_exercicio).
+colunas:
+  identificador:
+  - unidade_orcamentaria_-_codigo
+  texto:
+  - unidade_orcamentaria_-_nome
+  inteiro:
+  - ano_de_exercicio
+renomear:
+  unidade_orcamentaria_-_codigo: cd_uo
+  unidade_orcamentaria_-_nome: nm_uo
+  ano_de_exercicio: nr_ano_exercicio

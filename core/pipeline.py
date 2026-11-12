@@ -48,7 +48,6 @@ FONTES_SILVER = [
     "sigcon_chave_termo_aditivo",
     "sigcon_chave_plano_trabalho",
     "sigcon_chave_declaracao",
-    "sigcon_chave_siconv",
     "depara_siafi",
     "controle_sei",
     "siconv_convenio",
