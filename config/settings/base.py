@@ -21,12 +21,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "core",
     "apps.painel",
     "apps.sigcon",
     "apps.grp",
     "apps.uniao",
     "apps.execucao",
-    "apps.pipeline",
 ]
 
 MIDDLEWARE = [

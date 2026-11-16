@@ -39,8 +39,8 @@ COMANDOS_REMOVIDOS = [
 
 
 @pytest.mark.parametrize("comando", COMANDOS_PIPELINE)
-def test_comandos_de_pipeline_vivem_em_apps_pipeline(comando):
-    assert get_commands()[comando] == "apps.pipeline"
+def test_comandos_de_pipeline_vivem_em_core(comando):
+    assert get_commands()[comando] == "core"
 
 
 @pytest.mark.parametrize("comando", COMANDOS_SIGCON)
@@ -56,7 +56,7 @@ def test_comandos_antigos_nao_existem_mais(comando):
 def test_painel_nao_expoe_nenhum_comando():
     """
     O painel é camada de apresentação: não deve registrar comandos. Pega
-    sobras de uma cópia não removida na mudança para apps.pipeline.
+    sobras de uma cópia não removida na mudança para o core.
     """
     do_painel = [
         nome for nome, app in get_commands().items() if app == "apps.painel"
