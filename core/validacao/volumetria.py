@@ -1,5 +1,5 @@
 """
-Volumetria: o banco tem exatamente as linhas da Silver de cada tabela SIGCON.
+Volumetria: o banco tem exatamente as linhas da Silver de cada tabela do app.
 
 A carga é full refresh e nunca descarta linha com dado (Silver = model), então
 qualquer diferença entre o Parquet e a tabela indica carga interrompida, Parquet
@@ -13,20 +13,19 @@ from django.conf import settings
 from django.db import connection
 from psycopg import sql
 
-PREFIXO = "sigcon_"
-
 
 def pasta_silver():
     # Lido a cada chamada (não no import) para respeitar DATA_DIR sobrescrito.
     return Path(settings.DATA_DIR) / "silver"
 
 
-def tabelas_sigcon():
-    """Nomes das tabelas dos models SIGCON — a mesma chave da fonte e do Parquet."""
+def tabelas_com_prefixo(prefixo):
+    """Nomes das tabelas dos models do app (ex.: "sigcon_") — a mesma chave da
+    fonte e do Parquet."""
     return sorted(
         modelo._meta.db_table
         for modelo in apps.get_models()
-        if modelo._meta.db_table.startswith(PREFIXO)
+        if modelo._meta.db_table.startswith(prefixo)
     )
 
 
@@ -54,20 +53,21 @@ def variacao_percentual(anterior, atual):
     return abs(atual - anterior) / anterior
 
 
-def teste_variacao_volumetria(minimo, maximo=None):
+def teste_variacao_volumetria(prefixo, historico, minimo, maximo=None):
     """
+    `historico` é o model de histórico de carga do app (campos tabela, qt_linhas,
+    dt_carga).
+
     Devolve (qt, amostra) das tabelas cuja carga mais recente variou em relação à
     anterior mais que `minimo` e, se informado, até `maximo` (frações: 0.05 = 5%).
 
     Tabela com menos de duas cargas no histórico passa: é a primeira carga, só
-    há o que registrar (a gravação é feita por `carregar_sigcon`).
+    há o que registrar (a gravação é feita pelo `carregar_<app>`).
     """
-    from apps.sigcon.models import SigconHistoricoCarga
-
     fora = []
-    for tabela in tabelas_sigcon():
+    for tabela in tabelas_com_prefixo(prefixo):
         ultimas = list(
-            SigconHistoricoCarga.objects.filter(tabela=tabela).order_by("-dt_carga", "-id")[:2]
+            historico.objects.filter(tabela=tabela).order_by("-dt_carga", "-id")[:2]
         )
         if len(ultimas) < 2:
             continue
@@ -85,11 +85,11 @@ def teste_variacao_volumetria(minimo, maximo=None):
     return len(fora), fora
 
 
-def teste_volumetria():
+def teste_volumetria(prefixo):
     """Devolve (qt_divergencias, amostra), no mesmo formato dos testes SQL."""
     divergencias = []
 
-    for tabela in tabelas_sigcon():
+    for tabela in tabelas_com_prefixo(prefixo):
         try:
             n_parquet = contar_parquet(tabela)
         except FileNotFoundError:

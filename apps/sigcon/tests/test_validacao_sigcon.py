@@ -35,9 +35,10 @@ from apps.sigcon.models import (
     SigconPlanoAplicacao,
     SigconTabelaUo,
 )
-from apps.sigcon.validacao import catalogo, volumetria
-from apps.sigcon.validacao.limites import severidade_efetiva
-from apps.sigcon.validacao.generico import (
+from apps.sigcon.validacao import catalogo
+from core.validacao import volumetria
+from core.validacao.limites import severidade_efetiva
+from core.validacao.sql import (
     sql_formato,
     sql_nao_nulo,
     sql_orfaos,
@@ -111,7 +112,7 @@ def test_toda_tabela_do_grao_tem_model_e_colunas_existem():
 
 def test_toda_tabela_sigcon_tem_grao_declarado():
     """Tabela nova no models.py sem grão no catálogo ficaria sem teste de unicidade."""
-    assert set(volumetria.tabelas_sigcon()) == set(catalogo.GRAOS)
+    assert set(volumetria.tabelas_com_prefixo("sigcon_")) == set(catalogo.GRAOS)
 
 
 @pytest.mark.parametrize("tabela", sorted(catalogo.GRAOS))
@@ -386,12 +387,12 @@ def _gravar(silver, tabela, linhas):
 
 @pytest.mark.django_db
 def test_volumetria_aponta_so_as_tabelas_que_divergem(silver_sintetica):
-    for tabela in volumetria.tabelas_sigcon():
+    for tabela in volumetria.tabelas_com_prefixo("sigcon_"):
         _gravar(silver_sintetica, tabela, 0)
     _gravar(silver_sintetica, "sigcon_tabela_uo", 3)  # parquet 3, banco 0
     SigconConvenio.objects.create(siafi_uo="1")  # parquet 0, banco 1
 
-    qt, amostra = volumetria.teste_volumetria()
+    qt, amostra = volumetria.teste_volumetria("sigcon_")
 
     assert qt == 2
     assert {a["fonte"]: (a["linhas_parquet"], a["linhas_banco"]) for a in amostra} == {
@@ -402,20 +403,20 @@ def test_volumetria_aponta_so_as_tabelas_que_divergem(silver_sintetica):
 
 @pytest.mark.django_db
 def test_volumetria_sem_divergencia(silver_sintetica):
-    for tabela in volumetria.tabelas_sigcon():
+    for tabela in volumetria.tabelas_com_prefixo("sigcon_"):
         _gravar(silver_sintetica, tabela, 0)
 
-    assert volumetria.teste_volumetria() == (0, [])
+    assert volumetria.teste_volumetria("sigcon_") == (0, [])
 
 
 @pytest.mark.django_db
 def test_volumetria_parquet_ausente_e_divergencia_nao_excecao(silver_sintetica):
     """Uma fonte sem Silver não pode impedir a checagem das outras."""
-    for tabela in volumetria.tabelas_sigcon():
+    for tabela in volumetria.tabelas_com_prefixo("sigcon_"):
         if tabela != "sigcon_concedente":
             _gravar(silver_sintetica, tabela, 0)
 
-    qt, amostra = volumetria.teste_volumetria()
+    qt, amostra = volumetria.teste_volumetria("sigcon_")
 
     assert qt == 1
     assert amostra == [

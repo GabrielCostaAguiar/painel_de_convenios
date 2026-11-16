@@ -26,20 +26,20 @@ PADRAO_MOJIBAKE = f"[ÃÂ][{_CONTINUACAO}]|â€"
 IDS_NA_AMOSTRA = 3
 
 
-def colunas_de_texto():
-    """(model, nome do campo) de todo CharField/TextField dos models sigcon_*."""
+def colunas_de_texto(prefixo):
+    """(model, nome do campo) de todo CharField/TextField dos models do app."""
     for modelo in apps.get_models():
-        if not modelo._meta.db_table.startswith("sigcon_"):
+        if not modelo._meta.db_table.startswith(prefixo):
             continue
         for campo in modelo._meta.concrete_fields:
             if isinstance(campo, (models.CharField, models.TextField)):
                 yield modelo, campo.name
 
 
-def teste_mojibake():
+def teste_mojibake(prefixo):
     """(qt_celulas_afetadas, amostra por tabela/coluna)."""
     total, amostra = 0, []
-    for modelo, campo in colunas_de_texto():
+    for modelo, campo in colunas_de_texto(prefixo):
         afetadas = modelo.objects.filter(**{f"{campo}__regex": PADRAO_MOJIBAKE})
         n = afetadas.count()
         if n:

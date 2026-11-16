@@ -1,7 +1,7 @@
-from apps.grp.validacao.volumetria import (
-    teste_volumetria,
-)
-from apps.grp.validacao.generico import (
+from functools import partial
+
+from core.validacao.volumetria import teste_volumetria
+from core.validacao.sql import (
     sql_formato,
     sql_nao_nulo,
     sql_unicidade,
@@ -169,7 +169,7 @@ TESTES = [
         "severidade": "ERRO",
         "tabela": "grp_*",
         "descricao": "Linhas do parquet iguais às da tabela no banco, nas fontes grp_*",
-        "funcao": teste_volumetria,
+        "funcao": partial(teste_volumetria, "grp_"),
     },
     {
         "id": "T-A02",

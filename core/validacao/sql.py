@@ -1,5 +1,5 @@
 """
-Construtores de SQL genéricos do catálogo de validação do SIGCON.
+Construtores de SQL genéricos dos catálogos de validação (GRP, SIGCON, ...).
 
 Cada função devolve o texto de uma consulta que lista as linhas que VIOLAM a
 regra: teste que passa = consulta sem linhas. Nomes de tabela e coluna vêm
@@ -67,6 +67,15 @@ def sql_formato(tabela, coluna, regex, filtro=None):
         SELECT *
         FROM {tabela}
         {_onde(f"{coluna} IS NOT NULL", f"NOT ({coluna} ~ '{regex}')", filtro)}
+    """
+
+
+def sql_sem_chave(tabela):
+    """Linhas do GRP sem nenhuma das duas chaves (nr_grp e cd_proposta)."""
+    return f"""
+        SELECT *
+        FROM {tabela}
+        WHERE COALESCE(nr_grp, cd_proposta) IS NULL
     """
 
 

@@ -24,23 +24,28 @@ do SIGCON e do GRP são separadas, então os ids podem repetir entre os apps.
 
 from functools import partial
 
-from apps.sigcon.validacao.arquivos import (
+from apps.sigcon.models import SigconHistoricoCarga
+from apps.sigcon.validacao.limites import LIMITES_CONHECIDOS as LIM
+from core.validacao.arquivos import (
     teste_arquivos_antigos,
     teste_arquivos_ausentes,
 )
-from apps.sigcon.validacao.generico import (
+from core.validacao.sql import (
     sql_formato,
     sql_nao_nulo,
     sql_orfaos,
     sql_unicidade,
     sql_valores_aceitos,
 )
-from apps.sigcon.validacao.limites import LIMITES_CONHECIDOS as LIM
-from apps.sigcon.validacao.texto import teste_mojibake
-from apps.sigcon.validacao.volumetria import (
+from core.validacao.texto import teste_mojibake
+from core.validacao.volumetria import (
     teste_variacao_volumetria,
     teste_volumetria,
 )
+
+# ---------------------------------------------------------------------------
+# Prefixo das tabelas do app (usado pelos testes genéricos de core.validacao).
+PREFIXO = "sigcon_"
 
 # ---------------------------------------------------------------------------
 # Grãos (modelo de extração, seção 6 — "Grão: o que é uma linha").
@@ -161,7 +166,7 @@ TESTES_A = _numerar(
             "severidade": "ERRO",
             "tabela": "sigcon_*",
             "descricao": "Linhas do parquet iguais às da tabela no banco, nas tabelas sigcon_*",
-            "funcao": teste_volumetria,
+            "funcao": partial(teste_volumetria, PREFIXO),
         },
         {
             "severidade": "ERRO",
@@ -176,7 +181,9 @@ TESTES_A = _numerar(
                 f"Linhas carregadas variaram mais de {VARIACAO_ALERTA:.0%} e até "
                 f"{VARIACAO_ERRO:.0%} em relação à carga anterior (histórico de carregar_sigcon)"
             ),
-            "funcao": partial(teste_variacao_volumetria, VARIACAO_ALERTA, VARIACAO_ERRO),
+            "funcao": partial(
+                teste_variacao_volumetria, PREFIXO, SigconHistoricoCarga, VARIACAO_ALERTA, VARIACAO_ERRO
+            ),
         },
         {
             "severidade": "ERRO",
@@ -185,19 +192,19 @@ TESTES_A = _numerar(
                 f"Linhas carregadas variaram mais de {VARIACAO_ERRO:.0%} em relação à "
                 "carga anterior (histórico de carregar_sigcon)"
             ),
-            "funcao": partial(teste_variacao_volumetria, VARIACAO_ERRO),
+            "funcao": partial(teste_variacao_volumetria, PREFIXO, SigconHistoricoCarga, VARIACAO_ERRO),
         },
         {
             "severidade": "ERRO",
             "tabela": "data/raw/sigcon",
             "descricao": "Todo arquivo de entrada esperado existe em data/raw",
-            "funcao": teste_arquivos_ausentes,
+            "funcao": partial(teste_arquivos_ausentes, PREFIXO),
         },
         {
             "severidade": "ALERTA",
             "tabela": "data/raw/sigcon",
             "descricao": "Arquivos de entrada com mais dias que SIGCON_RAW_MAX_DIAS desde a última modificação",
-            "funcao": teste_arquivos_antigos,
+            "funcao": partial(teste_arquivos_antigos, PREFIXO),
         },
     ],
 )
@@ -471,7 +478,7 @@ TESTES_E = _numerar(
             "descricao": (
                 "Sem mojibake (UTF-8 lido como cp1252, ex.: 'Ã§', 'Ã£', 'Â', 'â€') em colunas de texto"
             ),
-            "funcao": teste_mojibake,
+            "funcao": partial(teste_mojibake, PREFIXO),
         }
     ],
 )

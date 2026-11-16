@@ -28,8 +28,12 @@ from apps.sigcon.models import (
     SigconTermoAditivo,
     SigconChaveTermoAditivo,
 )
-from apps.sigcon.validacao import arquivos, catalogo, limites, texto, volumetria
-from apps.sigcon.validacao.generico import sql_valores_aceitos
+from apps.sigcon.validacao import catalogo, limites
+from core.validacao import arquivos, texto, volumetria
+from core.validacao import limites as limites_core
+from core.validacao.sql import sql_valores_aceitos
+
+PREFIXO = "sigcon_"
 
 
 def _executar(sql):
@@ -51,15 +55,15 @@ def _por_descricao(lista, trecho, tabela=None):
 def test_severidade_efetiva_alerta_ate_o_limite_e_erro_acima():
     teste = {"severidade": "ERRO", "limite": 8}
 
-    assert limites.severidade_efetiva(teste, 0) == "ERRO"  # nada falhou: vale a do catálogo
-    assert limites.severidade_efetiva(teste, 1) == "ALERTA"
-    assert limites.severidade_efetiva(teste, 8) == "ALERTA"
-    assert limites.severidade_efetiva(teste, 9) == "ERRO"
+    assert limites_core.severidade_efetiva(teste, 0) == "ERRO"  # nada falhou: vale a do catálogo
+    assert limites_core.severidade_efetiva(teste, 1) == "ALERTA"
+    assert limites_core.severidade_efetiva(teste, 8) == "ALERTA"
+    assert limites_core.severidade_efetiva(teste, 9) == "ERRO"
 
 
 def test_teste_sem_limite_mantem_a_severidade_do_catalogo():
-    assert limites.severidade_efetiva({"severidade": "ALERTA"}, 500) == "ALERTA"
-    assert limites.severidade_efetiva({"severidade": "ERRO"}, 500) == "ERRO"
+    assert limites_core.severidade_efetiva({"severidade": "ALERTA"}, 500) == "ALERTA"
+    assert limites_core.severidade_efetiva({"severidade": "ERRO"}, 500) == "ERRO"
 
 
 def test_limites_usam_os_numeros_do_banco_real_e_nao_os_do_pdf():
@@ -117,11 +121,11 @@ def test_erros_da_fonte_conhecidos_nao_bloqueiam_ate_o_limite():
     for i in range(4):
         SigconPlanoTrabalho.objects.create(cd_plano_trabalho=str(i), nr_cnpj_proponente="1231")
     qt = _executar(teste["sql"])[0]
-    assert (qt, limites.severidade_efetiva(teste, qt)) == (4, "ALERTA")
+    assert (qt, limites_core.severidade_efetiva(teste, qt)) == (4, "ALERTA")
 
     SigconPlanoTrabalho.objects.create(cd_plano_trabalho="novo", nr_cnpj_proponente="999")
     qt = _executar(teste["sql"])[0]
-    assert (qt, limites.severidade_efetiva(teste, qt)) == (5, "ERRO")
+    assert (qt, limites_core.severidade_efetiva(teste, qt)) == (5, "ERRO")
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +142,7 @@ def test_mojibake_detecta_utf8_lido_como_cp1252(valor):
     valor = valor.replace("Construção de UBS", "ConstruÃ§Ã£o de UBS")
     SigconPlanoTrabalho.objects.create(cd_plano_trabalho="1", nm_plano_trabalho=valor)
 
-    qt, amostra = texto.teste_mojibake()
+    qt, amostra = texto.teste_mojibake(PREFIXO)
 
     assert qt == 1
     assert amostra[0]["tabela"] == "sigcon_plano_trabalho"
@@ -154,7 +158,7 @@ def test_mojibake_nao_confunde_portugues_legitimo(valor):
     """'Ã' maiúsculo seguido de letra (NÃO, AÇÃO) é texto correto, não defeito."""
     SigconPlanoTrabalho.objects.create(cd_plano_trabalho="1", nm_plano_trabalho=valor)
 
-    assert texto.teste_mojibake() == (0, [])
+    assert texto.teste_mojibake(PREFIXO) == (0, [])
 
 
 @pytest.mark.django_db
@@ -163,7 +167,7 @@ def test_mojibake_amostra_nao_copia_o_texto_da_celula():
         cd_plano_trabalho="1", tx_objeto="Obra de JoÃ£o da Silva, CPF 000.000.000-00"
     )
 
-    _, amostra = texto.teste_mojibake()
+    _, amostra = texto.teste_mojibake(PREFIXO)
 
     assert set(amostra[0]) == {"tabela", "coluna", "linhas", "ids"}
     assert "Silva" not in str(amostra)
@@ -174,7 +178,7 @@ def test_mojibake_varre_tabelas_diferentes_e_so_colunas_de_texto():
     SigconPlanoTrabalho.objects.create(cd_plano_trabalho="1", nm_plano_trabalho="ç mal Ã§")
     SigconTermoAditivo.objects.create(cd_termo_aditivo="1", tx_justificativa="JustificaÃ§Ã£o")
 
-    qt, amostra = texto.teste_mojibake()
+    qt, amostra = texto.teste_mojibake(PREFIXO)
 
     assert qt == 2
     assert {(a["tabela"], a["coluna"]) for a in amostra} == {
@@ -187,7 +191,7 @@ def test_mojibake_esta_no_catalogo_como_erro_sem_limite():
     teste = _por_descricao(catalogo.TESTES_E, "mojibake")
 
     assert teste["severidade"] == "ERRO" and "limite" not in teste
-    assert teste["funcao"] is texto.teste_mojibake
+    assert teste["funcao"].func is texto.teste_mojibake
 
 
 # ---------------------------------------------------------------------------
@@ -203,9 +207,9 @@ def _historico(tabela, *contagens):
 
 @pytest.mark.django_db
 def test_primeira_carga_sem_historico_passa():
-    assert volumetria.teste_variacao_volumetria(0.05, 0.30) == (0, [])
+    assert volumetria.teste_variacao_volumetria(PREFIXO, SigconHistoricoCarga, 0.05, 0.30) == (0, [])
     _historico("sigcon_convenio", 5000)  # uma só carga: nada para comparar
-    assert volumetria.teste_variacao_volumetria(0.05, 0.30) == (0, [])
+    assert volumetria.teste_variacao_volumetria(PREFIXO, SigconHistoricoCarga, 0.05, 0.30) == (0, [])
 
 
 @pytest.mark.django_db
@@ -226,15 +230,15 @@ def test_primeira_carga_sem_historico_passa():
 def test_faixas_de_variacao(anterior, atual, alerta, erro):
     _historico("sigcon_convenio", anterior, atual)
 
-    assert volumetria.teste_variacao_volumetria(0.05, 0.30)[0] == alerta
-    assert volumetria.teste_variacao_volumetria(0.30)[0] == erro
+    assert volumetria.teste_variacao_volumetria(PREFIXO, SigconHistoricoCarga, 0.05, 0.30)[0] == alerta
+    assert volumetria.teste_variacao_volumetria(PREFIXO, SigconHistoricoCarga, 0.30)[0] == erro
 
 
 @pytest.mark.django_db
 def test_compara_so_as_duas_cargas_mais_recentes():
     _historico("sigcon_convenio", 100, 5000, 5100)  # a de 100 já é história antiga
 
-    qt, amostra = volumetria.teste_variacao_volumetria(0.05, 0.30)
+    qt, amostra = volumetria.teste_variacao_volumetria(PREFIXO, SigconHistoricoCarga, 0.05, 0.30)
 
     assert qt == 0 and amostra == []
 
@@ -243,7 +247,7 @@ def test_compara_so_as_duas_cargas_mais_recentes():
 def test_amostra_traz_as_duas_contagens_e_o_percentual():
     _historico("sigcon_tabela_uo", 1000, 1200)
 
-    _, amostra = volumetria.teste_variacao_volumetria(0.05, 0.30)
+    _, amostra = volumetria.teste_variacao_volumetria(PREFIXO, SigconHistoricoCarga, 0.05, 0.30)
 
     assert amostra == [
         {"fonte": "sigcon_tabela_uo", "linhas_anterior": 1000, "linhas_atual": 1200,
@@ -280,7 +284,7 @@ def test_carregar_sigcon_registra_a_contagem_de_cada_carga_bem_sucedida():
 
 def test_historico_nao_entra_nos_testes_de_tabelas_sigcon():
     """dq_historico_carga_sigcon fica fora do prefixo sigcon_: não é tabela do modelo."""
-    assert "dq_historico_carga_sigcon" not in volumetria.tabelas_sigcon()
+    assert "dq_historico_carga_sigcon" not in volumetria.tabelas_com_prefixo(PREFIXO)
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +296,7 @@ def test_historico_nao_entra_nos_testes_de_tabelas_sigcon():
 def raw_sigcon(tmp_path):
     """DATA_DIR com todos os arquivos esperados, modificados agora."""
     with override_settings(DATA_DIR=str(tmp_path)):
-        for caminho in arquivos.arquivos_esperados().values():
+        for caminho in arquivos.arquivos_esperados(PREFIXO).values():
             caminho.parent.mkdir(parents=True, exist_ok=True)
             caminho.write_bytes(b"x")
         yield tmp_path
@@ -300,21 +304,21 @@ def raw_sigcon(tmp_path):
 
 def test_arquivos_esperados_vem_de_fontes_e_cobrem_as_tabelas_sigcon(tmp_path):
     with override_settings(DATA_DIR=str(tmp_path)):
-        esperados = arquivos.arquivos_esperados()
+        esperados = arquivos.arquivos_esperados(PREFIXO)
 
-    assert set(esperados) == set(volumetria.tabelas_sigcon())
+    assert set(esperados) == set(volumetria.tabelas_com_prefixo(PREFIXO))
     assert esperados["sigcon_convenio"] == tmp_path / "raw" / "sigcon" / "dcgce_convenio.xlsx"
 
 
 def test_todos_presentes_e_recentes_passa(raw_sigcon):
-    assert arquivos.teste_arquivos_ausentes() == (0, [])
-    assert arquivos.teste_arquivos_antigos() == (0, [])
+    assert arquivos.teste_arquivos_ausentes(PREFIXO) == (0, [])
+    assert arquivos.teste_arquivos_antigos(PREFIXO) == (0, [])
 
 
 def test_arquivo_ausente_e_listado(raw_sigcon):
     (raw_sigcon / "raw" / "sigcon" / "dcgce_convenio.xlsx").unlink()
 
-    qt, amostra = arquivos.teste_arquivos_ausentes()
+    qt, amostra = arquivos.teste_arquivos_ausentes(PREFIXO)
 
     assert qt == 1
     assert amostra[0]["fonte"] == "sigcon_convenio"
@@ -324,7 +328,7 @@ def test_arquivo_ausente_e_listado(raw_sigcon):
 def test_arquivo_ausente_nao_conta_como_antigo(raw_sigcon):
     (raw_sigcon / "raw" / "sigcon" / "dcgce_convenio.xlsx").unlink()
 
-    assert arquivos.teste_arquivos_antigos() == (0, [])
+    assert arquivos.teste_arquivos_antigos(PREFIXO) == (0, [])
 
 
 def _envelhecer(caminho, dias):
@@ -335,7 +339,7 @@ def _envelhecer(caminho, dias):
 def test_arquivo_com_mais_de_n_dias_e_alerta(raw_sigcon):
     _envelhecer(raw_sigcon / "raw" / "sigcon" / "dcgce_Geral.xlsx", 10)
 
-    qt, amostra = arquivos.teste_arquivos_antigos()  # padrão: 7 dias
+    qt, amostra = arquivos.teste_arquivos_antigos(PREFIXO)  # padrão: 7 dias
 
     assert qt == 1
     assert amostra[0]["fonte"] == "sigcon_convenio_geral"
@@ -346,9 +350,9 @@ def test_limite_de_dias_e_configuravel_por_setting(raw_sigcon):
     _envelhecer(raw_sigcon / "raw" / "sigcon" / "dcgce_Geral.xlsx", 10)
 
     with override_settings(SIGCON_RAW_MAX_DIAS=30):
-        assert arquivos.teste_arquivos_antigos() == (0, [])
+        assert arquivos.teste_arquivos_antigos(PREFIXO) == (0, [])
     with override_settings(SIGCON_RAW_MAX_DIAS=5):
-        assert arquivos.teste_arquivos_antigos()[0] == 1
+        assert arquivos.teste_arquivos_antigos(PREFIXO)[0] == 1
 
 
 def test_setting_padrao_e_7_dias():

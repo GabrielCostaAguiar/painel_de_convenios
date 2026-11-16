@@ -1,6 +1,6 @@
 import pytest
 
-from apps.grp.validacao.generico import (
+from core.validacao.sql import (
     sql_formato,
     sql_valores_aceitos,
     sql_orfaos,

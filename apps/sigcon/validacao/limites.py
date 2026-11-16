@@ -13,7 +13,8 @@ Depois de corrigir a fonte, baixe o limite (ou remova-o) para a regressão
 voltar a ser pega.
 
 Cada limite tem o nome do que ele conta. Para mudar um, edite aqui e atualize
-a seção SIGCON de docs/qualidade_dados.md.
+a seção SIGCON de docs/qualidade_dados.md. A regra que usa os limites
+(severidade_efetiva) mora em core/validacao/limites.py.
 """
 
 LIMITES_CONHECIDOS = {
@@ -40,16 +41,3 @@ LIMITES_CONHECIDOS = {
     "cnpj_concedente_invalido": 1,  # 13 dígitos: o zero à esquerda se perdeu no Excel
     "cd_uo_com_tamanho_errado": 1,  # a linha sentinela 99999999 (cd_uo = 9999999999)
 }
-
-
-def severidade_efetiva(teste, qt):
-    """
-    Severidade com que o resultado deve ser gravado.
-
-    Teste sem `limite`: a do catálogo. Com `limite`: ALERTA se 0 < qt <= limite,
-    ERRO se qt > limite; com qt == 0 nada falhou, vale a do catálogo.
-    """
-    limite = teste.get("limite")
-    if limite is None or qt == 0:
-        return teste["severidade"]
-    return "ALERTA" if qt <= limite else "ERRO"

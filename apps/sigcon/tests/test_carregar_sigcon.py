@@ -249,7 +249,7 @@ def test_toda_fonte_carregada_existe_em_fontes():
 
 def test_cada_fonte_tem_um_model_com_o_mesmo_nome_de_tabela():
     """O loader genérico e a volumetria assumem fonte == db_table."""
-    from apps.sigcon.validacao.volumetria import tabelas_sigcon
+    from core.validacao.volumetria import tabelas_com_prefixo
 
     # ResultadoValidacao não começa com o prefixo sigcon_, então não entra.
-    assert sorted(FONTES_SIGCON) == tabelas_sigcon()
+    assert sorted(FONTES_SIGCON) == tabelas_com_prefixo("sigcon_")
