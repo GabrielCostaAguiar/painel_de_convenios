@@ -18,141 +18,14 @@ Uso:
     python manage.py carregar_grp --fonte grp_instrumento --fonte grp_concedente
 """
 
-import logging
-
-from django.core.management.base import BaseCommand, CommandError
-
-from apps.grp import loader as loaders
-from core.cache import invalidar_cache_indicadores
-
-logger = logging.getLogger(__name__)
-
-# Nome da fonte (chave de core.ingestion.sources.FONTES, sempre com underscore)
-# → função de carga. A ordem do dict é a ordem de carga.
-#
-# Sobre a ordem: os models do GRP não têm nenhuma ForeignKey entre si — são
-# tabelas planas ligadas por nr_grp na consulta, não por integridade
-# referencial. Então a ordem não afeta a consistência do banco. Mantemos
-# grp_instrumento primeiro por ser a tabela "mãe" do conjunto (é dela que as
-# telas tiram a lista de instrumentos), de modo que uma carga interrompida
-# deixe o painel num estado mais útil.
-_LOADERS_GRP = {
-    "grp_instrumento": loaders.carregar_grp_instrumento,
-    "grp_concedente": loaders.carregar_grp_concedente,
-    "grp_prestacao_contas": loaders.carregar_grp_prestacao_contas,
-    "grp_planejamento_obras": loaders.carregar_grp_planejamento_obras,
-    "grp_proposta_marco_logico": loaders.carregar_grp_proposta_marco_logico,
-    "grp_emenda": loaders.carregar_grp_emenda,
-    "grp_interveniente": loaders.carregar_grp_interveniente,
-    "grp_unidade_executora": loaders.carregar_grp_unidade_executora,
-    "grp_municipio_atendido": loaders.carregar_grp_municipio_atendido,
-    "grp_regiao_atendida": loaders.carregar_grp_regiao_atendida,
-    "grp_recurso_concedente": loaders.carregar_grp_recurso_concedente,
-    "grp_recurso_contrapartida": loaders.carregar_grp_recurso_contrapartida,
-    "grp_dotacao_contrapartida": loaders.carregar_grp_dotacao_contrapartida,
-    "grp_acao_orcamentaria": loaders.carregar_grp_acao_orcamentaria,
-    "grp_instrumento_financiado": loaders.carregar_grp_instrumento_financiado,
-    "grp_item_executar": loaders.carregar_grp_item_executar,
-    "grp_cronograma_desembolso": loaders.carregar_grp_cronograma_desembolso,
-    "grp_cronograma_fisico": loaders.carregar_grp_cronograma_fisico,
-    "grp_entrega_projeto": loaders.carregar_grp_entrega_projeto,
-    "grp_atividade_projeto": loaders.carregar_grp_atividade_projeto,
-    "grp_matriz_responsabilidade": loaders.carregar_grp_matriz_responsabilidade,
-    "grp_tabela_uo": loaders.carregar_grp_tabela_uo,
-}
-
-FONTES_GRP = tuple(_LOADERS_GRP)
+from apps.grp.loader import _LOADERS_GRP
+from core.carga.comando import ComandoCarga
 
 
-class Command(BaseCommand):
+class Command(ComandoCarga):
     help = (
         "Full refresh das tabelas do GRP a partir dos Parquets Silver. "
         "Sem argumentos, carrega todas; use --fonte para escolher."
     )
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--fonte",
-            action="append",
-            dest="fontes",
-            default=None,
-            metavar="NOME",
-            help=(
-                "Fonte a carregar; pode repetir. "
-                f"Disponíveis: {', '.join(FONTES_GRP)}. "
-                "Omitir = carrega todas."
-            ),
-        )
-
-    def handle(self, *args, **options):
-        fontes = self._resolver_fontes(options["fontes"])
-
-        self.stdout.write(
-            f"Carregando {len(fontes)} tabela(s) do GRP (full refresh)..."
-        )
-
-        resultados, falhas = {}, {}
-
-        for fonte in fontes:
-            # Falha de uma fonte não aborta as demais — mesma semântica do
-            # rodar_pipeline. O resumo no final diz o que entrou e o que não.
-            try:
-                resultados[fonte] = _LOADERS_GRP[fonte]()
-            except FileNotFoundError as exc:
-                # Erro esperado: o Silver dessa fonte ainda não foi gerado.
-                logger.warning("grp: %r sem Silver: %s", fonte, exc)
-                falhas[fonte] = str(exc)
-            except Exception as exc:
-                # Erro inesperado: traceback completo no log, para o
-                # diagnóstico não se perder no resumo.
-                logger.exception("grp: falha inesperada ao carregar %r", fonte)
-                falhas[fonte] = str(exc)
-
-        self._imprimir_resumo(resultados, falhas)
-
-        if resultados:
-            # Pelo menos uma tabela mudou: o painel não pode seguir servindo
-            # indicadores calculados antes da carga.
-            invalidar_cache_indicadores()
-
-        if falhas:
-            # CommandError faz o comando sair com código != 0, que é o que
-            # agendador e script de deploy usam para detectar problema.
-            raise CommandError(
-                f"{len(falhas)} de {len(fontes)} fonte(s) do GRP falharam: "
-                f"{', '.join(falhas)}"
-            )
-
-    # -- auxiliares ---------------------------------------------------------
-
-    def _resolver_fontes(self, pedidas):
-        if not pedidas:
-            return list(FONTES_GRP)
-
-        desconhecidas = [f for f in pedidas if f not in _LOADERS_GRP]
-        if desconhecidas:
-            raise CommandError(
-                f"Fonte(s) não registrada(s) no GRP: {', '.join(desconhecidas)}\n"
-                f"Disponíveis: {', '.join(FONTES_GRP)}"
-            )
-
-        # Respeita a ordem canônica de _LOADERS_GRP e remove repetições.
-        return [f for f in FONTES_GRP if f in set(pedidas)]
-
-    def _imprimir_resumo(self, resultados, falhas):
-        for fonte, resultado in resultados.items():
-            self.stdout.write(
-                f"  {fonte}: Apagados: {resultado['apagados']} | "
-                f"Inseridos: {resultado['inseridos']}"
-            )
-        for fonte, erro in falhas.items():
-            primeira_linha = erro.splitlines()[0] if erro else erro
-            self.stdout.write(self.style.ERROR(f"  {fonte}: FALHOU — {primeira_linha}"))
-
-        total_inserido = sum(r["inseridos"] for r in resultados.values())
-        resumo = (
-            f"Concluído! {len(resultados)} tabela(s) carregada(s), "
-            f"{total_inserido} linha(s) inseridas."
-        )
-        estilo = self.style.WARNING if falhas else self.style.SUCCESS
-        self.stdout.write(estilo(resumo))
+    rotulo = "GRP"
+    loaders = _LOADERS_GRP

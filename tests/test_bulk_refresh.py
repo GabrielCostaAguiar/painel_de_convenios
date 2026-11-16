@@ -1,5 +1,5 @@
 """
-Testes do helper de full refresh (apps.sigcon.loader._bulk_refresh).
+Testes do helper de full refresh (core.carga.refresh.bulk_refresh).
 
 O que está sob teste é a garantia transacional: o par delete + bulk_create
 precisa ser tudo-ou-nada. Sem isso, uma falha no meio da carga deixa a tabela
@@ -12,7 +12,7 @@ from unittest import mock
 
 import pytest
 
-from apps.sigcon.loader import _bulk_refresh
+from core.carga.refresh import bulk_refresh as _bulk_refresh
 from apps.sigcon.models import SigconChaveConvenio
 
 

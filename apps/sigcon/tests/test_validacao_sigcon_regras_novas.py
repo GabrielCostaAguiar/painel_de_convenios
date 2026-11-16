@@ -267,7 +267,7 @@ def test_carregar_sigcon_registra_a_contagem_de_cada_carga_bem_sucedida():
         "sigcon_tabela_uo": mock.Mock(return_value={"apagados": 0, "inseridos": 7}),
         "sigcon_concedente": mock.Mock(side_effect=ValueError("falhou")),
     }
-    with mock.patch.object(cmd, "_LOADERS_SIGCON", loaders):
+    with mock.patch.object(cmd.Command, "loaders", loaders):
         with pytest.raises(Exception):
             call_command(
                 "carregar_sigcon", "--fonte", "sigcon_tabela_uo", "--fonte", "sigcon_concedente"

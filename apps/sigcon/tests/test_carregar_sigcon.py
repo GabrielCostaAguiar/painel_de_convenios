@@ -21,8 +21,9 @@ from django.core.management.base import CommandError
 from django.db import models as dj_models
 from django.test import override_settings
 
+from core.carga import comando as comando_base
 from apps.sigcon.management.commands import carregar_sigcon as cmd
-from apps.sigcon.management.commands.carregar_sigcon import (
+from apps.sigcon.loader import (
     _LOADERS_SIGCON,
     FONTES_SIGCON,
 )
@@ -81,7 +82,7 @@ def loaders_rapidos():
         )
         for fonte, loader in _LOADERS_SIGCON.items()
     }
-    with mock.patch.object(cmd, "_LOADERS_SIGCON", substitutos):
+    with mock.patch.object(cmd.Command, "loaders", substitutos):
         yield substitutos
 
 
@@ -163,12 +164,12 @@ def test_fonte_sem_arquivo_nao_impede_as_outras(data_dir_sintetico):
 
 @pytest.mark.django_db
 def test_erro_inesperado_registra_traceback_e_segue(data_dir_sintetico, caplog):
-    loaders_com_falha = dict(cmd._LOADERS_SIGCON)
+    loaders_com_falha = dict(_LOADERS_SIGCON)
     loaders_com_falha["sigcon_concedente"] = mock.Mock(
         side_effect=ValueError("parquet corrompido")
     )
 
-    with mock.patch.object(cmd, "_LOADERS_SIGCON", loaders_com_falha):
+    with mock.patch.object(cmd.Command, "loaders", loaders_com_falha):
         with caplog.at_level(logging.ERROR):
             with pytest.raises(CommandError):
                 call_command(
@@ -198,7 +199,7 @@ def test_parquet_com_colunas_erradas_nao_apaga_a_tabela(data_dir_sintetico):
 
 @pytest.mark.django_db
 def test_carga_bem_sucedida_invalida_o_cache(data_dir_sintetico):
-    with mock.patch.object(cmd, "invalidar_cache_indicadores") as invalidar:
+    with mock.patch.object(comando_base, "invalidar_cache_indicadores") as invalidar:
         call_command("carregar_sigcon", "--fonte", "sigcon_tabela_uo")
 
     invalidar.assert_called_once()
@@ -209,7 +210,7 @@ def test_sem_nenhuma_carga_bem_sucedida_nao_invalida(data_dir_sintetico):
     (data_dir_sintetico / "silver" / "sigcon_concedente.parquet").unlink()
     (data_dir_sintetico / "silver" / "sigcon_tabela_uo.parquet").unlink()
 
-    with mock.patch.object(cmd, "invalidar_cache_indicadores") as invalidar:
+    with mock.patch.object(comando_base, "invalidar_cache_indicadores") as invalidar:
         with pytest.raises(CommandError):
             call_command(
                 "carregar_sigcon",

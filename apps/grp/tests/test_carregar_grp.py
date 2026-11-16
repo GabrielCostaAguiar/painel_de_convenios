@@ -16,8 +16,9 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 
+from core.carga import comando as comando_base
 from apps.grp.management.commands import carregar_grp as cmd
-from apps.grp.management.commands.carregar_grp import _LOADERS_GRP, FONTES_GRP
+from apps.grp.loader import _LOADERS_GRP, FONTES_GRP
 from apps.grp.models import GrpConcedente, GrpTabelaUo
 
 _FONTES_REAIS = {"grp_concedente": GrpConcedente, "grp_tabela_uo": GrpTabelaUo}
@@ -56,7 +57,7 @@ def loaders_rapidos():
         )
         for fonte, loader in _LOADERS_GRP.items()
     }
-    with mock.patch.object(cmd, "_LOADERS_GRP", substitutos):
+    with mock.patch.object(cmd.Command, "loaders", substitutos):
         yield substitutos
 
 
@@ -122,12 +123,12 @@ def test_fonte_sem_arquivo_nao_impede_as_outras(data_dir_sintetico):
 
 @pytest.mark.django_db
 def test_erro_inesperado_registra_traceback_e_segue(data_dir_sintetico, caplog):
-    loaders_com_falha = dict(cmd._LOADERS_GRP)
+    loaders_com_falha = dict(_LOADERS_GRP)
     loaders_com_falha["grp_concedente"] = mock.Mock(
         side_effect=ValueError("parquet corrompido")
     )
 
-    with mock.patch.object(cmd, "_LOADERS_GRP", loaders_com_falha):
+    with mock.patch.object(cmd.Command, "loaders", loaders_com_falha):
         with caplog.at_level(logging.ERROR):
             with pytest.raises(CommandError):
                 call_command(
@@ -143,7 +144,7 @@ def test_erro_inesperado_registra_traceback_e_segue(data_dir_sintetico, caplog):
 
 @pytest.mark.django_db
 def test_carga_bem_sucedida_invalida_o_cache(data_dir_sintetico):
-    with mock.patch.object(cmd, "invalidar_cache_indicadores") as invalidar:
+    with mock.patch.object(comando_base, "invalidar_cache_indicadores") as invalidar:
         call_command("carregar_grp", "--fonte", "grp_tabela_uo")
 
     invalidar.assert_called_once()
@@ -154,7 +155,7 @@ def test_sem_nenhuma_carga_bem_sucedida_nao_invalida(data_dir_sintetico):
     (data_dir_sintetico / "silver" / "grp_concedente.parquet").unlink()
     (data_dir_sintetico / "silver" / "grp_tabela_uo.parquet").unlink()
 
-    with mock.patch.object(cmd, "invalidar_cache_indicadores") as invalidar:
+    with mock.patch.object(comando_base, "invalidar_cache_indicadores") as invalidar:
         with pytest.raises(CommandError):
             call_command("carregar_grp", "--fonte", "grp_concedente", "--fonte", "grp_tabela_uo")
 
