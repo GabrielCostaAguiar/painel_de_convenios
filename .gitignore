@@ -93,3 +93,7 @@ MANIFEST
 
 # Secrets (OAuth credentials, tokens)
 secrets/
+
+# Backups de banco e extrações pontuais (dados, não código)
+*.dump
+divergencias_*.xlsx
