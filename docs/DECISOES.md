@@ -71,4 +71,4 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
   Redis em `prod.py`, `apps/grp/sql/teste.sql`, `apps/grp/serializers.py` vazio.
 
 - **Fase 6, ordem obrigatória:** (1) `pg_dump -Fc`; (2) rodar `docs/sql/renomear_label_sigcon.sql` (confere 21/35 e termina em ROLLBACK; trocar por COMMIT para valer); (3) só então `manage.py migrate`/subir o app. Com o código novo e o banco ainda no label antigo, o Django vê as migrations do `sigcon` como não aplicadas e tentaria recriar as tabelas.
-- **README.md** ainda descreve a estrutura antiga (`apps/convenios/`, `/painel/`, `core/gold/convenios.py`); não foi alterado (fora do plano). Reescrever quando o Gabriel quiser.
+- **README.md** atualizado em 17/11/2026 (seções 3, 4, 7, 8, 10, 12, 13, 14). Seções 5, 6, 9 e 11 mantidas; a 9 ganhou nota de legado.

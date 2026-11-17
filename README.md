@@ -14,7 +14,7 @@ Sistema web interno para substituição gradual do painel QlikView da **Diretori
 6. [Fontes de Dados](#6-fontes-de-dados)
 7. [Comandos de Gerência](#7-comandos-de-gerência)
 8. [Pipeline de Dados — Passo a Passo](#8-pipeline-de-dados--passo-a-passo)
-9. [Camada de Relacionamento (migração do QlikView)](#9-camada-de-relacionamento-migração-do-qlikview)
+9. [Camada de Relacionamento (legado QlikView)](#9-camada-de-relacionamento-migração-do-qlikview)
 10. [Modelos Django](#10-modelos-django)
 11. [Dados de Referência Versionados](#11-dados-de-referência-versionados)
 12. [Testes](#12-testes)
@@ -59,40 +59,41 @@ Cache: memória local (dev) · **Redis** (produção, via `CACHE_URL`)
 
 ```
 Fontes externas
-(SIGCON-MG · Transferegov · SIAFI · SIAD · SEI · Planilhas)
+(SIGCON-MG · GRP · TransfereGov · Execução estadual · planilhas internas)
         │
         ▼  python manage.py rodar_ingestao <fonte>
 ┌─────────────────────────────────────────────────────┐
 │  BRONZE  —  data/bronze/<fonte>/<fonte>_<ts>.csv    │
 │  Cópia fiel dos dados originais. Append-only.       │
-│  Preserva erros, duplicatas, colunas mal nomeadas.  │
 └──────────────────────┬──────────────────────────────┘
                        │  python manage.py rodar_silver <fonte>
                        ▼
 ┌─────────────────────────────────────────────────────┐
 │  SILVER  —  data/silver/<fonte>.parquet             │
-│  Dados limpos, tipados (datas, floats, strings).    │
-│  Nomes de colunas em snake_case. Sobrescrito.       │
+│  Dados tipados, colunas em snake_case. Sobrescrito. │
+│  Linha problemática é marcada, nunca excluída.      │
 └──────────────────────┬──────────────────────────────┘
-                       │  core/gold/relacionamento.py
-                       │  (R1–R4: migração do QlikView)
+                       │  python manage.py carregar_<app>
                        ▼
 ┌─────────────────────────────────────────────────────┐
-│  GOLD  —  data/gold/convenios_integrado.parquet     │
-│  Tabela integrada: SIGCON ↔ SICONV ↔ SIAFI.        │
-│  Campos G_ (coalesce) e A_ (projeção SIAFI atual).  │
+│  BANCO (PostgreSQL, schema public)                  │
+│  Uma tabela por fonte: grp_*, sigcon_*, ...         │
+│  Sem ForeignKey entre tabelas de dados.             │
 └──────────────────────┬──────────────────────────────┘
-                       │  python manage.py carregar_relacionamento
+                       │  views SQL em apps/<app>/sql/gold/
                        ▼
 ┌─────────────────────────────────────────────────────┐
-│  BANCO DE DADOS  —  SQLite / PostgreSQL             │
-│  Model ConvenioIntegrado (todos os campos G_/A_)    │
-│  Models auxiliares: Convenio, PlanoTrabalho, etc.   │
+│  GOLD  —  schema gold (views, models managed=False) │
+│  Ligações entre tabelas, agregação 1:N em CTE,      │
+│  recorte por regra de negócio.                      │
 └──────────────────────┬──────────────────────────────┘
-                       │  apps/dashboard/services.py (cache)
                        ▼
                Django Views + Templates
 ```
+
+Regras que não mudam: a fonte nunca é alterada (correção vai para curadoria, problema para
+quarentena); códigos (`nr_`, `cd_`, CNPJ, UO) são texto; tabela 1:N é agregada antes de qualquer
+junção (anti fan-out). Detalhes em `docs/ARQUITETURA.md`.
 
 O diretório `data/` é inteiramente **gitignored** — apenas código e documentação são versionados.
 
@@ -103,96 +104,47 @@ O diretório `data/` é inteiramente **gitignored** — apenas código e documen
 ```
 painel_de_convenios/
 │
-├── config/                        # Projeto Django
-│   └── settings/
-│       ├── base.py                # Configurações compartilhadas
-│       ├── dev.py                 # SQLite, DEBUG=True
-│       └── prod.py                # PostgreSQL, Redis
+├── config/                        # Projeto Django (settings/base, dev, prod; urls)
 │
 ├── apps/
-│   ├── convenios/                 # App de dados de convênios
-│   │   ├── models.py              # Todos os models ORM
-│   │   ├── loader.py              # Funções de full-refresh por model
-│   │   ├── admin.py               # Registro no Django Admin
-│   │   ├── migrations/            # Histórico de migrations
-│   │   └── management/commands/
-│   │       ├── carregar_convenios.py       # Carrega Convenio (Silver)
-│   │       ├── carregar_cronograma.py      # Carrega CronogramaDesembolso
-│   │       ├── carregar_fonte.py           # Carrega qualquer fonte avulsa
-│   │       ├── carregar_relacionamento.py  # Carrega ConvenioIntegrado (Gold)
-│   │       ├── carregar_silver.py          # Carga Silver legada
-│   │       └── rodar_transformacao.py      # Transforma Silver legada
-│   │
-│   └── dashboard/                 # App do painel web
-│       ├── views.py               # Views principais
-│       ├── services.py            # Camada de serviços com cache
-│       ├── urls.py
-│       ├── templatetags/
-│       │   └── painel_filters.py  # Filtros de template customizados
-│       └── management/commands/
-│           ├── gerar_schemas.py   # Gera YAML de schema para nova fonte
-│           ├── rodar_ingestao.py  # Bronze: ingestão de qualquer fonte
-│           └── rodar_silver.py    # Silver: transformação de qualquer fonte
+│   ├── grp/                       # ⭐ App de referência (22 tabelas grp_*)
+│   │   ├── models.py              # Tabelas e models gold (managed=False)
+│   │   ├── loader.py              # Loaders por fonte (_LOADERS_GRP, FONTES_GRP)
+│   │   ├── views/                 # Telas (_filtros.py)
+│   │   ├── validacao/catalogo.py  # Testes de qualidade do app
+│   │   ├── sql/gold/              # Views do schema gold
+│   │   └── management/commands/   # carregar_grp, validar_grp, aplicar_gold, pipeline_grp
+│   ├── sigcon/                    # 15 tabelas sigcon_* + 4 views gold
+│   │   ├── models.py, loader.py, services.py, contrapartida.py
+│   │   ├── validacao/             # catalogo.py + limites.py (exceções conhecidas)
+│   │   ├── sql/gold/              # vw_plano_trabalho, plano_aplicacao, cronograma, termo_aditivo
+│   │   └── management/commands/   # carregar_sigcon, validar_sigcon
+│   ├── uniao/                     # Consultas TransfereGov
+│   ├── execucao/                  # Execução estadual (inventário na S2)
+│   └── dashboard/                 # Casca do painel: layout, menu lateral, início
 │
-├── core/
-│   ├── ingestion/
-│   │   ├── sources.py             # Registro declarativo de fontes (FONTES dict)
-│   │   ├── readers.py             # Leitores CSV/Excel → DataFrame (tudo como str)
-│   │   ├── bronze.py              # Grava Bronze com timestamp
-│   │   └── baixar_siconv.py       # Download automático dos dados Transferegov
-│   │
-│   ├── transform/
-│   │   ├── silver.py              # Pipeline Silver genérico (YAML-driven)
-│   │   ├── chaves.py              # Chaves SIAFI_UO, filtro UO, de-paras, correções
-│   │   ├── referencias.py         # Carrega core/referencia/*.csv como dicts
-│   │   ├── gerar_schemas.py       # Classificador heurístico de colunas
-│   │   ├── convenios.py           # Transformação Silver legada (dcgce_convenios)
-│   │   ├── utils.py               # normalizar_coluna() snake_case
-│   │   └── schemas/               # YAMLs de schema por fonte (gerados + revisados)
-│   │       ├── dcgce_convenio.yaml
-│   │       ├── chaves_convenio.yaml
-│   │       ├── siafi2.yaml
-│   │       └── ...
-│   │
-│   ├── gold/
-│   │   ├── convenios.py           # Agregações KPI para o dashboard
-│   │   └── relacionamento.py      # Pipeline G_/A_: migração do miolo QlikView
-│   │
-│   └── referencia/                # Tabelas de de-para versionadas no Git
-│       ├── situacoes_padronizadas.csv
-│       ├── tipos_siafi.csv
-│       ├── uo_nomes.csv
-│       ├── uo_siglas.csv
-│       ├── uo_descricoes.csv
-│       ├── concedentes_padronizados.csv
-│       └── correcoes.csv
+├── core/                          # App Django sem models: tudo que é global
+│   ├── management/commands/       # rodar_ingestao, rodar_silver, rodar_pipeline, gerar_schemas
+│   ├── ingestion/sources.py       # Registro de fontes (FonteDados)
+│   ├── transform/schemas/         # Um YAML por fonte
+│   ├── carga/                     # carregar_tabela_generica, ComandoCarga
+│   ├── validacao/                 # Construtores de teste, ComandoValidacao
+│   ├── web/                       # formatar_celula, exportação CSV/XLSX, paginação
+│   ├── templatetags/              # painel_filters
+│   ├── sql/000_schema_gold.sql    # Cria o schema gold
+│   ├── gold/relacionamento.py     # Legado do QlikView (G_/A_); ver seção 9
+│   └── referencia/                # De-paras versionados (CSV)
 │
-├── data/                          # GITIGNORED — dados locais
-│   ├── raw/
-│   │   ├── sigcon/                # Exportações SIGCON-MG (xlsx/csv)
-│   │   ├── execucao/              # Exportações QlikView de despesas
-│   │   └── uniao/                 # Dados abertos Transferegov
-│   ├── bronze/                    # CSVs com timestamp (append-only)
-│   ├── silver/                    # Parquets tipados (sobrescritos)
-│   └── gold/                      # Parquets analíticos
-│
-├── static/                        # CSS, JS, imagens
-├── templates/                     # Templates HTML Django
-├── tests/                         # Testes automatizados
-│   ├── test_r2.py                 # 28 testes: SIAFI_UO, de-paras, correções
-│   ├── test_r3.py                 # 31 testes: G_, A_, coalesce, fan-out
-│   └── test_r4.py                 # 2 testes: carga idempotente, leitura ORM
-│
-├── docs/
-│   ├── ARQUITETURA.md             # Documentação técnica detalhada
-│   ├── AUDITORIA_RELACIONAMENTO.md
-│   └── CONFERENCIA_R3.md
-│
-├── .env.example
-├── pytest.ini
-├── requirements.txt
+├── data/                          # GITIGNORED: raw, bronze, silver
+├── static/  templates/
+├── tests/                         # pytest
+├── docs/                          # ARQUITETURA, DECISOES, qualidade_dados, TRILHA_PAINEL
+├── .env.example  pytest.ini  requirements.txt
 └── CLAUDE.md                      # Instruções para o assistente de IA
 ```
+
+Dependências: `core` nunca importa `apps.*`; um app nunca importa outro app; `apps/dashboard`
+pode ler dos demais; o Django nunca importa nada de `etl/`.
 
 ---
 
@@ -229,7 +181,7 @@ python manage.py migrate
 python manage.py createsuperuser
 
 # 7. Suba o servidor de desenvolvimento
-pip install -r requirements.txt
+python manage.py runserver
 ```
 
 Acesse `http://127.0.0.1:8000` no navegador.
@@ -311,70 +263,73 @@ python manage.py gerar_schemas <nome_fonte>
 python manage.py gerar_schemas --sobrescrever   # força regeneração
 ```
 
-### Carga no Banco de Dados
+### Carga, validação e gold
 
 ```powershell
-# Convênio consolidado (Silver → DB)
-python manage.py carregar_convenios
+# Carga (apaga e recarrega as tabelas do app). Um comando por app, nunca por tabela
+python manage.py carregar_grp
+python manage.py carregar_sigcon
 
-# Tabela integrada Gold G_/A_ (Silver → Gold Parquet → DB)
-python manage.py carregar_relacionamento
-python manage.py carregar_relacionamento --construir      # força rebuild do Gold
-python manage.py carregar_relacionamento --gold <caminho> # Parquet customizado
+# Validação de qualidade (grava em dq_resultado_validacao*); ERRO bloqueia, ALERTA só registra
+python manage.py validar_grp
+python manage.py validar_sigcon
 
-# Cronograma de desembolso com SIAFI+UO carimbados
-python manage.py carregar_cronograma
+# Pipeline do GRP: carga + validação com portão de qualidade
+python manage.py pipeline_grp
+
+# Pipeline completo de uma fonte: extração/bronze -> silver -> carga
+python manage.py rodar_pipeline
+
+# Views gold do GRP (recria o schema gold a partir dos .sql)
+python manage.py aplicar_gold
 ```
 
-### Referência Completa de Fontes Registradas
+As views gold do SIGCON (`apps/sigcon/sql/gold/`) ainda não têm comando: aplique cada arquivo
+com `CREATE OR REPLACE VIEW` no banco. Cada arquivo termina com um bloco de validação (só `SELECT`:
+grão, fan-out, reconciliação de valores) com o resultado esperado em comentário.
+
+### Fontes registradas
+
+O nome da fonte é idêntico em 4 lugares: chave de `core/ingestion/sources.py`, nome do YAML em
+`core/transform/schemas/`, nome do parquet e string do `partial` no loader. Confira sempre no
+`sources.py`: as fontes SIGCON usam o prefixo `dcgce_`; as do GRP **não** (ex.: `grp_instrumento`).
 
 ```powershell
-# Ver todas as fontes disponíveis para rodar_ingestao e rodar_silver:
-# dcgce_convenio, dcgce_geral, dcgce_plano_trabalho, dcgce_cronograma_desembolso
-# dcgce_plano_aplicacao, dcgce_termo_aditivo, dcgce_prorrogacao_oficio
-# dcgce_declaracao_contrapartida, dcgce_esfera, dcgce_sigcon_nt_emenda
-# dcgce_codigo_convenio, dcgce_codigo_ta, dcgce_codigo_dec_contrap
-# chaves_convenio, siafi2, siconv_convenio, parlamentares
-# qv_despesa_ano_2019, qv_despesa_ano_2020
+python manage.py rodar_ingestao grp_instrumento
+python manage.py rodar_silver grp_instrumento
+python manage.py rodar_ingestao dcgce_convenio
+python manage.py rodar_silver dcgce_convenio
 ```
 
 ---
 
 ## 8. Pipeline de Dados — Passo a Passo
 
-### Pipeline principal (convênio integrado)
-
 ```powershell
-# --- Silver: todas as fontes necessárias ---
-python manage.py rodar_silver chaves_convenio
-python manage.py rodar_silver siafi2
-python manage.py rodar_silver dcgce_convenio
-python manage.py rodar_silver dcgce_codigo_convenio
-python manage.py rodar_silver dcgce_geral
-python manage.py rodar_silver dcgce_plano_trabalho
-python manage.py rodar_silver dcgce_esfera
+# 1. Bronze e Silver, por fonte (nomes em core/ingestion/sources.py)
+python manage.py rodar_ingestao <fonte>
+python manage.py rodar_silver <fonte>
 
-# (opcional) SICONV
-python manage.py rodar_silver siconv_convenio
+# 2. Carga no banco (apaga e recarrega as tabelas do app)
+python manage.py carregar_sigcon        # ou carregar_grp
 
-# --- Gold + carga no banco ---
-python manage.py carregar_relacionamento
+# 3. Validação de qualidade
+python manage.py validar_sigcon         # ou validar_grp
+
+# 4. Views gold (SIGCON: aplicar os .sql de apps/sigcon/sql/gold/; GRP: aplicar_gold)
 ```
 
-### Pipeline auxiliar (Convênio consolidado do painel legado)
-
-```powershell
-python manage.py rodar_silver dcgce_convenio
-python manage.py rodar_silver dcgce_codigo_convenio
-python manage.py rodar_silver dcgce_geral
-python manage.py rodar_silver dcgce_plano_trabalho
-python manage.py rodar_silver dcgce_esfera
-python manage.py carregar_convenios
-```
+Fonte nova: `gerar_schemas <fonte>` cria o YAML (revisar antes de usar), depois copie o padrão do
+GRP (model, loader, comando de carga, catálogo de validação). O passo a passo está em
+`docs/ARQUITETURA.md` §5 e §6.
 
 ---
 
-## 9. Camada de Relacionamento (migração do QlikView)
+## 9. Camada de Relacionamento (legado QlikView)
+
+> **Legado.** Esta camada (`core/gold/relacionamento.py`) vem do script QlikView e não é usada
+> pelas telas atuais, que leem as views do schema `gold`. Ficou no `core` porque só os testes
+> `tests/test_r2.py` e `tests/test_r3.py` a usam; aposentar é decisão pendente (`docs/DECISOES.md`).
 
 A camada de relacionamento equivale ao "miolo" do script QlikView legado — blocos `sigcon_chaves1`, campos `G_`, campos `A_` e filtros de UO. Implementada em `core/gold/relacionamento.py`.
 
@@ -446,54 +401,30 @@ print(tabela.shape)               # (n_convenios, n_colunas)
 | **R1** | ✅ | Estrutura, `UOS_EXCLUIR`, de-paras, filtro UO, `correcoes.csv` |
 | **R2** | ✅ | `montar_siafi_uo()`, `resolver_siafi_atual()` via SIAFI2, `aplicar_correcoes()`, 28 testes |
 | **R3** | ✅ | `aplicar_campos_g()` (21 coalesces + derivados), `aplicar_campos_a()`, `construir_tabela_integrada()`, 31 testes |
-| **R4** | ✅ | Model `ConvenioIntegrado`, migration, `carregar_tabela_integrada()`, command `carregar_relacionamento`, admin Django, 2 testes DB |
+| **R4** | ✅ | Model `ConvenioIntegrado`, migration, `carregar_tabela_integrada()`, command `carregar_relacionamento` (removido; camada legada), admin Django, 2 testes DB |
 
 ---
 
 ## 10. Modelos Django
 
-Todos em `apps/convenios/models.py`.
+Cada app tem seus models; nenhuma tabela de dados tem `ForeignKey`: as ligações ficam na gold, em SQL.
 
-### `ConvenioIntegrado` — tabela Gold integrada (principal)
-
-Chave natural: `siafi_uo` (unique). Campos G_/A_ completos.
-
-| Grupo | Campos |
-|---|---|
-| Chaves | `siafi_uo`, `siafi_uo_atual`, `convenio_numero_sequencial_siafi`, `unidade_orcamentaria_codigo`, `siafiatual`, `uo_atual`, `codigo_siconv` |
-| De-paras | `instrumento_chaves`, `situacao`, `situacao_std`, `uo_nome_std`, `uo_sigla_std`, `uo_descricao_std` |
-| G_ datas | `g_dia_assinatura`, `g_inicio_vigencia`, `g_fim_vigencia`, `g_fim_vigencia_inicial` |
-| G_ anos | `g_ano_assinatura`, `g_ano_inicio_vigencia`, `g_ano_convenio` |
-| G_ texto | `g_situacao_convenio`, `g_situacao_convenio_categorizado`, `g_vigencia`, `g_instrumento`, `g_esfera`, `g_proponente`, `g_concedente`, `g_objeto_convenio`, e padronizados (`_pad`, `_pad_siglas`) |
-| G_ valores | `g_valor_concedente`, `g_valor_proponente`, `g_valor_global` |
-| G_ flags | `g_periodo_nao_aditado`, `g_valor_nao_aditado`, `limpeza_g` |
-| A_ | Todos os campos acima espelhados com prefixo `a_` |
-
-Carga: `python manage.py carregar_relacionamento`
-
-### `Convenio` — convênio consolidado (piloto Silver)
-
-Chave: `convenio_codigo`. Campos de situação, datas, valores e dados do plano de trabalho.
-
-Carga: `python manage.py carregar_convenios`
-
-### Modelos auxiliares
-
-| Model | Fonte Silver | Conteúdo |
+| App | Models | Observação |
 |---|---|---|
-| `ConvenioGeral` | `dcgce_geral` | Dados gerais e datas do SIGCON |
-| `PlanoTrabalho` | `dcgce_plano_trabalho` | Título, objeto, CNPJ, instrumento |
-| `CronogramaDesembolso` | `dcgce_cronograma_desembolso` | Desembolsos mensais com SIAFI+UO |
-| `PlanoAplicacao` | `dcgce_plano_aplicacao` | Classificação orçamentária |
-| `TermoAditivo` | `dcgce_termo_aditivo` | Termos aditivos |
-| `ProrrogacaoOficio` | `dcgce_prorrogacao_oficio` | Prorrogações |
-| `DeclaracaoContrapartida` | `dcgce_declaracao_contrapartida` | Declarações de contrapartida |
-| `NtEmenda` | `dcgce_sigcon_nt_emenda` | Notas técnicas de emendas |
-| `Esfera` | `dcgce_esfera` | CNPJ → esfera (dimensão) |
-| `CodigoConvenio` | `dcgce_codigo_convenio` | Ponte código sequencial ↔ SIAFI+UO |
-| `CodigoPlanoTrabalho` | `dcgce_codigo_plano_de_trabalho` | Ponte plano ↔ SIAFI+UO |
-| `CodigoTermoAditivo` | `dcgce_codigo_ta` | Ponte TA ↔ SIAFI+UO |
-| `CodigoDeclaracaoContrapartida` | `dcgce_codigo_dec_contrap` | Ponte declaração ↔ SIAFI+UO |
+| `apps/grp` | `Grp*` (22 tabelas), `GrpGold*` (5 views), `ResultadoValidacao` | Referência: copie daqui. Ex.: `GrpInstrumento` (1:1), `GrpRecursoConcedente` (1:N), `GrpGoldInstrumento` |
+| `apps/sigcon` | `Sigcon*` (15 tabelas), `SigconHistoricoCarga`, `ResultadoValidacao`, `GoldSigcon*` (4 views) | Tabelas das consultas `dcgce_*`; `sigcon_tabela_uo` entra na S3 |
+
+Views gold do SIGCON (grão: convênio × ...; id = `ROW_NUMBER()`):
+
+| View | Grão |
+|---|---|
+| `gold.vw_plano_trabalho_sigcon` | convênio × plano de trabalho (ponte das demais) |
+| `gold.vw_plano_aplicacao_sigcon` | convênio × plano × classificação orçamentária × ano |
+| `gold.vw_cronograma_desembolso_sigcon` | convênio × plano × ano × mês |
+| `gold.vw_termo_aditivo_sigcon` | convênio × termo aditivo |
+
+Plano compartilhado por vários SIAFI (erro de origem, ex.: 7964) repete a linha em cada SIAFI:
+some valores sempre por `siafi_uo`, nunca por `cd_plano_trabalho`.
 
 ---
 
@@ -516,17 +447,13 @@ Arquivos em `core/referencia/` — **fazem parte do repositório** (regras de ne
 ## 12. Testes
 
 ```powershell
-# Rodar todos os testes do projeto (exceto test_gold_convenios.py com import legado)
-python -m pytest tests/test_r2.py tests/test_r3.py tests/test_r4.py -v
+python -m pytest            # o pytest.ini já define DJANGO_SETTINGS_MODULE
+python -m pytest tests/test_validar_grp.py -v
 ```
 
-| Arquivo | Testes | Cobertura |
-|---|---|---|
-| `test_r2.py` | 28 | `montar_siafi_uo`, `resolver_siafi_atual`, `aplicar_correcoes`, `filtrar_uo`, `aplicar_deparas` |
-| `test_r3.py` | 31 | `_coalesce`, campos G_ (situação, valor, instrumento, esfera, vigência, proponente, limpeza_g), anti-fan-out, campos A_ |
-| `test_r4.py` | 2 | Carga idempotente (2× sem duplicatas), leitura básica do ORM |
-
-**Total: 61 testes, todos passando.** Nenhum teste toca arquivos em disco — usam DataFrames em memória (R2/R3) ou Parquet temporário (R4).
+Os testes ficam em `tests/` (carga, preservação de linhas, validação, gold, comandos registrados)
+e nos `tests/` de cada app. `test_r2.py` e `test_r3.py` cobrem a camada legada de relacionamento
+(seção 9). Os testes de dados usam DataFrames em memória ou Parquet temporário.
 
 ---
 
@@ -534,27 +461,33 @@ python -m pytest tests/test_r2.py tests/test_r3.py tests/test_r4.py -v
 
 | Rota | Descrição |
 |---|---|
-| `/` | Home — visão geral e navegação |
-| `/painel/` | Painel principal com KPIs, gráficos e tabela de convênios |
-| `/admin/` | Django Admin — navegação direta nos dados de todos os models |
+| `/` | Aba mestre do SIGCON, que também é a página inicial |
+| `/plano_aplicacao/`, `/cronograma/`, `/prorrogacao/`, `/termo_aditivo/`, `/unidades_executoras/` | Sub-abas do SIGCON (cada uma com `export.csv` e `export.xlsx`) |
+| `/indicadores/`, `/graficos/`, `/monitoramento/`, `/relatorio/`, `/alertas/`, `/emendas/` | App `dashboard` |
+| `/grp/` | GRP: instrumentos, cronograma, plano de aplicação, emenda, regiões atendidas, prestação de contas |
+| `/uniao/` | Consultas TransfereGov |
+| `/execucao/` | Execução estadual |
+| `/admin/` | Django Admin |
 
-O painel usa tema escuro, Chart.js para gráficos e filtro por ano na URL (`?ano=2024`).
+Telas em Django puro (views + templates), sem DRF, React ou Celery. Os filtros e a exportação
+vêm de `core/web/`.
 
 ---
 
 ## 14. Roadmap
 
-| Fase | Status | O que faz |
+Rumo à **v1.0 em 31/12/2026** (SIGCON + Execução Estadual + GRP). Estado por sprint em `CLAUDE.md` §8
+e `docs/TRILHA_PAINEL.md`.
+
+| Etapa | Status | O que faz |
 |---|---|---|
-| Fase 1 — Estrutura | ✅ | Repositório, `.gitignore`, `.env.example` |
-| Fase 2 — Setup Django | ✅ | `config/settings/`, `django-environ`, app `dashboard` |
-| Fase 3 — Bronze | ✅ | `sources.py`, `readers.py`, `bronze.py`, `rodar_ingestao` |
-| Fase 4 — Silver e Models | ✅ | `silver.py` genérico, schemas YAML, `Convenio` model, migrations |
-| Fase 5 — Gold e Serviços | ✅ | `core/gold/convenios.py`, `services.py` com cache, KPIs |
-| Fase 6 — Frontend | ✅ | Painel com tema dark, Chart.js, filtro por ano |
-| Fase 6b — Relacionamento R1–R4 | ✅ | Migração do miolo QlikView: SIAFI_UO, G_/A_, `ConvenioIntegrado` no Django |
-| Fase 6c — Demais fontes | 🔲 | Transferegov completo, SIAFI execução, SIAD, SEI |
-| Fase 7 — Auth e deploy | 🔲 | Login LDAP/SSO SEPLAG, PostgreSQL, Redis, CI/CD |
+| Bronze e Silver genéricos | ✅ | `sources.py`, YAMLs de schema, `rodar_ingestao`, `rodar_silver` |
+| GRP | ✅ | 22 tabelas, `gold.vw_instrumento`; golds restantes na S4-03 |
+| SIGCON | 🔶 | 15 tabelas carregadas, 4 views gold; validação em andamento (S1-07) |
+| Reorganização do `core` | ✅ | Carga e validação genéricas, `painel` → `dashboard` (`docs/DECISOES.md`) |
+| Componente de consulta e aba Convênios | 🔲 | S1-10 e S1-11 |
+| Execução Estadual | 🔲 | Inventário e modelo de extração na S2 |
+| Auth e deploy | 🔲 | Login, PostgreSQL de produção, agendamento (ARQUITETURA §13–§15) |
 
 ---
 

@@ -425,3 +425,48 @@ o erro é documentado aqui e tratado na gold.
 - **Consequência para as próximas views gold:** `plano_aplicacao`, `cronograma` e `nt_emenda` do
   SIGCON entram por `cd_plano_trabalho` **via `vw_plano_trabalho_sigcon`** (join interno com a
   ponte, que já é 1 linha por convênio × plano), nunca direto da tabela.
+
+## S8. Validação das views gold do SIGCON
+
+### gold.vw_convenio_sigcon (validada em 17/11/2026)
+
+Bloco de validação no fim de `apps/sigcon/sql/gold/005_vw_convenio_sigcon.sql` (só `SELECT`).
+
+| # | Teste | Resultado | Conclusão |
+|---|---|---|---|
+| 1 | Grão: linhas = ids = `siafi_uo` distintos | 5.345 = 5.345 = 5.345 | ✅ sem fan-out |
+| 2 | Volumetria: fonte x gold | 5.353 na fonte, 5.345 na gold, 8 fora | ✅ os 8 são os convênios sem `siafi_uo` (T-D01) |
+| 3 | Soma de valores: gold − fonte (total, concedente, proponente) | 0,00 / 0,00 / 0,00 | ✅ fecha ao centavo |
+| 4 | Junção (informativo) | 2 sem `cd_plano`; 12 com plano ausente na fonte; 0 sem `nm_uo`; 0 concedente sem esfera | ✅ dentro do esperado |
+| 5 | Planos compartilhados (informativo) | 18 planos, 2 a 8 convênios cada | ✅ igual a `PLANOS_COMPARTILHADOS_CONHECIDOS` (ver S7) |
+| 6 | Plano da gold existe em `vw_plano_trabalho_sigcon` | 0 linhas órfãs | ✅ |
+
+Observação: a validação da gold fica nos blocos SQL de cada arquivo, como no GRP. O
+`catalogo.py` cobre só a silver.
+
+### gold.vw_unidade_executora_sigcon (validada em 17/11/2026)
+
+Bloco de validação no fim de `apps/sigcon/sql/gold/006_vw_unidade_executora_sigcon.sql` (só `SELECT`).
+
+| # | Teste | Resultado | Conclusão |
+|---|---|---|---|
+| 1 | Grão: linhas = ids = (`siafi_uo`, `cd_unidade_executora`) distintos | 28.315 = 28.315 = 28.315 | ✅ sem fan-out |
+| 2 | Volumetria: fonte x gold | 28.316 na fonte, 28.315 na gold, 1 fora | ✅ a que ficou fora é a sem `siafi_uo` (T-D) |
+| 3 | `siafi_uo` da gold existe em `vw_convenio_sigcon` | 0 órfãs | ✅ |
+| 4 | `qt_unidades_executoras` da `vw_convenio_sigcon` = contagem desta view | 0 divergências | ✅ |
+
+A fonte só traz o código da unidade executora (sem nome), e ele não casa com `cd_uo` de `sigcon_tabela_uo`.
+
+### gold.vw_prorrogacao_oficio_sigcon (validada em 17/11/2026)
+
+Bloco de validação no fim de `apps/sigcon/sql/gold/007_vw_prorrogacao_oficio_sigcon.sql` (só `SELECT`).
+
+| # | Teste | Resultado | Conclusão |
+|---|---|---|---|
+| 1 | Grão: linhas = ids = (`siafi_uo`, `cd_prorrogacao_oficio`) distintos | 659 = 659 = 659 | ✅ sem fan-out |
+| 2 | Volumetria: fonte x gold | 660 na fonte, 659 na gold, 1 fora | ✅ a órfã conhecida (P7, T-F03) |
+| 3 | Motivo da exclusão (informativo) | 1 "sem ponte" | ✅ |
+| 4 | `siafi_uo` da gold existe em `vw_convenio_sigcon` | 0 órfãs | ✅ |
+| 5 | Datas de término e publicação preenchidas, gold x fonte | diferença 0 e 0 | ✅ |
+
+As duas views não têm coluna de valor, por isso não há teste de soma.
