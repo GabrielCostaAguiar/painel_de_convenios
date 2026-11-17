@@ -1063,3 +1063,134 @@ class GoldSigconTermoAditivo(models.Model):
 
     def __str__(self):
         return f"{self.siafi_uo} | {self.cd_termo_aditivo}"
+
+
+class GoldSigconConvenio(models.Model):
+    """
+    View gold de convênios (gold.vw_convenio_sigcon). Grão: convênio (siafi_uo).
+    Plano de trabalho = o original; fl_plano_compartilhado sinaliza o mesmo plano em mais de um convênio.
+    Campos futuros (cd_uniao, nr_sei) entram no FINAL da view e deste model.
+    """
+
+    # --- Identificação ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, unique=True)
+    cd_uo = models.CharField(max_length=10, null=True, blank=True)
+    nm_uo = models.TextField(null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)  # Código SIGCON
+    cd_convenio_sequencial = models.CharField(max_length=30, null=True, blank=True)
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    cd_plano_trabalho = models.CharField(max_length=30, null=True, blank=True)
+    nr_ano_convenio = models.IntegerField(null=True, blank=True)
+
+    # --- Plano de trabalho original ---
+    nm_plano_trabalho = models.TextField(null=True, blank=True)
+    tx_objeto = models.TextField(null=True, blank=True)
+    tp_instrumento_siafi = models.TextField(null=True, blank=True)
+    ds_caracteristica_contrapartida = models.TextField(null=True, blank=True)
+
+    # --- Partes ---
+    nr_cnpj_proponente = models.CharField(max_length=14, null=True, blank=True)
+    nr_cnpj_concedente = models.CharField(max_length=14, null=True, blank=True)
+    nm_concedente = models.TextField(null=True, blank=True)
+    ds_esfera_concedente = models.TextField(null=True, blank=True)
+
+    # --- Situação e datas ---
+    ds_situacao_convenio = models.TextField(null=True, blank=True)
+    dt_assinatura = models.DateField(null=True, blank=True)
+    dt_publicacao = models.DateField(null=True, blank=True)
+    dt_vigencia_inicio = models.DateField(null=True, blank=True)
+    dt_vigencia_termino_inicial = models.DateField(null=True, blank=True)
+    dt_vigencia_termino = models.DateField(null=True, blank=True)
+    qt_dias_para_vencer = models.IntegerField(null=True, blank=True)  # negativo = vencido
+
+    # --- Valores ---
+    vl_convenio_proponente_inicial = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_convenio_proponente_aditado = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_convenio_proponente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_convenio_concedente_inicial = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_convenio_concedente_aditado = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_convenio_concedente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_convenio_total = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+
+    # --- Apoio e alertas ---
+    qt_unidades_executoras = models.IntegerField(default=0)
+    qt_convenios_mesmo_plano = models.IntegerField(default=0)
+    fl_plano_compartilhado = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_convenio_sigcon'
+        verbose_name = "Convênio SIGCON (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.nr_convenio}"
+
+
+class GoldSigconUnidadeExecutora(models.Model):
+    """
+    View gold de unidades executoras por convênio (gold.vw_unidade_executora_sigcon).
+    Grão: convênio (siafi_uo) x unidade executora. A fonte só traz o código, sem nome.
+    """
+
+    # --- Chaves ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, db_index=True)
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    cd_uo = models.CharField(max_length=10, null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)
+    cd_unidade_executora = models.CharField(max_length=30)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_unidade_executora_sigcon'
+        verbose_name = "Unidade Executora por Convênio (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.cd_unidade_executora}"
+
+
+class GoldSigconProrrogacaoOficio(models.Model):
+    """
+    View gold de prorrogações de ofício por convênio (gold.vw_prorrogacao_oficio_sigcon).
+    Grão: convênio (siafi_uo) x prorrogação de ofício. Chega ao convênio por
+    cd_convenio_sequencial (ponte sigcon_chave_convenio).
+    """
+
+    # --- Chaves ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, db_index=True)
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    cd_uo = models.CharField(max_length=10, null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)
+    cd_convenio_sequencial = models.CharField(max_length=30, null=True, blank=True)
+    cd_prorrogacao_oficio = models.CharField(max_length=30)
+
+    # --- Datas ---
+    dt_vigencia_inicio = models.DateField(null=True, blank=True)
+    dt_vigencia_termino = models.DateField(null=True, blank=True)
+    dt_envio = models.DateField(null=True, blank=True)
+    dt_parecer = models.DateField(null=True, blank=True)
+    dt_publicacao = models.DateField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_prorrogacao_oficio_sigcon'
+        verbose_name = "Prorrogação de Ofício por Convênio (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.cd_prorrogacao_oficio}"
