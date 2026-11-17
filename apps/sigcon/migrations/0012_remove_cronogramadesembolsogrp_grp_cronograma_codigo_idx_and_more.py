@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0011_alter_planoaplicacaogrp_nome_projeto_and_more"),
+        ("sigcon", "0011_alter_planoaplicacaogrp_nome_projeto_and_more"),
     ]
 
     operations = [

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0015_modelo_sigcon_v1"),
+        ("sigcon", "0015_modelo_sigcon_v1"),
     ]
 
     operations = [

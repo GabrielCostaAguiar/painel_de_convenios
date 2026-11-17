@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0016_sigcontabelauo_alter_sigconconvenio_siafi_uo_and_more"),
+        ("sigcon", "0016_sigcontabelauo_alter_sigconconvenio_siafi_uo_and_more"),
     ]
 
     operations = [

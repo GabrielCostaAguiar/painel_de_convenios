@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0002_replace_convenio_schema"),
+        ("sigcon", "0002_replace_convenio_schema"),
     ]
 
     operations = [
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_esfera", 
                 "verbose_name": "Esfera do Concedente",
                 "verbose_name_plural": "Esferas dos Concedentes",
             },
@@ -103,7 +103,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_codigoconvenio", 
                 "verbose_name": "Mapeamento de Códigos do Convênio",
                 "verbose_name_plural": "Mapeamentos de Códigos de Convênios",
                 "indexes": [
@@ -159,7 +159,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_codigodeclaracaocontrapartida", 
                 "verbose_name": "Mapeamento de Códigos da Declaração de Contrapartida",
                 "verbose_name_plural": "Mapeamentos de Códigos de Declarações de Contrapartida",
                 "indexes": [
@@ -219,7 +219,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_codigoplanotrabalho", 
                 "verbose_name": "Mapeamento de Códigos do Plano de Trabalho",
                 "verbose_name_plural": "Mapeamentos de Códigos de Planos de Trabalho",
                 "indexes": [
@@ -285,7 +285,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_codigotermoaditivo", 
                 "verbose_name": "Mapeamento de Códigos do Termo Aditivo",
                 "verbose_name_plural": "Mapeamentos de Códigos de Termos Aditivos",
                 "indexes": [
@@ -429,7 +429,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_conveniogeral", 
                 "verbose_name": "Convênio — Dados Gerais",
                 "verbose_name_plural": "Convênios — Dados Gerais",
                 "indexes": [
@@ -498,7 +498,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_cronogramadesembolso", 
                 "verbose_name": "Cronograma de Desembolso",
                 "verbose_name_plural": "Cronogramas de Desembolso",
                 "indexes": [
@@ -617,7 +617,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_declaracaocontrapartida", 
                 "verbose_name": "Declaração de Contrapartida",
                 "verbose_name_plural": "Declarações de Contrapartida",
                 "indexes": [
@@ -688,7 +688,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_ntemenda", 
                 "verbose_name": "NT Emenda Parlamentar",
                 "verbose_name_plural": "NTs Emendas Parlamentares",
                 "indexes": [
@@ -887,7 +887,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_planoaplicacao", 
                 "verbose_name": "Plano de Aplicação",
                 "verbose_name_plural": "Planos de Aplicação",
                 "indexes": [
@@ -1071,7 +1071,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_planotrabalho", 
                 "verbose_name": "Plano de Trabalho",
                 "verbose_name_plural": "Planos de Trabalho",
                 "indexes": [
@@ -1148,7 +1148,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_prorrogacaooficio", 
                 "verbose_name": "Prorrogação de Ofício",
                 "verbose_name_plural": "Prorrogações de Ofício",
                 "indexes": [
@@ -1278,7 +1278,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_termoaditivo", 
                 "verbose_name": "Termo Aditivo",
                 "verbose_name_plural": "Termos Aditivos",
                 "indexes": [

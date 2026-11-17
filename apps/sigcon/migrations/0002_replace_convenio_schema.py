@@ -13,7 +13,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0001_initial"),
+        ("sigcon", "0001_initial"),
     ]
 
     operations = [
@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ("valor_total_convenio", models.DecimalField(blank=True, decimal_places=2, max_digits=18, null=True, verbose_name="Valor Total do Convênio")),
                 ("atualizado_em", models.DateTimeField(auto_now=True, verbose_name="Atualizado em")),
             ],
-            options={
+            options={"db_table": "convenios_convenio", 
                 "verbose_name": "Convênio",
                 "verbose_name_plural": "Convênios",
                 "ordering": ["-data_inicio_vigencia"],

@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         (
-            "convenios",
+            "sigcon",
             "0010_rename_grp_recurso_concedente_codigo_idx_grp_recurso_conc_idx_and_more",
         ),
     ]

@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0019_remove_indice_duplicado_cd_plano_trabalho"),
+        ("sigcon", "0019_remove_indice_duplicado_cd_plano_trabalho"),
     ]
 
     operations = [

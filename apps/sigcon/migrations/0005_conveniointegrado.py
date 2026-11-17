@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0004_convenio_consolidado_cronograma_siafi"),
+        ("sigcon", "0004_convenio_consolidado_cronograma_siafi"),
     ]
 
     operations = [
@@ -489,7 +489,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_conveniointegrado", 
                 "verbose_name": "Convênio Integrado",
                 "verbose_name_plural": "Convênios Integrados",
                 "ordering": ["-g_fim_vigencia"],

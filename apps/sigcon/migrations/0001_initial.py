@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('data_termino', models.DateField(blank=True, null=True, verbose_name='Data de Término')),
                 ('atualizado_em', models.DateTimeField(auto_now=True, verbose_name='Atualizado em')),
             ],
-            options={
+            options={"db_table": "convenios_convenio", 
                 'verbose_name': 'Convênio',
                 'verbose_name_plural': 'Convênios',
                 'ordering': ['-data_inicio'],

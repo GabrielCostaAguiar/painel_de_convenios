@@ -18,7 +18,7 @@ COMANDOS_PIPELINE = [
 ]
 
 # Carga Silver → banco e validação de qualidade do SIGCON (pacote apps.sigcon,
-# label "convenios").
+# label "sigcon").
 COMANDOS_SIGCON = [
     "carregar_sigcon",
     "validar_sigcon",

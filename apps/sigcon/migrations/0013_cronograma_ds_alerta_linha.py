@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         (
-            "convenios",
+            "sigcon",
             "0012_remove_cronogramadesembolsogrp_grp_cronograma_codigo_idx_and_more",
         ),
     ]

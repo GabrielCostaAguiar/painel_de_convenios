@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0009_cronogramadesembolsogrp_dadosgrp_esferagrp_and_more"),
+        ("sigcon", "0009_cronogramadesembolsogrp_dadosgrp_esferagrp_and_more"),
     ]
 
     operations = [

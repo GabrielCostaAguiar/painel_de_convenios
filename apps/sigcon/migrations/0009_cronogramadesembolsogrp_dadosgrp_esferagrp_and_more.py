@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0008_planoaplicacao_convenio_numero_sequencial_siafi"),
+        ("sigcon", "0008_planoaplicacao_convenio_numero_sequencial_siafi"),
     ]
 
     operations = [
@@ -77,7 +77,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_cronogramadesembolsogrp", 
                 "verbose_name": "GRP — Cronograma de Desembolso",
                 "verbose_name_plural": "GRP — Cronogramas de Desembolso",
                 "indexes": [
@@ -189,7 +189,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_dadosgrp", 
                 "verbose_name": "GRP — Dados Gerais",
                 "verbose_name_plural": "GRP — Dados Gerais",
                 "indexes": [
@@ -239,7 +239,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_esferagrp", 
                 "verbose_name": "Esfera do Concedente",
                 "verbose_name_plural": "Esferas dos Concedentes",
                 "indexes": [
@@ -335,7 +335,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_planoaplicacaogrp", 
                 "verbose_name": "GRP — Plano de Aplicação",
                 "verbose_name_plural": "GRP — Planos de Aplicação",
                 "indexes": [
@@ -477,7 +477,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_planoaplicacaogrpdetalhes", 
                 "verbose_name": "GRP — Detalhes do Plano de Aplicação",
                 "verbose_name_plural": "GRP — Detalhes dos Planos de Aplicação",
                 "indexes": [
@@ -535,7 +535,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_recursosconcedentegrp", 
                 "verbose_name": "GRP — Recursos do Concedente",
                 "verbose_name_plural": "GRP — Recursos do Concedente",
                 "indexes": [
@@ -597,7 +597,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_recursoscontrapartidagrp", 
                 "verbose_name": "GRP — Recursos de Contrapartida",
                 "verbose_name_plural": "GRP — Recursos de Contrapartida",
                 "indexes": [

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0014_conveniointegrado_preserva_linhas"),
+        ("sigcon", "0014_conveniointegrado_preserva_linhas"),
     ]
 
     operations = [

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("convenios", "0005_conveniointegrado"),
+        ("sigcon", "0005_conveniointegrado"),
     ]
 
     operations = [
@@ -56,7 +56,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_controlesei", 
                 "verbose_name": "Controle SEI",
                 "verbose_name_plural": "Controles SEI",
                 "indexes": [
@@ -118,7 +118,7 @@ class Migration(migrations.Migration):
                     models.DateTimeField(auto_now=True, verbose_name="Atualizado em"),
                 ),
             ],
-            options={
+            options={"db_table": "convenios_unidadesexecutoras", 
                 "verbose_name": "Convênio — Unidade Executora",
                 "verbose_name_plural": "Convênios — Unidades Executoras",
                 "indexes": [

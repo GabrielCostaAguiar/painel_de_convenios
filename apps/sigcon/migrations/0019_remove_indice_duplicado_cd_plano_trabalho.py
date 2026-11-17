@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         (
-            "convenios",
+            "sigcon",
             "0018_remove_sigconplanotrabalho_idx_ds_caracteristica_contrapartida",
         ),
     ]

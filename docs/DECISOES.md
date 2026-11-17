@@ -8,7 +8,7 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 
 ## Onde parei (16/11/2026)
 
-**Fases 1 a 5 concluídas. Próxima: Fase 6.** Fases 6 e 7 pendentes.
+**Fases 1 a 6 concluídas (a 6 exige o SQL do Gabriel). Próxima: Fase 7.** Fases 6 e 7 pendentes.
 
 | Fase | Estado | Commit |
 |---|---|---|
@@ -16,8 +16,8 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 | 2. Carga genérica (`core/carga/`) e `ComandoCarga` | feita | `5fb30e0` |
 | 3. Validação genérica (`core/validacao/`) e `ComandoValidacao` | feita | `dbd406d` |
 | 4. `painel` → `dashboard`; filtros e formatação no core | feita | `7f92118` |
-| 5. Gold legado sai do `core` (core ↛ apps) | feita | (commit desta fase) |
-| 6. Label `convenios` → `sigcon` (exige SQL que o Gabriel roda) | pendente (D3: depois das fases 1–5) | — |
+| 5. Gold legado sai do `core` (core ↛ apps) | feita | `832b26e` |
+| 6. Label `convenios` → `sigcon` (exige SQL que o Gabriel roda) | código feito; **SQL ainda não rodado** | (commit desta fase) |
 | 7. Documentação (ARQUITETURA §3/§5/§6/§8/§16, CLAUDE.md §3/§4/§5) | pendente | — |
 
 ## Decisões tomadas (D1–D4, resposta do Gabriel em 16/11/2026)
@@ -48,6 +48,8 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 | 4 | `app_name`/label/namespace `painel` → `dashboard`; templates em `templates/dashboard/` | D4 e plano |
 | 5 | `core/gold/contrapartida.py` → `apps/sigcon/contrapartida.py`; `core/gold/convenios.py` (todo comentado) → `apps/dashboard/indicadores.py` | Únicos pontos que ligavam o core a `apps.*` |
 | 5 | `core/gold/relacionamento.py` ficou no core | Não importa `apps.*`; só dois testes o usam. Gabriel decide se é legado a aposentar |
+| 6 | `label = "sigcon"`; dependências `("convenios", ...)` das migrations 0002–0021 trocadas por `"sigcon"`; `docs/sql/renomear_label_sigcon.sql` criado (termina em ROLLBACK) | D3 |
+| 6 | Nos 25 `CreateModel` das migrations 0001–0009 foi gravado `db_table` explícito `convenios_<model>` | Com o label novo, o nome padrão passaria a `sigcon_*` e colidiria com `sigcon_convenio` (0015) num banco novo. Em bancos existentes não muda nada (já aplicadas) |
 | 3 | `validar_grp`/`validar_sigcon` **não** foram rodados contra o banco | Eles gravam em `ResultadoValidacao`; o plano dizia "só fazem SELECT", o que está errado |
 
 ## Pendências e pontos de atenção para quem continuar
@@ -67,3 +69,5 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
   roda o SQL (`UPDATE` em `django_migrations` e `django_content_type`), com `pg_dump` antes.
 - Fora do escopo, só apontar: unificar `_grp_render`/`sigcon_render` (S1-10), gold em SQL, `etl/`,
   Redis em `prod.py`, `apps/grp/sql/teste.sql`, `apps/grp/serializers.py` vazio.
+
+- **Fase 6, ordem obrigatória:** (1) `pg_dump -Fc`; (2) rodar `docs/sql/renomear_label_sigcon.sql` (confere 21/35 e termina em ROLLBACK; trocar por COMMIT para valer); (3) só então `manage.py migrate`/subir o app. Com o código novo e o banco ainda no label antigo, o Django vê as migrations do `sigcon` como não aplicadas e tentaria recriar as tabelas.

@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         (
-            "convenios",
+            "sigcon",
             "0003_esfera_codigoconvenio_codigodeclaracaocontrapartida_and_more",
         ),
     ]
