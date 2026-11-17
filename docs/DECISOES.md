@@ -8,15 +8,14 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 
 ## Onde parei (16/11/2026)
 
-**Fases 1, 2 e 3 concluídas. Próxima: Fase 4** (`apps/painel` → `apps/dashboard`, filtros e
-formatação no `core`). Fases 5, 6 e 7 pendentes.
+**Fases 1 a 4 concluídas (a 4 aguarda commit). Próxima: Fase 5.** Fases 6 e 7 pendentes.
 
 | Fase | Estado | Commit |
 |---|---|---|
 | 1. `core` vira app; comandos de pipeline movidos de `apps/pipeline` | feita | `b96370e` |
 | 2. Carga genérica (`core/carga/`) e `ComandoCarga` | feita | `5fb30e0` |
 | 3. Validação genérica (`core/validacao/`) e `ComandoValidacao` | feita | `dbd406d` |
-| 4. `painel` → `dashboard`; filtros e formatação no core | **próxima** | — |
+| 4. `painel` → `dashboard`; filtros e formatação no core | feita, aguardando commit | — |
 | 5. Gold legado em pandas sai do `core` (core ↛ apps) | pendente | — |
 | 6. Label `convenios` → `sigcon` (exige SQL que o Gabriel roda) | pendente (D3: depois das fases 1–5) | — |
 | 7. Documentação (ARQUITETURA §3/§5/§6/§8/§16, CLAUDE.md §3/§4/§5) | pendente | — |
@@ -43,6 +42,10 @@ formatação no `core`). Fases 5, 6 e 7 pendentes.
 | 3 | `LIMITES_CONHECIDOS` ficou em `apps/sigcon/validacao/limites.py`; `severidade_efetiva` foi para `core/validacao/limites.py` | Dados são do app; a regra é genérica |
 | 3 | Volumetria do GRP passou a seguir a do SIGCON: Parquet ausente vira divergência (antes, exceção) e a pasta vem de `settings.DATA_DIR` (antes, `BASE_DIR/data`) | Unificação no módulo mais completo |
 | 3 | O SQL do catálogo do GRP mudou só na forma (56 testes: parênteses e `IS NOT NULL` redundante); o do SIGCON não mudou (0 de 55) | Verificado comparando o SQL de `HEAD` contra o novo, sem tocar no banco |
+| 4 | `formatar_celula` do GRP e do SIGCON eram idênticas; unificada em `core/web/formatacao.py` (`fmt_data`, `fmt_valor`, `formatar_celula`) | Sem divergência, não precisou parar |
+| 4 | `painel_filters` foi para `core/templatetags/` (biblioteca mantém o nome); `GRP_PARAMS`/`querystring_grp` foram para `apps/grp/templatetags/grp_filters.py` | Regra core ↛ apps e GRP autônomo |
+| 4 | `core/export/xlsx.py` + `core/web/exports.py` viraram `core/web/exportacao.py` (sem pandas/numpy) | Um módulo só de exportação |
+| 4 | `app_name`/label/namespace `painel` → `dashboard`; templates em `templates/dashboard/` | D4 e plano |
 | 3 | `validar_grp`/`validar_sigcon` **não** foram rodados contra o banco | Eles gravam em `ResultadoValidacao`; o plano dizia "só fazem SELECT", o que está errado |
 
 ## Pendências e pontos de atenção para quem continuar

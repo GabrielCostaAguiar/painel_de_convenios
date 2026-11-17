@@ -5,7 +5,7 @@ Cada export usa a mesma consulta, as mesmas colunas e os mesmos campos da tela
 correspondente (módulo da sub-aba), para que o arquivo baixado tenha exatamente
 as linhas — e na mesma ordem — que o usuário está vendo.
 
-Atenção: core.export.xlsx não pode importar pandas/numpy (erro de OpenBLAS com
+Atenção: core.web.exportacao não pode importar pandas/numpy (erro de OpenBLAS com
 múltiplos workers em produção) — não introduza esse import neste caminho.
 """
 

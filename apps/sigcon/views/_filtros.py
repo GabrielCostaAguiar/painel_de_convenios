@@ -15,11 +15,9 @@ import logging
 
 from django.core.paginator import Paginator
 from django.shortcuts import render
-from django.template.defaultfilters import date as format_date
 from django.urls import reverse
 
-from core.export.xlsx import exportar_xlsx
-from core.web import paginas_visiveis, resposta_csv
+from core.web import exportar_xlsx, formatar_celula, paginas_visiveis, resposta_csv
 
 logger = logging.getLogger(__name__)
 
@@ -43,33 +41,6 @@ def ler_filtros_sigcon(get_params):
         "proponente": get_params.get("proponente", ""),
         "tipo_contrapartida": get_params.get("tipo_contrapartida", ""),
     }
-
-
-# ---------------------------------------------------------------------------
-# Formatação de célula (tela)
-# ---------------------------------------------------------------------------
-
-def _fmt_data(v):
-    return format_date(v, "d/m/Y") if v else None
-
-
-def _fmt_valor(v):
-    if v is None:
-        return None
-    formatado = f"{v:,.2f}"
-    return formatado.replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def formatar_celula(campo, valor):
-    if campo.startswith("fl_"):
-        if valor is None:
-            return None
-        return "Sim" if valor else "Não"
-    if campo.startswith("vl_"):
-        return _fmt_valor(valor)
-    if campo.startswith("dt_"):
-        return _fmt_data(valor)
-    return valor
 
 
 # ---------------------------------------------------------------------------

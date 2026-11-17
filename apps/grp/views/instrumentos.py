@@ -1,8 +1,8 @@
 from django.core.paginator import Paginator
 from django.shortcuts import render
 
-from core.web import paginas_visiveis
-from ._filtros import _ler_filtros_grp, _grp_listas, _formatar_celula
+from core.web import formatar_celula, paginas_visiveis
+from ._filtros import _ler_filtros_grp, _grp_listas
 
 from apps.grp.services import get_grp_dados_qs
 
@@ -74,7 +74,7 @@ def grp_instrumentos(request):
         "dt_vigencia_termino_inicial",
     ]
     linhas = [
-        [_formatar_celula(c, getattr(obj, c)) for c in campos] for obj in page_obj
+        [formatar_celula(c, getattr(obj, c)) for c in campos] for obj in page_obj
     ]
 
     larguras = [

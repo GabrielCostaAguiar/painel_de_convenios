@@ -11,7 +11,7 @@ import re
 
 from django.test import RequestFactory, TestCase
 
-from apps.painel.templatetags.painel_filters import querystring_global
+from core.templatetags.painel_filters import querystring_global
 from apps.sigcon import views as views_sigcon
 
 

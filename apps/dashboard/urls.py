@@ -9,7 +9,7 @@ from django.urls import path
 
 from . import views
 
-app_name = "painel"
+app_name = "dashboard"
 
 urlpatterns = [
     # Painel

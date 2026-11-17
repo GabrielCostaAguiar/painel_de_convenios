@@ -14,7 +14,7 @@ from pathlib import Path
 
 from apps.grp import services
 from apps.grp.views._filtros import _ler_filtros_grp
-from apps.painel.templatetags.painel_filters import GRP_PARAMS
+from apps.grp.templatetags.grp_filters import GRP_PARAMS
 
 TEMPLATE = (
     Path(__file__).resolve().parents[1] / "templates" / "grp" / "grp_generico.html"

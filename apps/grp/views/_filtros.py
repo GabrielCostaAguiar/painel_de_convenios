@@ -1,30 +1,5 @@
 """Leitura dos filtros das Consultas SIGCON a partir da querystring."""
 
-from django.template.defaultfilters import date as format_date
-
-
-def _fmt_data(v):
-    return format_date(v, "d/m/Y") if v else None
-
-
-def _fmt_valor(v):
-    if v is None:
-        return None
-    formatado = f"{v:,.2f}"
-    return formatado.replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def _formatar_celula(campo, valor):
-    if campo.startswith("fl_"):
-        if valor is None:
-            return None
-        return "Sim" if valor else "Não"
-    if campo.startswith("vl_"):
-        return _fmt_valor(valor)
-    if campo.startswith("dt_"):
-        return _fmt_data(valor)
-    return valor
-
 
 def _ler_filtros_grp(get_params):
     """
@@ -43,7 +18,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from apps.grp.models import GrpInstrumento, GrpTabelaUo
-from core.web import paginas_visiveis
+from core.web import formatar_celula, paginas_visiveis
 
 
 def _grp_listas():
@@ -104,7 +79,7 @@ def _grp_render(
     paginator = Paginator(qs, 25)
     page_obj = paginator.get_page(request.GET.get("page", 1))
     linhas = [
-        [_formatar_celula(c, getattr(obj, c)) for c in campos] for obj in page_obj
+        [formatar_celula(c, getattr(obj, c)) for c in campos] for obj in page_obj
     ]
 
     params = request.GET.copy()

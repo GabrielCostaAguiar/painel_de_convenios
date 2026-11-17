@@ -93,7 +93,7 @@ def test_get_indicadores_devolve_vazio_enquanto_o_gold_esta_desligado():
     Enquanto isso, get_indicadores não pode estourar: devolve o estado "vazio".
     Quando o Gold voltar, o teste de recálculo após invalidação deve voltar junto.
     """
-    from apps.painel import services
+    from apps.dashboard import services
 
     assert services._GOLD_INDICADORES_ATIVO is False
     assert services.get_indicadores(ano=2024) == {"vazio": True}
@@ -101,7 +101,7 @@ def test_get_indicadores_devolve_vazio_enquanto_o_gold_esta_desligado():
 
 def test_invalidar_cache_do_services_delega_para_core():
     """O nome antigo continua exportado em services e faz a mesma coisa."""
-    from apps.painel.services import invalidar_cache
+    from apps.dashboard.services import invalidar_cache
 
     cache.set(chave_indicadores(2024), "velho", 3600)
     invalidar_cache()

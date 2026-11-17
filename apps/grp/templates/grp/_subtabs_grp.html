@@ -1,4 +1,4 @@
-{% load painel_filters %}
+{% load grp_filters %}
 {% querystring_grp as qs_grp %}
 <div class="subtabs">
   <a href="{% url 'grp:grp_dados' %}{% if qs_grp %}?{{ qs_grp }}{% endif %}" class="subtab{% if secao_sub == 'grp_dados' %} active{% endif %}">Dados</a>

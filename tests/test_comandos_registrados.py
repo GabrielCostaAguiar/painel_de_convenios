@@ -59,7 +59,7 @@ def test_painel_nao_expoe_nenhum_comando():
     sobras de uma cópia não removida na mudança para o core.
     """
     do_painel = [
-        nome for nome, app in get_commands().items() if app == "apps.painel"
+        nome for nome, app in get_commands().items() if app == "apps.dashboard"
     ]
     assert do_painel == []
 

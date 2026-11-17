@@ -2,7 +2,7 @@
 
 from django.shortcuts import render
 
-TEMPLATE_EM_CONSTRUCAO = "painel/em_construcao.html"
+TEMPLATE_EM_CONSTRUCAO = "dashboard/em_construcao.html"
 
 
 def view_em_construcao(secao_ativa, secao_nome):
