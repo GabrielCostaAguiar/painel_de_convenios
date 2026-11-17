@@ -6,7 +6,7 @@ Testam _computar() diretamente (função pura) para isolar de ORM e fixtures.
 
 import pandas as pd
 
-from core.gold.contrapartida import _computar
+from apps.sigcon.contrapartida import _computar
 
 
 def _plano(codigo: str, caract: str | None) -> dict:

@@ -12,7 +12,7 @@ from apps.sigcon.services import (
     get_anos_disponiveis,
     get_sigcon_qs,
 )
-from core.gold.contrapartida import CATEGORIAS as CATEGORIAS_CONTRAPARTIDA
+from apps.sigcon.contrapartida import CATEGORIAS as CATEGORIAS_CONTRAPARTIDA
 
 from ._filtros import ler_filtros_sigcon, sigcon_render
 

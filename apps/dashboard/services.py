@@ -36,9 +36,9 @@ from core.cache import (
     chave_indicadores,
     invalidar_cache_indicadores,
 )
-from core.gold import convenios as gold
+from apps.dashboard import indicadores as gold
 
-# Gold de indicadores fora de escopo até a v1.2: core/gold/convenios.py está
+# Gold de indicadores fora de escopo até a v1.2: apps/dashboard/indicadores.py está
 # comentado desde a migração para os models Sigcon* (ver docs/pendencias.md).
 # Enquanto não houver kpis/por_situacao/por_ano/recentes, as telas de
 # indicadores e gráficos recebem o estado "vazio" em vez de estourar.

@@ -8,15 +8,15 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 
 ## Onde parei (16/11/2026)
 
-**Fases 1 a 4 concluídas (a 4 aguarda commit). Próxima: Fase 5.** Fases 6 e 7 pendentes.
+**Fases 1 a 5 concluídas. Próxima: Fase 6.** Fases 6 e 7 pendentes.
 
 | Fase | Estado | Commit |
 |---|---|---|
 | 1. `core` vira app; comandos de pipeline movidos de `apps/pipeline` | feita | `b96370e` |
 | 2. Carga genérica (`core/carga/`) e `ComandoCarga` | feita | `5fb30e0` |
 | 3. Validação genérica (`core/validacao/`) e `ComandoValidacao` | feita | `dbd406d` |
-| 4. `painel` → `dashboard`; filtros e formatação no core | feita, aguardando commit | — |
-| 5. Gold legado em pandas sai do `core` (core ↛ apps) | pendente | — |
+| 4. `painel` → `dashboard`; filtros e formatação no core | feita | `7f92118` |
+| 5. Gold legado sai do `core` (core ↛ apps) | feita | (commit desta fase) |
 | 6. Label `convenios` → `sigcon` (exige SQL que o Gabriel roda) | pendente (D3: depois das fases 1–5) | — |
 | 7. Documentação (ARQUITETURA §3/§5/§6/§8/§16, CLAUDE.md §3/§4/§5) | pendente | — |
 
@@ -46,6 +46,8 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 | 4 | `painel_filters` foi para `core/templatetags/` (biblioteca mantém o nome); `GRP_PARAMS`/`querystring_grp` foram para `apps/grp/templatetags/grp_filters.py` | Regra core ↛ apps e GRP autônomo |
 | 4 | `core/export/xlsx.py` + `core/web/exports.py` viraram `core/web/exportacao.py` (sem pandas/numpy) | Um módulo só de exportação |
 | 4 | `app_name`/label/namespace `painel` → `dashboard`; templates em `templates/dashboard/` | D4 e plano |
+| 5 | `core/gold/contrapartida.py` → `apps/sigcon/contrapartida.py`; `core/gold/convenios.py` (todo comentado) → `apps/dashboard/indicadores.py` | Únicos pontos que ligavam o core a `apps.*` |
+| 5 | `core/gold/relacionamento.py` ficou no core | Não importa `apps.*`; só dois testes o usam. Gabriel decide se é legado a aposentar |
 | 3 | `validar_grp`/`validar_sigcon` **não** foram rodados contra o banco | Eles gravam em `ResultadoValidacao`; o plano dizia "só fazem SELECT", o que está errado |
 
 ## Pendências e pontos de atenção para quem continuar

@@ -150,7 +150,7 @@ def enrich_convenios_page(page_items: list) -> dict:
         SigconConvenioGeral,
         SigconPlanoTrabalho,
     )
-    from core.gold.contrapartida import tipo_por_siafi_uo
+    from apps.sigcon.contrapartida import tipo_por_siafi_uo
 
     if not page_items:
         return {}
@@ -463,7 +463,7 @@ def get_sigcon_qs(filtros: dict):
         SigconPlanoTrabalho,
         SigconTermoAditivo,
     )
-    from core.gold.contrapartida import tipo_por_siafi_uo
+    from apps.sigcon.contrapartida import tipo_por_siafi_uo
 
     qs = SigconConvenio.objects.all()
 

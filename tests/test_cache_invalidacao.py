@@ -89,7 +89,7 @@ def test_invalidar_sobe_a_versao_mesmo_sem_contador_previo():
 
 def test_get_indicadores_devolve_vazio_enquanto_o_gold_esta_desligado():
     """
-    O Gold de indicadores (core/gold/convenios.py) está fora de escopo até a v1.2.
+    O Gold de indicadores (apps/dashboard/indicadores.py) está fora de escopo até a v1.2.
     Enquanto isso, get_indicadores não pode estourar: devolve o estado "vazio".
     Quando o Gold voltar, o teste de recálculo após invalidação deve voltar junto.
     """
