@@ -1,10 +1,10 @@
 """
-Sub-aba Termo Aditivo.
+Sub-aba Termo Aditivo (gold.vw_termo_aditivo_sigcon).
 """
 
 from apps.sigcon.services import get_termos_aditivos_qs
 
-from ._filtros import sigcon_render
+from ._filtros import ler_filtros_sigcon, sigcon_render
 
 COLUNAS = [
     "Código SIGCON",
@@ -18,8 +18,8 @@ COLUNAS = [
     "Valor Aditado Proponente R$",
 ]
 CAMPOS = [
-    "nr_convenio_ext",         # carimbado por preparar
-    "cd_plano_trabalho_ext",
+    "nr_convenio",
+    "cd_plano_trabalho",
     "nr_termo_aditivo",
     "tp_termo_aditivo",
     "dt_assinatura",
@@ -33,26 +33,17 @@ NOME_EXPORT = "termo_aditivo"
 
 
 def consulta(request):
-    cod_sigcon = request.GET.get("cod_sigcon", "")
-    qs, ctx = get_termos_aditivos_qs(cod_sigcon or None, request.GET.get("cod_siafi") or None)
-    ta_pt_map = ctx.get("ta_pt_map", {})
-
-    def preparar(objetos):
-        for ta in objetos:
-            ta.nr_convenio_ext = cod_sigcon
-            ta.cd_plano_trabalho_ext = ta_pt_map.get(ta.cd_termo_aditivo, "—")
-
-    return qs, preparar
+    """QuerySet filtrado da aba — compartilhado por tela e export."""
+    return get_termos_aditivos_qs(ler_filtros_sigcon(request.GET))
 
 
 def termo_aditivo(request):
-    qs, preparar = consulta(request)
     return sigcon_render(
-        request, qs,
+        request,
+        consulta(request),
         colunas=COLUNAS,
         campos=CAMPOS,
         titulo="Termo Aditivo",
         secao_sub="termo_aditivo",
         larguras=LARGURAS,
-        preparar=preparar,
     )

@@ -28,15 +28,9 @@ ROTAS_ESPERADAS = {
     "cronograma": "cronograma/",
     "cronograma_export_csv": "cronograma/export.csv",
     "cronograma_export_xlsx": "cronograma/export.xlsx",
-    "prorrogacao": "prorrogacao/",
-    "prorrogacao_export_csv": "prorrogacao/export.csv",
-    "prorrogacao_export_xlsx": "prorrogacao/export.xlsx",
     "termo_aditivo": "termo_aditivo/",
     "termo_aditivo_export_csv": "termo_aditivo/export.csv",
     "termo_aditivo_export_xlsx": "termo_aditivo/export.xlsx",
-    "unidades_executoras": "unidades_executoras/",
-    "unidades_executoras_export_csv": "unidades_executoras/export.csv",
-    "unidades_executoras_export_xlsx": "unidades_executoras/export.xlsx",
     "uniao": "uniao/",
     "execucao": "execucao/",
     "monitoramento": "monitoramento/",
@@ -96,6 +90,21 @@ VIEWS_GOLD_DAS_TELAS = {
 }
 
 
+# Telas do SIGCON leem as golds gold.vw_*_sigcon (apps/sigcon/sql/gold). A tela
+# de convênios e o filtro (opções de ano, termo aditivo) usam as duas abaixo.
+VIEWS_GOLD_SIGCON = ("gold.vw_convenio_sigcon", "gold.vw_termo_aditivo_sigcon")
+ROTAS_SIGCON = {"sigcon", "indicadores", "plano_aplicacao", "cronograma", "termo_aditivo"}
+
+
+def _exigir_golds_sigcon(nome="sigcon"):
+    """Pula o teste se a rota lê golds do SIGCON que não existem no banco de teste."""
+    if nome.removesuffix("_export_csv").removesuffix("_export_xlsx") not in ROTAS_SIGCON:
+        return
+    for view in VIEWS_GOLD_SIGCON:
+        if not _view_existe(view):
+            pytest.skip(f"{view} não existe no banco de teste (criada pelo SQL de apps/sigcon/sql/gold)")
+
+
 def _view_existe(nome_qualificado):
     from django.db import connection
 
@@ -107,6 +116,7 @@ def _view_existe(nome_qualificado):
 @pytest.mark.django_db
 @pytest.mark.parametrize("nome", TELAS)
 def test_telas_respondem_com_banco_vazio(client, nome):
+    _exigir_golds_sigcon(nome)
     view = VIEWS_GOLD_DAS_TELAS.get(nome)
     if view and not _view_existe(view):
         pytest.skip(f"{view} não existe no banco de teste (criada por aplicar_gold)")
@@ -117,6 +127,7 @@ def test_telas_respondem_com_banco_vazio(client, nome):
 @pytest.mark.django_db
 @pytest.mark.parametrize("nome", EXPORTS_CSV)
 def test_export_csv_responde_com_banco_vazio(client, nome):
+    _exigir_golds_sigcon(nome)
     resposta = client.get("/" + ROTAS_ESPERADAS[nome])
     assert resposta.status_code == 200
     assert resposta["Content-Type"] == "text/csv; charset=utf-8"
@@ -125,6 +136,7 @@ def test_export_csv_responde_com_banco_vazio(client, nome):
 @pytest.mark.django_db
 @pytest.mark.parametrize("nome", EXPORTS_XLSX)
 def test_export_xlsx_responde_com_banco_vazio(client, nome):
+    _exigir_golds_sigcon(nome)
     resposta = client.get("/" + ROTAS_ESPERADAS[nome])
     assert resposta.status_code == 200
     assert resposta["Content-Type"] == (
@@ -182,6 +194,7 @@ def test_sidebar_do_base_html_tem_as_tags_balanceadas(client):
     tag aberta. Os navegadores fecham sozinhos, então a tela não quebrava —
     mas a adivinhação varia entre navegadores e atrapalha leitor de tela.
     """
+    _exigir_golds_sigcon()
     html = client.get("/").content.decode("utf-8")
 
     parser = _ContadorDeTags({"nav", "aside", "main", "body", "html"})
@@ -196,6 +209,7 @@ def test_sidebar_do_base_html_tem_as_tags_balanceadas(client):
 @pytest.mark.django_db
 def test_sidebar_traz_a_identificacao_institucional(client):
     """A marca da sidebar é decisão do responsável — fixada para não regredir."""
+    _exigir_golds_sigcon()
     html = client.get("/").content.decode("utf-8")
 
     assert "Secretaria Geral · MG" in html

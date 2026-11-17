@@ -17,6 +17,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.urls import reverse
 
+from apps.sigcon.services import FILTROS, get_opcoes_filtros
 from core.web import exportar_xlsx, formatar_celula, paginas_visiveis, resposta_csv
 
 logger = logging.getLogger(__name__)
@@ -30,17 +31,7 @@ def ler_filtros_sigcon(get_params):
     modulo proprio, e nao dentro da view: os dois precisam ler exatamente os
     mesmos parametros, senao o arquivo baixado nao bate com o que esta em tela.
     """
-    return {
-        "ano": get_params.get("ano", ""),
-        "situacao": get_params.get("situacao", ""),
-        "cod_sigcon": get_params.get("cod_sigcon", ""),
-        "cod_siafi": get_params.get("cod_siafi", ""),
-        "instrumento": get_params.get("instrumento", ""),
-        "termo_aditivo": get_params.get("termo_aditivo", ""),
-        "concedente": get_params.get("concedente", ""),
-        "proponente": get_params.get("proponente", ""),
-        "tipo_contrapartida": get_params.get("tipo_contrapartida", ""),
-    }
+    return {chave: get_params.get(chave, "").strip() for chave in FILTROS}
 
 
 # ---------------------------------------------------------------------------
@@ -55,15 +46,12 @@ def sigcon_render(
     titulo,
     secao_sub,
     larguras=None,
-    preparar=None,
-    filtros_template=None,
     **kwargs,
 ):
     """
-    Pagina `qs` e renderiza sigcon/sigcon_generico.html.
+    Pagina `qs` e renderiza sigcon/sigcon_generico.html, com os mesmos filtros
+    em todas as sub-abas.
 
-    preparar(objetos) — opcional; recebe os objetos da PÁGINA e carimba neles os
-    atributos que não são campos do model (ex.: o convênio de um plano).
     secao_sub — também é o prefixo das rotas de export: sigcon:<secao_sub>_export_xlsx.
     """
     if len(campos) != len(colunas):
@@ -77,8 +65,6 @@ def sigcon_render(
     paginator = Paginator(qs, 25)
     page_obj = paginator.get_page(request.GET.get("page", 1))
     objetos = list(page_obj.object_list)
-    if preparar:
-        preparar(objetos)
     linhas = [[formatar_celula(c, getattr(obj, c, None)) for c in campos] for obj in objetos]
 
     params = request.GET.copy()
@@ -95,9 +81,9 @@ def sigcon_render(
         "total": paginator.count,
         "querystring": params.urlencode(),
         "visible_pages": paginas_visiveis(page_obj),
-        "cod_sigcon_sel": filtros["cod_sigcon"],
-        "cod_siafi_sel": filtros["cod_siafi"],
-        "filtros_template": filtros_template,
+        "f": filtros,
+        "url_limpar": request.path,
+        **get_opcoes_filtros(),
         "url_export_xlsx": reverse(f"sigcon:{secao_sub}_export_xlsx"),
         "url_export_csv": reverse(f"sigcon:{secao_sub}_export_csv"),
         "secao_ativa": "sigcon",
@@ -111,14 +97,12 @@ def sigcon_render(
 # Export (mesmos campos da tela, valores crus)
 # ---------------------------------------------------------------------------
 
-def sigcon_exportar(objetos, colunas, campos, nome, formato, preparar=None):
+def sigcon_exportar(objetos, colunas, campos, nome, formato):
     """
     Gera o arquivo da sub-aba. CSV: data em ISO e valor puro; XLSX: tipos nativos
     (data e número), para o Excel poder ordenar e somar.
     """
     objetos = list(objetos)
-    if preparar:
-        preparar(objetos)
 
     if formato == "xlsx":
         linhas = [[getattr(o, c, None) for c in campos] for o in objetos]

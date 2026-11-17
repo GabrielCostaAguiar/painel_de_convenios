@@ -14,32 +14,26 @@ from importlib import import_module
 from ._filtros import sigcon_exportar
 
 # import_module, e não `from . import cronograma`: views/__init__.py reexporta a
-# FUNÇÃO `cronograma` (e `prorrogacao`, ...), que oculta o módulo de mesmo nome
+# FUNÇÃO `cronograma` (...), que oculta o módulo de mesmo nome
 # no atributo do pacote.
 convenios = import_module("apps.sigcon.views.convenios")
 cronograma = import_module("apps.sigcon.views.cronograma")
 plano_aplicacao = import_module("apps.sigcon.views.plano_aplicacao")
-prorrogacao = import_module("apps.sigcon.views.prorrogacao")
 termo_aditivo = import_module("apps.sigcon.views.termo_aditivo")
-unidades_executoras = import_module("apps.sigcon.views.unidades_executoras")
+prorrogacao_oficio = import_module("apps.sigcon.views.prorrogacao_oficio")
+unidade_executora = import_module("apps.sigcon.views.unidade_executora")
 
 
 def _exportar(request, modulo, nome, formato):
-    resultado = modulo.consulta(request)
-    # convenios.consulta devolve só o queryset; as demais, (queryset, preparar)
-    if isinstance(resultado, tuple):
-        qs, preparar = resultado
-    else:
-        qs, preparar = resultado, getattr(modulo, "preparar", None)
-    return sigcon_exportar(qs, modulo.COLUNAS, modulo.CAMPOS, nome, formato, preparar)
+    return sigcon_exportar(modulo.consulta(request), modulo.COLUNAS, modulo.CAMPOS, nome, formato)
 
 
 def sigcon_export_csv(request):
-    return _exportar(request, convenios, "convenios", "csv")
+    return _exportar(request, convenios, convenios.NOME_EXPORT, "csv")
 
 
 def sigcon_export_xlsx(request):
-    return _exportar(request, convenios, "convenios", "xlsx")
+    return _exportar(request, convenios, convenios.NOME_EXPORT, "xlsx")
 
 
 def plano_aplicacao_export_csv(request):
@@ -58,14 +52,6 @@ def cronograma_export_xlsx(request):
     return _exportar(request, cronograma, cronograma.NOME_EXPORT, "xlsx")
 
 
-def prorrogacao_export_csv(request):
-    return _exportar(request, prorrogacao, prorrogacao.NOME_EXPORT, "csv")
-
-
-def prorrogacao_export_xlsx(request):
-    return _exportar(request, prorrogacao, prorrogacao.NOME_EXPORT, "xlsx")
-
-
 def termo_aditivo_export_csv(request):
     return _exportar(request, termo_aditivo, termo_aditivo.NOME_EXPORT, "csv")
 
@@ -73,10 +59,16 @@ def termo_aditivo_export_csv(request):
 def termo_aditivo_export_xlsx(request):
     return _exportar(request, termo_aditivo, termo_aditivo.NOME_EXPORT, "xlsx")
 
+def prorrogacao_oficio_export_csv(request):
+    return _exportar(request, prorrogacao_oficio, prorrogacao_oficio.NOME_EXPORT, "csv")
 
-def unidades_executoras_export_csv(request):
-    return _exportar(request, unidades_executoras, unidades_executoras.NOME_EXPORT, "csv")
+
+def prorrogacao_oficio_export_xlsx(request):
+    return _exportar(request, prorrogacao_oficio, prorrogacao_oficio.NOME_EXPORT, "xlsx")
+
+def unidade_executora_export_csv(request):
+    return _exportar(request, unidade_executora, unidade_executora.NOME_EXPORT, "csv")
 
 
-def unidades_executoras_export_xlsx(request):
-    return _exportar(request, unidades_executoras, unidades_executoras.NOME_EXPORT, "xlsx")
+def unidade_executora_export_xlsx(request):
+    return _exportar(request, unidade_executora, unidade_executora.NOME_EXPORT, "xlsx")

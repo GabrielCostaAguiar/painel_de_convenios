@@ -13,9 +13,12 @@ from django import template
 
 register = template.Library()
 
-# Filtros globais das abas de Consultas SIGCON — únicos parâmetros propagados
-# automaticamente entre as 6 sub-abas pela barra de navegação.
-GLOBAL_PARAMS = ("cod_sigcon", "cod_siafi")
+# Filtros globais das abas de Consultas SIGCON — parâmetros propagados
+# automaticamente entre as sub-abas pela barra de navegação.
+GLOBAL_PARAMS = (
+    "ano", "nr_convenio", "nr_siafi", "proponente", "concedente",
+    "caracteristica_contrapartida", "situacao", "termo_aditivo", "instrumento",
+)
 
 
 @register.simple_tag(takes_context=True)
