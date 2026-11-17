@@ -868,3 +868,198 @@ class ResultadoValidacao(models.Model):
     class Meta:
         db_table = "dq_resultado_validacao_sigcon"
         ordering = ["-dt_execucao", "id_teste"]
+
+# ---------------------------------------------------------------------------
+# SIGCON - VIEWS GOLD -
+# ---------------------------------------------------------------------------
+
+class GoldSigconPlanoTrabalho(models.Model):
+    """
+    View gold de plano de trabalho por convênio (gold.vw_plano_trabalho_sigcon).
+    Grão: convênio (siafi_uo) x plano de trabalho. Inclui os planos dos aditivos (origem).
+    """
+
+    # --- Chaves ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, db_index=True)  # nr_siafi || cd_uo
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    cd_uo = models.CharField(max_length=10, null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)
+    cd_plano_trabalho = models.CharField(max_length=30)
+    origem = models.CharField(max_length=10)  # 'original' ou 'aditivo'
+    cd_termo_aditivo = models.TextField(null=True, blank=True)  # só quando origem = 'aditivo'
+
+    # --- Plano de trabalho ---
+    nm_plano_trabalho = models.TextField(null=True, blank=True)
+    tx_objeto = models.TextField(null=True, blank=True)
+    tx_justificativa = models.TextField(null=True, blank=True)
+    cd_execucao_exercicio = models.CharField(max_length=30, null=True, blank=True)
+    nr_ano_plano_trabalho = models.IntegerField(null=True, blank=True)
+    ds_status_plano_trabalho = models.TextField(null=True, blank=True)
+    ds_caracteristica_contrapartida = models.TextField(null=True, blank=True)
+    tp_plano_trabalho = models.TextField(null=True, blank=True)
+    tp_instrumento_siafi = models.TextField(null=True, blank=True)
+    ds_origem_cadastro = models.TextField(null=True, blank=True)
+    ds_alteracao_termo_aditivo = models.TextField(null=True, blank=True)
+
+    # --- Cadastro, envio e cancelamento ---
+    dh_cadastro = models.DateTimeField(null=True, blank=True)
+    dh_envio_sccg = models.DateTimeField(null=True, blank=True)
+    dh_cancelamento_sccg = models.DateTimeField(null=True, blank=True)
+    tx_justificativa_cancelamento = models.TextField(null=True, blank=True)
+    ds_cancelamento_sccg = models.TextField(null=True, blank=True)
+
+    # --- Concedente e proponente ---
+    nr_cnpj_concedente = models.CharField(max_length=14, null=True, blank=True)
+    nm_concedente = models.TextField(null=True, blank=True)
+    nr_cnpj_proponente = models.CharField(max_length=14, null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_plano_trabalho_sigcon'
+        verbose_name = "Plano de Trabalho por Convênio (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.cd_plano_trabalho}"
+
+
+class GoldSigconPlanoAplicacao(models.Model):
+    """
+    View gold de plano de aplicação por convênio (gold.vw_plano_aplicacao_sigcon).
+    Grão: convênio (siafi_uo) x plano de trabalho x classificação orçamentária x ano.
+    Plano compartilhado por vários SIAFI repete a linha: somar sempre por siafi_uo.
+    """
+
+    # --- Chaves ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, db_index=True)
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)
+    cd_plano_trabalho = models.CharField(max_length=30)
+    origem = models.CharField(max_length=10)  # 'original' ou 'aditivo'
+    cd_termo_aditivo = models.TextField(null=True, blank=True)
+    cd_uo_aplicacao = models.CharField(max_length=10, null=True, blank=True)  # UO da dotação
+    nr_ano_exercicio = models.IntegerField(null=True, blank=True)
+
+    # --- Classificação funcional-programática ---
+    cd_funcao = models.CharField(max_length=10, null=True, blank=True)
+    cd_subfuncao = models.CharField(max_length=10, null=True, blank=True)
+    cd_programa = models.CharField(max_length=10, null=True, blank=True)
+    cd_identificador_projeto_atividade = models.CharField(max_length=10, null=True, blank=True)
+    cd_projeto_atividade = models.CharField(max_length=10, null=True, blank=True)
+    cd_subprojeto_subatividade = models.CharField(max_length=10, null=True, blank=True)
+
+    # --- Natureza da despesa e fonte ---
+    cd_categoria_economica = models.CharField(max_length=10, null=True, blank=True)
+    cd_grupo_despesa = models.CharField(max_length=10, null=True, blank=True)
+    cd_modalidade_aplicacao = models.CharField(max_length=10, null=True, blank=True)
+    cd_elemento_despesa = models.CharField(max_length=10, null=True, blank=True)
+    cd_identificador_orcamento = models.CharField(max_length=10, null=True, blank=True)
+    cd_fonte_recurso = models.CharField(max_length=10, null=True, blank=True)
+    cd_procedencia = models.CharField(max_length=10, null=True, blank=True)
+    dotacao_orcamentaria = models.CharField(max_length=30, null=True, blank=True)
+    acao_orcamentaria = models.CharField(max_length=10, null=True, blank=True)
+
+    # --- Valores ---
+    vl_aplicacao_concedente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_aplicacao_proponente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_plano_aplicacao_sigcon'
+        verbose_name = "Plano de Aplicação por Convênio (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.cd_plano_trabalho}"
+
+
+class GoldSigconCronogramaDesembolso(models.Model):
+    """
+    View gold de cronograma de desembolso por convênio (gold.vw_cronograma_desembolso_sigcon).
+    Grão: convênio (siafi_uo) x plano de trabalho x ano x mês.
+    Plano compartilhado por vários SIAFI repete a linha: somar sempre por siafi_uo.
+    """
+
+    # --- Chaves ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, db_index=True)
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)
+    cd_plano_trabalho = models.CharField(max_length=30)
+    origem = models.CharField(max_length=10)  # 'original' ou 'aditivo'
+    cd_termo_aditivo = models.TextField(null=True, blank=True)
+
+    # --- Período ---
+    nr_ano_desembolso = models.IntegerField(null=True, blank=True)
+    nr_mes_desembolso = models.IntegerField(null=True, blank=True)
+    dt_desembolso = models.DateField(null=True, blank=True)  # 1º dia do mês
+
+    # --- Valores ---
+    vl_desembolso_concedente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_desembolso_proponente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_desembolso_total = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_cronograma_desembolso_sigcon'
+        verbose_name = "Cronograma de Desembolso por Convênio (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.cd_plano_trabalho} {self.nr_ano_desembolso}/{self.nr_mes_desembolso}"
+
+
+class GoldSigconTermoAditivo(models.Model):
+    """
+    View gold de termos aditivos por convênio (gold.vw_termo_aditivo_sigcon).
+    Grão: convênio (siafi_uo) x termo aditivo. Valores aditados somam por siafi_uo.
+    """
+
+    # --- Chaves ---
+    id = models.BigIntegerField(primary_key=True)  # ROW_NUMBER() da view
+    siafi_uo = models.CharField(max_length=30, db_index=True)
+    nr_siafi = models.CharField(max_length=20, null=True, blank=True)
+    cd_uo = models.CharField(max_length=10, null=True, blank=True)
+    nr_convenio = models.CharField(max_length=100, null=True, blank=True)
+    cd_termo_aditivo = models.CharField(max_length=30)
+    cd_plano_trabalho = models.CharField(max_length=30, null=True, blank=True)
+
+    # --- Termo ---
+    nr_termo_aditivo = models.CharField(max_length=100, null=True, blank=True)
+    nr_ano_termo_aditivo = models.IntegerField(null=True, blank=True)
+    tp_termo_aditivo = models.TextField(null=True, blank=True)
+    tx_justificativa = models.TextField(null=True, blank=True)
+
+    # --- Datas ---
+    dt_assinatura = models.DateField(null=True, blank=True)
+    dt_vigencia_inicio = models.DateField(null=True, blank=True)
+    dt_vigencia_termino = models.DateField(null=True, blank=True)
+    dh_registro = models.DateTimeField(null=True, blank=True)
+
+    # --- Valores ---
+    vl_aditivo_concedente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_aditivo_proponente = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    vl_aditivo_total = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'gold"."vw_termo_aditivo_sigcon'
+        verbose_name = "Termo Aditivo por Convênio (Gold)"
+
+    def __str__(self):
+        return f"{self.siafi_uo} | {self.cd_termo_aditivo}"

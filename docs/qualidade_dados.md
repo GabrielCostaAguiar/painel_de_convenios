@@ -367,9 +367,61 @@ revisão do modelo.
   os códigos `11`, `15`, `17` e `99` ao lado dos nomes. `ds_situacao_convenio` inclui
   `BLOQUEADO` (715 convênios).
 - **Planos compartilhados (T-C17):** 18 códigos em `PLANOS_COMPARTILHADOS_CONHECIDOS`,
-  todos colisões legítimas (T6). Código novo gera ALERTA.
+  colisões de `cd_plano_trabalho` tratadas como compartilhamento (T6). Ao menos o 7964 é erro
+  de origem do SIGCON (ver S7). Código novo gera ALERTA.
 - **Prorrogação de ofício:** a tabela não tem coluna de plano de trabalho. Nenhum
   `cd_convenio_sequencial` é "0" ou "999999". 205 de 660 (31%) têm 7 dígitos (formato de
   SIAFI) e são legítimos: casam com `sigcon_chave_convenio`.
 - **Volumetria histórica (T-A03, T-A04):** o histórico começa na primeira `carregar_sigcon`
   depois da migration 0021. A primeira carga só registra; a comparação vale a partir da segunda.
+
+## S7. Erros conhecidos de origem no SIGCON
+
+O SIGCON às vezes grava dado errado na origem. A fonte não é alterada (regra de auditoria do TCE):
+o erro é documentado aqui e tratado na gold.
+
+### Um plano de trabalho que gerou vários SIAFI em sequência (plano 7964)
+
+- **Evidência (17/11/2026):** o plano `7964` está ligado a 8 convênios (`nr_siafi` de
+  `9030802` a `9030809`, `cd_convenio_sequencial` de `2572` a `2579`), todos com o mesmo
+  `nr_convenio` (`098/2014`). Um único convênio gerou 8 SIAFI consecutivos, cada um apontando
+  para o mesmo plano.
+- **Classificação:** erro de origem do SIGCON (confirmado por Gabriel para o 7964). Outros três
+  códigos de `PLANOS_COMPARTILHADOS_CONHECIDOS` mostram o mesmo padrão (1663, 9240 e 3655: vários
+  SIAFI, um só `nr_convenio`); os demais não foram conferidos um a um.
+- **Impacto:** ligar o plano ao convênio só por `cd_plano_trabalho` repete cada linha do plano de
+  aplicação, uma por SIAFI (a view antiga passou de 24.969 para 25.073 linhas).
+- **Decisão:** manter na silver. A ligação plano × convênio passa por `siafi_uo`, na
+  `gold.vw_plano_trabalho_sigcon` (grão convênio × plano): o plano aparece uma vez por SIAFI, sem
+  duplicação acidental. Tabelas 1:N do plano (plano de aplicação, cronograma) entram por
+  `cd_plano_trabalho` em views próprias, agregadas antes de juntar, nunca ligadas direto ao `geral`.
+- **Pendência:** conferir os demais códigos da lista e, se forem erro, reclassificar o T-C17 de
+  "colisão legítima" para "erro de origem conhecido".
+
+### Planos sem convênio (planos de cadastro e de alteração orçamentária)
+
+- **Causa (apurada por Gabriel, 17/11/2026):** são planos de cadastro de instrumento, suplementação,
+  remanejamento e outras alterações orçamentárias dos convênios. O SIGCON não os liga a nenhum
+  convênio por SIAFI nem por outra chave: não há `siafi_uo` possível.
+- **Regra de vínculo:** só entra na gold o que tem `siafi_uo` (SIAFI + UO) e plano de trabalho
+  (original via `geral`, ou do aditivo via `chave_termo_aditivo`). Sem `siafi_uo` não há ligação.
+- **Medição (17/11/2026), plano sem `geral` e sem `chave_termo_aditivo`:**
+
+| Tabela | Total | Sem vínculo | Observação |
+|---|---|---|---|
+| `sigcon_plano_trabalho` | 18.291 | 5.886 planos | 3.437 "Convênio Novo", 2.085 "Termo Aditivo", 364 tipo C/M |
+| `sigcon_plano_aplicacao` | 24.969 | 9.023 linhas (3.171 planos) | R$ 17,96 bi concedente, contra R$ 49,63 bi das 15.946 ligadas |
+| `sigcon_cronograma_desembolso` | 48.392 | 8.476 | mais 18.400 com plano vazio (já em T-F, ~38%) |
+| `sigcon_nt_emenda` | 14.520 | 3.088 | mais 216 com plano vazio |
+
+- **Decisão pendente (proposta de Claude, aguarda Gabriel):** manter as linhas na tabela do
+  banco e fazer o recorte só nas views gold (ARQUITETURA §7). Não excluir do banco na carga.
+  Motivos: o banco é derivado da silver (a fonte e a silver seguem intactas de qualquer forma);
+  a exclusão na carga exigiria que o loader conhecesse `geral` e `chave_termo_aditivo`, quebrando a
+  carga tabela a tabela; os testes que comparam silver × banco (T-A01, T-A03) e os T-F11, T-G01 e
+  T-G02 perderiam a referência; e plano de "Convênio Novo" pode virar convênio na próxima carga,
+  o que o recorte na gold já absorve sem mudar código. Custo de manter: ~9 mil linhas a mais
+  em `plano_aplicacao`, desprezível.
+- **Consequência para as próximas views gold:** `plano_aplicacao`, `cronograma` e `nt_emenda` do
+  SIGCON entram por `cd_plano_trabalho` **via `vw_plano_trabalho_sigcon`** (join interno com a
+  ponte, que já é 1 linha por convênio × plano), nunca direto da tabela.

@@ -47,6 +47,7 @@ carregar_sigcon_chave_declaracao = partial(carregar_tabela_generica, "sigcon_cha
 carregar_sigcon_concedente = partial(carregar_tabela_generica, "sigcon_concedente", SigconConcedente)
 carregar_sigcon_tabela_uo = partial(carregar_tabela_generica, "sigcon_tabela_uo", SigconTabelaUo)
 
+
 _LOADERS_SIGCON = {
     "sigcon_convenio": carregar_sigcon_convenio,
     "sigcon_convenio_geral": carregar_sigcon_convenio_geral,
