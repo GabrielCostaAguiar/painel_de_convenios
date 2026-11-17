@@ -32,5 +32,5 @@ SELECT 'django_content_type sigcon', count(*) FROM django_content_type WHERE app
 UNION ALL
 SELECT 'restantes convenios', count(*) FROM django_migrations WHERE app = 'convenios';
 
-ROLLBACK;
--- COMMIT;
+-- ROLLBACK;
+COMMIT;

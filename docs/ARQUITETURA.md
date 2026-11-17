@@ -1,523 +1,514 @@
-# Arquitetura do Painel de Convênios
+# Arquitetura · Painel de Convênios (DCGCE)
 
-## 1. Visão Geral
+Documento de referência. Cada seção é autossuficiente: leia só a que a tarefa pede (índice no
+`CLAUDE.md`, seção 9). Itens marcados **(alvo)** ainda não existem; **(proposta)** aguarda decisão.
 
-O Painel de Convênios é uma aplicação web interna da DCGCE/SEPLAG-MG construída sobre uma pipeline de dados Python + Django, seguindo o padrão **Lakehouse** com três camadas de maturidade dos dados: **Bronze**, **Silver** e **Gold**.
-
-A motivação principal é substituir o painel QlikView legado por uma solução que a equipe possa manter, versionar e evoluir sem dependência de licença proprietária.
-
----
-
-## 2. Fluxo de Dados
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FONTES DE DADOS                          │
-│                                                                 │
-│  SIGCON-MG (BO/PRODEMGE)  ·  Transferegov (portal dados abertos)│
-│  SIAFI / SIAFI2 (e-mail)  ·  SIAD / SEI (arquivos de controle) │
-│  Planilhas de dimensão (SharePoint / OneDrive)                  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  scripts em core/ingestion/
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  BRONZE  —  data/bronze/                                        │
-│  • Cópia fiel dos dados originais em CSV                        │
-│  • Sem transformação; preserva erros, duplicatas e nulos        │
-│  • Particionado em histórico (2002+) e ano corrente             │
-│  • Imutável após ingestão (append-only por janela de tempo)     │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  scripts em core/transform/
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  SILVER  —  data/silver/                                        │
-│  • Dados limpos, tipados e padronizados                         │
-│  • Deduplicação, normalização de CNPJ/CPF, datas ISO-8601, UF  │
-│  • Join com tabelas de dimensão (município, órgão, programa)    │
-│  • Regras de negócio básicas validadas                          │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  core/transform/chaves.py
-                             │  core/referencia/*.csv
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  RELACIONAMENTO  —  em memória (sem arquivo intermediário)      │
-│  • sigcon_chaves: ponte SIGCON ↔ SICONV via chave SIAFI_UO      │
-│  • Filtro de UOs: UOS_EXCLUIR (11 UOs não-operacionais)         │
-│  • Campos G_: coalesce SICONV+SIGCON (21 campos padronizados)   │
-│  • Campos A_: projeção G_ sobre UO atual via SIAFI2 de-para     │
-│  • De-paras: situações, tipos SIAFI, UOs, concedentes           │
-│  • Correções hard-coded: core/referencia/correcoes.csv (14)     │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  scripts em core/gold/
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  GOLD  —  data/gold/                                            │
-│  • Agregações e indicadores prontos para consumo                │
-│  • Séries históricas, totais por UF/órgão/programa/status       │
-│  • Tabelas desnormalizadas otimizadas para leitura              │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  leitura via pandas/ORM
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  DJANGO  —  apps/dashboard/                                     │
-│  • Views que leem CSVs Gold ou tabelas do banco                 │
-│  • Filtros interativos, gráficos, tabelas paginadas             │
-│  • Exportação para Excel/CSV                                    │
-└─────────────────────────────────────────────────────────────────┘
-```
+Versão do documento: 13/11/2026.
 
 ---
 
-## 3. Decisões de Projeto
+## §1. Visão geral
 
-| Decisão | Escolha | Justificativa |
-|---|---|---|
-| Linguagem ETL | Python | Ecosistema rico (pandas, openpyxl), conhecimento da equipe |
-| Framework web | Django | ORM, admin, autenticação prontos; bom para dados tabulares |
-| Formato Bronze | CSV | Fidelidade máxima ao dado original; legível sem biblioteca especializada; sem coerção de tipo |
-| Formato Silver/Gold | Parquet | Preserva tipos nativos (datetime, float, string nullable); compressão colunar; leitura analítica eficiente |
-| Separação histórico / corrente | Dois diretórios por fonte | Evita reprocessamento do histórico a cada carga incremental |
-| Caminhos dinâmicos | `pathlib.Path` + `BASE_DIR` | Portabilidade entre Windows e Linux; sem hardcode |
-| Controle de versão de dados | `.gitignore` em `data/` | Dados não vão para o Git; apenas código e documentação |
-
----
-
-## 4. Convenções de Nomenclatura de Arquivos
-
-```
-data/
-├── raw/
-│   ├── dcgce_convenio.xlsx           # planilha SIGCON-MG (Excel, input da Bronze)
-│   └── ...
-├── bronze/
-│   └── dcgce_convenios/
-│       └── dcgce_convenios_<timestamp>.csv   # histórico de cargas (append-only)
-├── silver/
-│   └── dcgce_convenios.parquet       # última Silver processada (sobrescrito)
-└── gold/
-    └── ...                           # agregações prontas para consumo
-```
-
----
-
-## 5. Camada Bronze — Implementação
-
-### Módulos em `core/ingestion/`
-
-| Arquivo | Responsabilidade |
+| | |
 |---|---|
-| `sources.py` | Registro declarativo de fontes (`FonteDados` + dicionário `FONTES`) |
-| `readers.py` | Leitura do CSV → `pd.DataFrame` (tudo como `str`, sem coerção de tipo) |
-| `bronze.py` | Orquestra leitura + gravação em `data/bronze/<fonte>/` com timestamp |
-
-### Como adicionar uma nova fonte
-
-1. **Abra `core/ingestion/sources.py`** e adicione uma entrada ao dicionário `FONTES`:
-
-```python
-"transferegov": FonteDados(
-    nome="transferegov",
-    arquivo="transferegov.csv",
-    separador=";",
-    encoding="utf-8",
-    descricao="Dados abertos do Transferegov (portal da transparência)",
-),
-```
-
-2. **Coloque o arquivo CSV** em `data/raw/transferegov.csv`.
-
-3. **Rode a ingestão**:
-```bash
-python manage.py rodar_ingestao transferegov
-```
-
-O arquivo Bronze será salvo em `data/bronze/transferegov/transferegov_<timestamp>.csv`.
-
-### Regra de ouro da camada Bronze
-
-> O dado entra como chegou. Nada é corrigido, filtrado ou convertido.
-> Erros de digitação, duplicatas, colunas mal nomeadas — tudo preservado.
-> O Bronze é o seu "desfazimento": se a Silver estragar algo, você reprocessa a partir daqui.
-
-### Por que CSV no Bronze e não Parquet?
-
-O Bronze usa **CSV** porque o objetivo é fidelidade máxima ao dado original:
-- Sem coerção de tipos (`"01/01/2024"` fica string, não `datetime`)
-- Legível por qualquer ferramenta (Excel, Bloco de Notas, `cat`)
-- Sem dependência de biblioteca de leitura especializada
-
-**Parquet** será usado nas camadas **Silver e Gold**, onde os tipos já estão validados e precisamos de performance de leitura analítica (compressão, leitura colunar).
+| Objetivo | Substituir o QlikView da DCGCE por um painel web próprio e unir SIGCON (legado) e GRP (novo, a partir de 2027) numa visão única do convênio. |
+| Usuários | Setorialistas da DCGCE (consultam e cobram execução) e órgãos executores (conferem instrumentos e dados orçamentários). Depois, a administração direta do Estado. |
+| Stack | Python, Django (views + templates), PostgreSQL, pandas, pyarrow, PyYAML, openpyxl. |
+| Fora do escopo | DRF para as telas, React, Celery, Docker e Redis. |
+| Produção | Uma VM Windows Server do setor (v1.1): Django, Postgres, ETL e robôs. |
+| Princípios | Fonte nunca alterada; carga sem perda de histórico; ligações na gold em SQL; um padrão replicado em todos os apps (o GRP é a referência). |
 
 ---
 
-## 6. Camada Silver — Implementação
-
-### Módulos em `core/transform/`
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `utils.py` | `normalizar_coluna(nome)` — snake_case sem acentos; reutilizável por qualquer fonte |
-| `convenios.py` | Pipeline completo para `dcgce_convenios`: limpeza, conversão, validação e gravação |
-
-### Pipeline de `transformar_convenios` (fonte: `dcgce_convenios`)
-
-| Passo | O que faz |
-|---|---|
-| Lê Bronze | `pd.read_csv(..., dtype=str, keep_default_na=False)` — tudo como texto |
-| Remove fantasmas | Colunas `Unnamed: N` (artefato do Excel) são descartadas |
-| Normaliza nomes | `normalizar_coluna` → snake_case sem acentos (ex: `Situação` → `situacao`) |
-| Converte datas | `pd.to_datetime(errors="coerce")` → `datetime64[us]`; inválidos → NaT |
-| Converte valores | `pd.to_numeric(errors="coerce")` → `float64`; inválidos → NaN |
-| Limpa IDs | strip + remove artefato `".0"`; vazio → `<NA>`; dtype `string` (nullable) |
-| Limpa categórico | `situacao` → strip + dtype `string` |
-| Valida | Relatório de nulos por coluna, alertas de negativos e duplicatas (apenas log) |
-
-### Schema Silver — `dcgce_convenios`
-
-| Coluna | Dtype pandas | Observação |
-|---|---|---|
-| `convenio_codigo` | `string` | Identificador textual; pode conter `-` |
-| `convenio_numero_sequencial_siafi` | `string` | 4 registros sem SIAFI (`<NA>`) |
-| `unidade_orcamentaria_codigo` | `string` | Código numérico como texto |
-| `situacao` | `string` | Ex: `VENCIDO`, `EM EXECUÇÃO` |
-| `data_inicio_vigencia` | `datetime64[us]` | Início da vigência |
-| `data_termino_vigencia` | `datetime64[us]` | Término da vigência |
-| `data_real_convenio` | `datetime64[us]` | Data de assinatura |
-| `valor_inicial_concedente_contratado` | `float64` | 18 linhas com NaN (sem valor informado) |
-| `valor_total_aditado_concedente_contratado` | `float64` | |
-| `valor_concedente` | `float64` | |
-| `valor_inicial_proponente_contratado` | `float64` | |
-| `valor_total_aditado_proponente_contratado` | `float64` | |
-| `valor_proponente` | `float64` | |
-| `valor_total_convenio` | `float64` | |
-
-### Arquivo de saída
+## §2. Fluxo de dados
 
 ```
-data/silver/dcgce_convenios.parquet
+FONTES                      DISCO (lakehouse)                    POSTGRESQL                 DJANGO
+BusinessObjects (e-mail) ─┐                                       
+OneDrive (Graph API)     ─┼─► raw/      ─► bronze/   ─► silver/  ─► tabelas <app>_*  ─► gold.vw_*  ─► telas
+TransfereGov (CSV/API)   ─┤   (como       (CSV        (parquet,     (carga do parquet)  (views SQL     e
+Emendas federais         ─┘    chegou)     legível)    tipado)                          de cruzamento) exportação
 ```
 
-Formato Parquet (via `pyarrow`): preserva `datetime64`, `float64` e `StringDtype` sem
-reinterpretação. Sobrescrito a cada execução (Silver não mantém histórico — o histórico fica no Bronze).
-
-### Command
-
-```bash
-python manage.py rodar_silver dcgce_convenios
-```
-
-### Como adicionar transformação para nova fonte
-
-1. Crie `core/transform/<nome_fonte>.py` com `transformar_<fonte>` e `gravar_silver`.
-2. Registre em `_TRANSFORMADORES` dentro de `apps/pipeline/management/commands/rodar_silver.py`.
-3. Rode: `python manage.py rodar_silver <nome_fonte>`
-
----
-
-## 7. Modelo de Dados — `apps/convenios`
-
-### Model: `Convenio`
-
-| Campo | Tipo Django | Descrição |
-|---|---|---|
-| `nr_convenio` | `CharField(30, unique=True)` | Chave natural do domínio (ex: `123456/2024`) |
-| `nr_processo` | `CharField(50, blank=True)` | Número do processo administrativo |
-| `objeto` | `TextField` | Descrição do objeto do convênio |
-| `concedente` | `CharField(255)` | Órgão federal concedente |
-| `convenente` | `CharField(255)` | Entidade convenente (prefeitura, ONG etc.) |
-| `situacao` | `CharField(100)` | Status atual (Ex Execução, Encerrado...) |
-| `valor_global` | `DecimalField(16,2)` | Valor total em reais |
-| `data_inicio` | `DateField(null=True)` | Data de início da vigência |
-| `data_termino` | `DateField(null=True)` | Data de término da vigência |
-| `atualizado_em` | `DateTimeField(auto_now=True)` | Timestamp da última carga |
-
-Índices criados: `situacao`, `concedente`, `data_inicio`.
-
-### Idempotência da carga (`carregar_silver`)
-
-O comando usa `update_or_create(nr_convenio=..., defaults={...})`:
-- Registro inexistente → cria.
-- Registro existente → atualiza todos os campos.
-- Rodar N vezes → mesmo estado final no banco.
-
----
-
-## 8. Roadmap
-
-### Fase 1 — Estrutura inicial ✅
-- Criação do repositório e estrutura de pastas
-- `.gitignore`, `.env.example`, documentação base
-
-### Fase 2 — Setup Django ✅
-- Projeto Django em `config/`, settings base/dev/prod
-- `django-environ` para variáveis sensíveis
-- App `dashboard` com URL raiz funcionando
-
-### Fase 3 — Pipeline Bronze ✅
-- Registro declarativo de fontes (`sources.py`)
-- Leitor genérico (`readers.py`), ingestão com timestamp (`bronze.py`)
-- Management command `rodar_ingestao`
-
-### Fase 4 — Pipeline Silver e Models ✅
-- Transformações puras e testáveis em `core/transform/convenios.py`
-- App `apps/convenios` com model `Convenio`, migrations e admin
-- Management commands `rodar_transformacao` e `carregar_silver` (idempotente)
-
-### Fase 5 — Camada Gold e Servicos ✅
-- Funções de agregação puras em `core/gold/convenios.py`
-- Camada de serviços com cache em `apps/dashboard/services.py`
-- 12 testes unitários (sem banco) cobrindo todos os indicadores
-
-### Fase 6 — Frontend do Dashboard
-- View Django com tabela paginada e filtros básicos
-- Gráfico de barras (convênios por situação)
-
-### Fase 6b — Relacionamento SIGCON↔SICONV (migração do QlikView) — em andamento
-- R1 ✅ estrutura, de-paras, filtro UO, correções
-- R2 ✅ chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes
-- R3 ✅ G_ (coalesce SICONV→SIGCON), A_ (projeção siafi_atual), tabela integrada Gold, 31 testes
-- R4 ✅ model `ConvenioIntegrado` + loader + command + admin + 2 testes
-
-### Fase 6c — Demais fontes (Transferegov, SIAFI, SIAD, SEI)
-- Módulos de ingestão e transformação por fonte
-- Consolidação Silver com todas as fontes
-- Indicadores Gold completos
-
-### Fase 7 — Autenticação, deploy e CI/CD
-- Login LDAP/SSO SEPLAG
-- Deploy em servidor interno
-- Pipeline de atualização automática dos dados
-
----
-
-## 9. Camada de Relacionamento — Implementação (R1–R4)
-
-### Visão geral
-
-A camada de relacionamento fica entre Silver e Gold. Equivale ao "miolo" do script QlikView legado
-(`sigcon_chaves1`, campos `G_`, campos `A_`, filtros de UO e de-paras).
-
-### Módulos
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `core/transform/chaves.py` | `UOS_EXCLUIR` (frozenset), `filtrar_uo()`, `montar_siafi_uo()` |
-| `core/transform/referencias.py` | Carrega CSVs de `core/referencia/` como dicts/DataFrames |
-| `core/gold/relacionamento.py` | `montar_sigcon_chaves()`, `aplicar_campos_g()`, `aplicar_campos_a()` |
-
-### Dados de referência versionados — `core/referencia/`
-
-> Estes CSVs **fazem parte do repositório** (não estão em `data/`, que é gitignored).
-> Representam regras de negócio estáveis extraídas do QlikView.
-
-| Arquivo | Conteúdo | Fonte QlikView |
-|---|---|---|
-| `situacoes_padronizadas.csv` | 19 mapeamentos situação original → padronizada | `Mapa2` |
-| `tipos_siafi.csv` | 2 tipos: `11 → Acordo/Ajuste`, `15 → Transferências Especiais` | `Map_Tipo_SIAFI` |
-| `tipos_receita.csv` | 4 tipos de receita: `13 → Rendimento`, `17 → Receita Corrente`, `19 → Restituição`, `24 → Receita de Capital` | `Mapareceita` |
-| `tipos_instrumento_entrada.csv` | 4 tipos contrato/convênio entrada: `4 → Contrato`, `5 → Convênio`, `8 → Portaria`, `11 → Acordo/Ajuste` | `Mapa1` |
-| `uo_nomes.csv` | ~120 entradas `código → "código - NOME"` | `MapaG_UO` |
-| `uo_siglas.csv` | ~90 entradas `nome → sigla` | `Mapa5` |
-| `uo_descricoes.csv` | ~90 entradas `nome → "nome - sigla"` | `Mapa4` |
-| `concedentes_padronizados.csv` | ~470 entradas normalização concedentes (**parcial** — completar)| `Mapa3` |
-| `correcoes.csv` | 14 correções hard-coded de dados incorretos no SIGCON | linhas 1601–1318 |
-
-> **Atenção — domínios separados:** `tipos_siafi.csv` e `tipos_instrumento_entrada.csv` compartilham o código `11` (ambos `"Acordo/Ajuste"`), mas pertencem a domínios distintos: SIAFI classifica o **instrumento jurídico** do convênio; instrumento_entrada classifica a **coluna tipo contrato/convênio** nas bases de receita/despesa. Mantê-los separados evita que uma atualização em um domínio corrompa o outro.
-
-### Chave de relacionamento SIAFI_UO
-
-```
-SIAFI_UO = str(convenio_numero_sequencial_siafi) + str(unidade_orcamentaria_codigo)
-```
-
-Concatenação **direta, sem separador**. Exemplo: `"9309074"` + `"1261"` = ``"93090741261"`.
-Qualquer espaço nos valores de origem corrompe a chave — sempre aplicar `.strip()` antes.
-
-### Filtro de UOs
-
-```python
-from core.transform.chaves import UOS_EXCLUIR, filtrar_uo
-
-df_filtrado = filtrar_uo(df, coluna_uo="unidade_orcamentaria_codigo")
-```
-
-Equivalente ao `Where not match(UO, '5131', '9801', ...)` do QlikView (11 UOs).
-
-### Join SIGCON ↔ SICONV
-
-- **Cardinalidade**: LEFT JOIN de SIGCON → SICONV (0 ou 1 SICONV por convênio SIGCON)
-- **Fan-out**: sempre deduplicar a dimensão SICONV antes do join para evitar multiplicação de linhas
-- **Chave**: `nr_convenio` (campo `Código.SICONV` da Chaves_convenio.csv)
-
-### Roadmap de implementação
-
-| Etapa | O que faz |
-|---|---|
-| **R1** ✅ | Estrutura, de-paras, filtro UO, correções |
-| **R2** ✅ | Chaves resolvidas, de-para SIAFI→atual, correções data-driven, 28 testes |
-| **R3** ✅ | `aplicar_campos_g` (21 coalesces) + `aplicar_campos_a` + `construir_tabela_integrada` + `gravar_tabela_integrada` + `deduplicar_por_siafi_atual`, 31 testes |
-| **R4** ✅ | `ConvenioIntegrado` (model + migration), `carregar_tabela_integrada()`, command `carregar_relacionamento`, admin com fieldsets G_/A_, 2 testes Django |
-
----
-
-## 10. Camada Gold — Implementação
-
-### Módulos em `core/gold/`
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `convenios.py` | Funções puras de agregação (resumo_geral, total_por_situacao, total_por_ano, total_por_concedente) |
-
-### Indicadores disponíveis
-
-| Função | Retorno | Descrição |
-|---|---|---|
-| `resumo_geral(df)` | `dict` | Total de convênios, valor total, nº de situações e concedentes |
-| `total_por_situacao(df)` | `DataFrame` | Quantidade e valor por status |
-| `total_por_ano(df)` | `DataFrame` | Quantidade e valor por ano (série temporal) |
-| `total_por_concedente(df)` | `DataFrame` | Quantidade e valor por órgão federal |
-
-### Serviços e cache (`apps/dashboard/services.py`)
-
-- `get_indicadores(usar_cache=True)` — retorna todos os indicadores, opcionalmente cacheados.
-- `invalidar_cache()` — limpa o cache; chamado automaticamente por `carregar_silver`.
-- TTL configurável via `GOLD_CACHE_SECONDS` em `settings.py` (padrão: 3600 s).
-
-**Estratégia de cache por tipo de dado:**
-
-| Dado | Frequência de mudança | TTL recomendado |
-|---|---|---|
-| Indicadores históricos (anos anteriores) | Nunca após carga inicial | Longo (24 h+) ou permanente |
-| Indicadores do ano corrente | A cada nova carga Silver | Curto (1 h) ou invalidar no `carregar_silver` |
-
-Em produção, configure Redis no `settings.py` para cache que sobreviva reinicializações do servidor.
-
----
-
-## 11. Consultas SIGCON — Abas de Detalhe
-
-### Visão geral
-
-A seção **Consultas SIGCON** do painel expõe 6 abas navegáveis. A aba **Convênios** é a lista
-mestre; as demais são abas de detalhe que mostram registros de um único convênio selecionado.
-
-A seleção é feita clicando no botão `›` de qualquer linha da lista — ele abre a aba
-**Plano de Aplicação** com o parâmetro `?cod_sigcon=<código_SIGCON>`. Os demais links de subtab
-carregam o mesmo `cod_sigcon` para manter o contexto ao navegar entre abas.
-
-### URLs e views
-
-| Aba | URL | View | Modo standalone |
+| Camada | Onde | Quem produz | Regra |
 |---|---|---|---|
-| Convênios | `/` | `sigcon` | lista com filtros |
-| Plano de Aplicação | `/plano_aplicacao/` | `plano_aplicacao` | todos os registros |
-| Cronograma de Desembolso | `/cronograma/` | `cronograma` | filtros cod_siafi + plano |
-| Prorrogação de Ofício | `/prorrogacao/` | `prorrogacao` | todos os registros |
-| Termo Aditivo | `/termo_aditivo/` | `termo_aditivo` | todos os registros |
-| Unidades Executoras | `/unidades_executoras/` | `unidades_executoras` | todos os registros |
-
-### Camada de serviços (`apps/dashboard/services.py`)
-
-Toda a lógica de query/join vive nos serviços. As views são roteadores finos.
-Isso torna os serviços testáveis independentemente do ciclo request/response.
-
-| Função | Retorno | Descrição |
-|---|---|---|
-| `enrich_convenios_page(page_items)` | `dict[pk → extra]` | Enriquece página de `Convenio` com campos de `ConvenioIntegrado` |
-| `get_plano_aplicacao_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `PlanoAplicacao` por `plano_trabalho_codigo` |
-| `get_cronograma_qs(cod_sigcon, ...)` | `(QuerySet, ctx)` | Filtra `CronogramaDesembolso` por `siafi + uo` |
-| `get_prorrogacao_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `ProrrogacaoOficio` diretamente por `convenio_codigo` |
-| `get_termos_aditivos_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `TermoAditivo` via `CodigoTermoAditivo` (ponte siafi+uo) |
-| `get_unidades_executoras_qs(cod_sigcon)` | `(QuerySet, ctx)` | Filtra `UnidadesExecutoras` diretamente por `convenio_codigo` |
-
-### Gold complementar: tipo de contrapartida
-
-| Item | Detalhe |
-|---|---|
-| Módulo | `core/gold/contrapartida.py` |
-| Equivalente QlikView | `Conv_Caract_Contrapartida` |
-| Origem | `PlanoTrabalho.plano_trabalho_caracteristica` |
-| Ponte | `CodigoPlanoTrabalho.conveno_codigo_plano_trabalho` → `(siafi, uo)` → `siafi_uo` |
-| Lógica | flags binárias (fin / nao_fin / sem) → max() por siafi_uo → tabela-verdade de 5 saídas |
-| Exposição | `enrich_convenios_page()` adiciona `tipo_contrapartida`; view: `conv.tipo_contrapartida_ext` |
-
-**Tabela-verdade de classificação** (`_TABELA` + `_SEM` em `contrapartida.py`):
-
-| financeira | nao_financeira | sem | Resultado |
-|:-:|:-:|:-:|---|
-| 1 | 1 | * | Contrapartida financeira e não financeira |
-| 1 | 0 | * | Contrapartida financeira |
-| 0 | 1 | * | Contrapartida não financeira |
-| 0 | 0 | 1 | Sem contrapartida |
-| 0 | 0 | 0 | Sem informação |
-
-### Fonte Controle SEI
-
-| Item | Detalhe |
-|---|---|
-| Arquivo raw | `data/raw/Controle SEI.xlsx` (aba `Página1`, `header=0`) |
-| Silver | `data/silver/controle_sei.parquet` |
-| Model | `ControleSEI` — campos `no_sei`, `no_siafi_sigcon`, `no_proposta_siconv` |
-| Chave de join | `no_siafi_sigcon` = `Convenio.convenio_numero_sequencial_siafi` (SIAFI puro, não siafi_uo) |
-| Deduplicação | 8 SIAFIs tinham 2 SEIs; loader mantém 1º por SIAFI (log de aviso) |
-| Exposição | `enrich_convenios_page()` adiciona `no_sei` ao dict de enriquecimento; view anexa `conv.no_sei_ext`; template substitui marcador "— sem fonte —" |
-
-> **Atenção — chave errada silencia o SEI:** se o join fosse feito por `siafi_uo` (concatenação SIAFI+UO)
-> em vez do SIAFI puro, o LEFT JOIN retornaria NULL para todos os convênios: a planilha SEI não conhece
-> a UO, então nenhuma linha combinaria — mas o código não daria erro, apenas exibiria "—" em toda a
-> coluna. A chave correta é o número SIAFI isolado.
-
-### Chaves de ligação mestre → detalhe
-
-| Aba | Chave URL | Lógica de join |
-|---|---|---|
-| Plano de Aplicação | `cod_sigcon` | `Convenio.plano_trabalho_codigo` → `PlanoAplicacao.codigo_plano_trabalho` |
-| Cronograma | `cod_sigcon` | `Convenio.(siafi, uo)` → `CronogramaDesembolso.(siafi, uo)` |
-| Prorrogação | `cod_sigcon` | `Convenio.convenio_codigo` = `ProrrogacaoOficio.prorrogacao_oficio_codigo_convenio` (direto) |
-| Termo Aditivo | `cod_sigcon` | `Convenio.(siafi, uo)` → `CodigoTermoAditivo.(siafi, uo)` → `TermoAditivo.termo_aditivo_codigo_sequencial` |
-
-### Enriquecimento da aba Convênios
-
-O model `Convenio` já contém a maioria dos campos (consolidado pelo `loader.py` a partir de
-`dcgce_convenio + dcgce_geral + dcgce_plano_trabalho + dcgce_esfera`). Dois campos extras
-são preenchidos via Python com dados de `ConvenioIntegrado` (join por `siafi + uo`):
-
-| Campo | Fonte |
-|---|---|
-| Código União | `ConvenioIntegrado.codigo_siconv` |
-| Proponente | `ConvenioIntegrado.g_proponente_pad` |
-| Fim Vigência Inicial | `ConvenioIntegrado.g_fim_vigencia_inicial` |
-
-### Lacunas de fonte (pendências)
-
-Os campos abaixo não têm fonte disponível no estado atual do projeto e são exibidos com o
-marcador `— sem fonte —` no template:
-
-| Campo / Aba | Motivo |
-|---|---|
-| **SEI** (aba Convênios) | Nenhum model atual possui campo SEI |
-| **Tipo de Contrapartida** (aba Convênios) | Não encontrado em nenhum model |
-| **Fonte nova** (aba Plano de Aplicação) | `PlanoAplicacao` tem apenas `fonte_recurso_codigo`; de-para `fontes_2023` não foi carregado |
-| **SEI** (aba Unidades Executoras) | Coluna SEI não está presente no parquet `dcgce_unidades_executoras` |
-
-### Testes
-
-> Panorama completo da suite (177 testes) na secao 12 do `README.md`.
-> Regras estruturais registradas em `docs/ADEQUACAO_DJANGO.md`: full refresh sempre
-> atomico (`_bulk_refresh`), invalidacao de cache via `core/cache.py`, e `core/` nunca
-> importa de `apps/dashboard/`.
-
-`apps/dashboard/tests/test_sigcon_services.py` — testes cobrindo todas as abas com fonte:
-- `EnrichConveniosPageTest` (2) — enriquecimento com `ConvenioIntegrado`
-- `PlanoAplicacaoQsTest` (3) — filtragem por `plano_trabalho_codigo`
-- `CronogramaQsTest` (2) — filtragem por `siafi + uo`
-- `ProrrogacaoQsTest` (2) — join direto por `convenio_codigo`
-- `TermoAditivoQsTest` (2) — bridge `CodigoTermoAditivo`
+| raw | `data/raw/<sistema>/` | coleta (Gmail, Graph, TransfereGov) ou cópia manual | Imutável. Nunca apagar nem editar. |
+| bronze | `data/bronze/` | `rodar_ingestao` | Leitura fiel do raw (cabeçalho, encoding). Sem regra de negócio. |
+| silver (disco) | `data/silver/<fonte>.parquet` | `rodar_silver` + YAML | Renomeia, tipa, limpa sentinelas, descarta linhas 100% vazias. |
+| silver (banco) | tabelas `<app>_<tabela>` | `carregar_<app>` | Espelho do parquet: mesmos nomes de coluna. |
+| ref | app `referencia` **(alvo v1.1)** | admin do Django | De-paras editáveis (SIAFI2, parlamentares, SIGCON × GRP). |
+| gold | schema `gold`, views `vw_*` | arquivos `.sql` versionados | Cruzamentos para as telas. Única camada com junções. |
+| ctrl / hist / app | schemas próprios **(alvo v1.1)** | ETL e Django | Controle de cargas, histórico de mudanças, dados da aplicação. |
 
 ---
 
-## 12. Referências
+## §3. Estrutura do repositório
 
-- [Transferegov — Portal de Dados Abertos](https://portaldatransparencia.gov.br/download-de-dados/convenios)
-- [Documentação Django](https://docs.djangoproject.com/)
-- [Medallion Architecture (Databricks)](https://www.databricks.com/glossary/medallion-architecture)
+```
+painel_de_convenios/
+├─ config/                         settings, urls, wsgi
+├─ apps/
+│  ├─ dashboard/                   casca: layout base, menu lateral, início
+│  ├─ grp/                         ⭐ referência
+│  │  ├─ apps.py                   name="apps.grp", label="grp"
+│  │  ├─ models.py                 Grp* (tabelas) + Gold* (managed=False)
+│  │  ├─ loader.py                 partials por fonte + _LOADERS_GRP + FONTES_GRP
+│  │  ├─ views/                    uma view por sub-aba
+│  │  │  └─ _filtros.py            _grp_render, _ler_filtros_grp
+│  │  ├─ templatetags/             grp_filters.py (querystring_grp)
+│  │  ├─ validacao/                catalogo.py (testes do app, ligados ao core)
+│  │  ├─ sql/gold/                 NNN_vw_<nome>.sql
+│  │  ├─ management/commands/      carregar_grp.py, validar_grp.py (finos)
+│  │  └─ templates/grp/
+│  ├─ sigcon/                      mesmo esqueleto do grp
+│  ├─ execucao/                    (alvo S3)
+│  ├─ uniao/                       (alvo S9)
+│  ├─ referencia/                  (alvo S6) só models + admin, sem telas
+│  └─ monitoramento/               (alvo S11)
+├─ core/                           app Django SEM models: tudo que é global
+│  ├─ management/commands/         rodar_ingestao, rodar_silver, rodar_pipeline, gerar_schemas
+│  ├─ ingestion/sources.py         FonteDados: uma entrada por fonte
+│  ├─ transform/schemas/           <fonte>.yaml
+│  ├─ carga/                       loader.py (carregar_tabela_generica), refresh.py
+│  │                               (bulk_refresh), comando.py (ComandoCarga)
+│  ├─ validacao/                   sql.py, volumetria.py, arquivos.py, texto.py,
+│  │                               limites.py, executor.py (ComandoValidacao)
+│  ├─ web/                         paginacao, formatacao (formatar_celula),
+│  │                               exportacao (CSV/XLSX), stubs
+│  ├─ templatetags/                painel_filters.py
+│  └─ gold/relacionamento.py       legado em pandas (R1–R4), só usado por testes
+├─ etl/                            (alvo S5) orquestrador fora do Django
+├─ data/                           raw/ bronze/ silver/ (fora do Git)
+├─ docs/
+├─ templates/  static/  tests/
+└─ secrets/  .env                  (fora do Git)
+```
+
+**Regra de dependência:** `core` nunca importa `apps.*`; um app nunca importa outro app; o que dois
+apps usam sobe para o `core`. `apps/dashboard` é a casca e pode ler dos demais. Só o `core` tem
+`carregar_tabela_generica`; cada app guarda apenas seus `partial` e o `_LOADERS_<APP>` em
+`apps/<app>/loader.py`.
+
+---
+
+## §4. Apps e módulos
+
+Um app Django por aba do menu lateral. Sub-abas são módulos dentro do app.
+
+| App | Aba do painel | Fontes | Chave principal | Versão |
+|---|---|---|---|---|
+| `dashboard` | Início, layout | — | — | v1.0 |
+| `grp` | GRP | 22 consultas `grp_*` do BO | `nr_grp` | v1.0 |
+| `sigcon` | Consultas SIGCON (6 sub-abas) | 15 consultas `dcgce_*` do BO + `sigcon_tabela_uo` | `siafi_uo` | v1.0 |
+| `execucao` (nome a confirmar) | Execução Estadual (9 sub-abas) | SIAFI, PCASP, SIAD, controle de contrapartida | `siafi_uo` + exercício | v1.0 |
+| `referencia` | — (sem telas; admin) | de-paras `siafi2`, parlamentares, SIGCON × GRP | — | v1.1 |
+| `uniao` | Consultas União | TransfereGov (`siconv_*`, dados abertos e API) | número do convênio federal | v1.3 |
+| `emendas` ou dentro de `uniao` **(proposta)** | Painel de Emendas | SIGA Brasil, SIOP ou TransfereGov | ano + número da emenda | v1.3 |
+| `monitoramento` | Monitoramento, Alertas, Relatório Individual | planilhas do OneDrive, `controle_sei` | `siafi_uo` | v1.4 |
+| ferramentas **(proposta)** | Painel do diretor, suplementação, decreto, orientações | gold + dados próprios (schema `app`) | — | v1.5–v1.6 |
+
+Sub-abas da Execução Estadual: Arrecadação, Execução SIAFI, Execução PCASP, Crédito e Cota,
+Controle Contrapartida, Conta Bancária, Saldo Conta Bancária, Estimativa Receita, Portal de Compras.
+
+---
+
+## §5. Padrão de app de dados
+
+### Identidade
+- Pasta `apps/<app>/`; `AppConfig.name = "apps.<app>"`; `AppConfig.label = "<app>"`, igual à pasta.
+- Nunca alterar o label de app com migrations aplicadas sem plano aprovado.
+- Comandos usam o label: `makemigrations <app>`, `showmigrations <app>`, `sqlmigrate <app> NNNN`.
+
+### Models de tabela
+- Um model por tabela silver, `db_table = "<app>_<tabela>"` explícito.
+- Nomes de campo iguais às colunas do parquet (o loader genérico depende disso). Sem campos extras,
+  exceto o `id` automático.
+- Tipos pelo prefixo:
+
+| Prefixo | Campo Django |
+|---|---|
+| `nr_`, `cd_`, `sg_`, `tp_` | `CharField` (preserva zeros) |
+| `nm_`, `ds_` curtos | `CharField`; descrições longas (ex.: `ds_item`) em `TextField` |
+| `tx_` | `TextField` |
+| `vl_` | `DecimalField(max_digits=15, decimal_places=2)` |
+| `qt_` com fração | `DecimalField` (ex.: `qt_item`) |
+| `qt_` inteiro, `nr_ano_`, mês, parcela, prazo, duração | `IntegerField` |
+| `dt_` / `dh_` | `DateField` / `DateTimeField` |
+| `fl_` | `BooleanField(null=True)` |
+
+- Campos que podem vir vazios na fonte: `null=True, blank=True`.
+- Sem `ForeignKey` entre tabelas de dados.
+- `db_index=True` nas chaves de ligação; `Meta.indexes` nos campos usados como filtro de tela.
+- Grão com duplicidade legítima na fonte (ALERTA registrado): sem `unique`; usar `id` automático.
+
+### Migrations
+- Dependem só do próprio app ou dos apps padrão do Django.
+- Sempre revisadas com `sqlmigrate` antes do `migrate`: sem `REFERENCES`, `nr_`/`cd_` como `varchar`,
+  `vl_` como `numeric(15, 2)`, índices presentes.
+- `migrate` é executado pelo Gabriel.
+
+### Models gold
+- `managed = False`, `db_table = 'gold"."vw_<nome>'` (schema qualificado). Não geram migration.
+- `primary_key=True` no campo do grão da view (ex.: `nr_grp` em view 1 linha por instrumento).
+
+---
+
+## §6. Pipeline de uma fonte
+
+### Registro (`core/ingestion/sources.py`)
+Uma entrada `FonteDados` por fonte: nome, sistema, arquivo, `header` (linha do cabeçalho), encoding,
+separador e, para fontes de e-mail, o assunto. O `header` é o erro mais comum: conferir no arquivo.
+
+### YAML de schema (`core/transform/schemas/<fonte>.yaml`)
+Gerado por `gerar_schemas` (heurístico: sempre revisar) e editado à mão. Blocos:
+
+| Bloco | Conteúdo |
+|---|---|
+| `renomear:` | nome normalizado → nome final (§12). Cobre **todas** as colunas. Os cabeçalhos do BO não são renomeados na origem. |
+| `tipos:` | categoria por coluna: texto, decimal, data, booleano, `inteiro` (Int64). |
+| `sentinelas:` | valores que viram nulo (ex.: `N/A`, `-3`). |
+| `descartar:` | colunas redundantes ou fora do modelo. |
+| `grao:` | colunas que identificam uma linha (usadas no teste de grão). |
+
+### Silver (`rodar_silver`)
+Ordem: ler bronze → `limpar_colunas_padronizadas` → `dropna(how="all")` com log da quantidade
+descartada → renomear → descartar → sentinelas → tipos. Conversões padrão:
+- valores em formato brasileiro com `_para_numero` (inclusive números sem vírgula decimal);
+- datas com `dayfirst=True`;
+- flags `SIM`/`NÃO` (ou `S`/`N`) → booleano;
+- códigos sempre texto.
+
+### Carga
+- `carregar_tabela_generica(nome_fonte, model)` (em `core/carga/loader.py`): lê o parquet, confere colunas do parquet = campos do
+  model (sem `id`), troca nulos do pandas por `None` e faz full refresh dentro de `transaction.atomic()`.
+- Registro por fonte: `carregar_<fonte> = partial(carregar_tabela_generica, "<fonte>", Model)` e uma
+  entrada `"<fonte>": carregar_<fonte>` em `_LOADERS_<APP>`.
+- Um comando por app: `carregar_<app>` (todas as fontes ou `--fonte <nome>`), subclasse fina de
+  `core.carga.comando.ComandoCarga` (define só `rotulo` e `loaders`; `apos_carga` é gancho opcional).
+- Validação: `validar_<app>` é subclasse de `core.validacao.executor.ComandoValidacao`; o catálogo de
+  testes do app usa os construtores genéricos de `core/validacao/` com o prefixo do app.
+- A partir da v1.1 a carga muda para upsert sem apagar linhas (§13); a interface do loader se mantém.
+
+### Receita: nova fonte do BusinessObjects
+1. Consulta no BO: uma tabela por consulta, separador `;`, sem qualificador, todos os atributos de grão.
+2. Envio agendado por e-mail com assunto padronizado.
+3. Entrada no `sources.py` (atenção ao `header`).
+4. Arquivo em `data/raw/<sistema>/`; `rodar_ingestao <fonte>`; conferir `.shape` e cabeçalhos.
+5. `gerar_schemas <fonte>`; escrever `renomear`, `tipos`, `sentinelas`, `descartar`, `grao`.
+6. `rodar_silver <fonte>`; conferir `list(df.columns)`, `df.dtypes` e o teste de grão.
+7. Model com `db_table` explícito; `makemigrations <app>`; `sqlmigrate`; `migrate` (Gabriel).
+8. `partial` + entrada em `_LOADERS_<APP>`; `carregar_<app> --fonte <fonte>`.
+9. Validação (§10) e registro em `docs/qualidade_dados.md`.
+
+### Receita: fonte que mudou (coluna nova, cabeçalho novo)
+Substituir o raw → conferir `header` → `rodar_ingestao` → atualizar o YAML à mão (não usar
+`--sobrescrever` sem guardar as edições) → `rodar_silver` → ajustar model → `makemigrations` →
+`migrate` → `carregar_<app> --fonte` → validar. O loader não muda.
+
+---
+
+## §7. Camada gold
+
+### Regras
+- Arquivos em `apps/<app>/sql/gold/NNN_vw_<nome>.sql`, numerados na ordem de criação, schema `gold`,
+  `CREATE OR REPLACE VIEW`. (O `001_gold_instrumento.sql` do GRP é anterior a este padrão.)
+- Cabeçalho obrigatório, para que a view seja entendida sem ler o corpo:
+  ```sql
+  -- gold.vw_<nome>
+  -- grão: 1 linha por <...> | chave: <campo>
+  -- fontes: <tabelas> | tela: <app> › <sub-aba>
+  -- validação: SELECT COUNT(*), COUNT(DISTINCT <chave>) FROM gold.vw_<nome>;  -- esperado: <n> = <n>
+  ```
+- **Regra contra fan-out:** tabela 1:N é agregada por chave numa CTE antes de juntar. Duas tabelas 1:N
+  nunca são juntadas diretamente.
+- Tabelas com grão diferente viram views separadas (ex.: no GRP, plano de aplicação dividido em
+  `vw_recurso_concedente`, `vw_recurso_contrapartida`, `vw_acao_orcamentaria` e `vw_plano_aplicacao`).
+- Tabela com ALERTA de grão não entra em junção direta: deduplicar antes (ex.: emendas por
+  `nr_grp` + ano + número) ou usar só para filtro/nome (ex.: `grp_tabela_uo`).
+- Filtros de recorte (ex.: só MG nas bases federais) ficam na gold, não na silver.
+- Campos calculados (vigente/vencido, mês descritivo) ficam na gold.
+- Integração entre sistemas: views que usam um sistema e, se vazio, o outro, com uma coluna de
+  origem de cada campo.
+- Indicadores pesados: view materializada com `REFRESH MATERIALIZED VIEW CONCURRENTLY` no fim do
+  ETL **(alvo v1.2)**.
+
+### Receita: nova view gold
+1. Definir grão, chave e fontes; escrever o cabeçalho.
+2. CTEs de agregação das 1:N; junção final.
+3. Gabriel aplica o SQL; Claude roda a validação do cabeçalho.
+4. Model `managed=False` (§5).
+5. Validar contra as tabelas silver (§10).
+
+---
+
+## §8. Camada de apresentação
+
+### Padrão atual (GRP)
+- Django puro: uma view por sub-aba, templates com sub-abas horizontais (`.subtabs`/`.subtab`),
+  contexto com `secao_ativa`/`secao_sub`.
+- `_grp_render`: monta a tabela a partir de três listas de mesmo tamanho: `colunas` (rótulos),
+  `campos` (nomes no model) e `larguras`. Tamanhos diferentes = larguras descartadas com warning.
+- `formatar_celula(campo, valor)` (`core/web/formatacao.py`): formata pelo **prefixo** do campo (`vl_` moeda, `dt_` data,
+  `fl_` Sim/Não). Nova regra de formatação = novo prefixo, nunca `isinstance`.
+- `_ler_filtros_grp`: filtros lidos da querystring, que é a fonte única de verdade. Ao trocar de
+  sub-aba, os filtros comuns continuam aplicados.
+- Paginação no servidor (25 linhas), helper `_visible_pages`.
+- `min-width` da tabela = soma das larguras das colunas (com `table-layout:fixed`).
+- Exportação para Excel com `openpyxl` direto (não pandas), com as colunas visíveis e os filtros
+  (`core/web/exportacao.py`; esse módulo nunca importa pandas/numpy).
+
+### Componente de consulta compartilhado (S1-10)
+Promover as funções do GRP a um módulo comum, para que **uma aba nova = configuração + URL**.
+Local: `core/web/` (decisão D4 de nov/2026) e `templates/partials/consulta_*.html`.
+Configuração por aba (lista Python): model gold, colunas visíveis, rótulos, larguras, filtros,
+ordenação padrão e nome do arquivo de exportação. Os nomes `_grp_*` viram genéricos e o GRP passa a
+usar o componente (sem mudança visível).
+
+### Receita: nova aba
+1. View gold (§7) e model gold.
+2. Configuração do componente: colunas, rótulos, larguras, filtros, exportação.
+3. URL e item de menu; permissão do perfil (a partir da v1.1).
+4. Conferir com o QlikView (legado) ou com a própria fonte (GRP) uma amostra e os totais.
+
+### Outras regras de tela
+- Gráficos com Chart.js servido localmente (sem CDN) **(alvo v1.2)**.
+- Dados bancários: permissão própria (`ver_conta_bancaria`), mascarados por padrão, exportação
+  respeitando a permissão **(alvo S3)**.
+- Botão "Dados de carga" lendo `ctrl.execucao` **(alvo v1.1)**.
+
+---
+
+## §9. Checklists de revisão (modo `revisar`)
+
+### YAML
+- [ ] `renomear` cobre todas as colunas; nenhuma ficou com o nome normalizado automático.
+- [ ] Nomes seguem §12 (prefixos, snake_case, sem acento).
+- [ ] Códigos, CNPJ, UO, município, CATMAS como texto.
+- [ ] Anos, meses, parcelas, prazos e durações como `inteiro`; identificadores (ex.: `nr_emenda`) como texto.
+- [ ] `sentinelas` e `grao` declarados; `descartar` justificado.
+
+### Model
+- [ ] `db_table = "<app>_<tabela>"`; nome do model em PascalCase com prefixo do app.
+- [ ] Conjunto de campos = colunas do parquet (conferir com `df.columns`).
+- [ ] Tipos conforme a tabela da §5; `null=True, blank=True` onde a fonte pode vir vazia.
+- [ ] Sem `ForeignKey`; índices nas chaves e nos filtros.
+
+### Migration
+- [ ] Só operações esperadas (`CreateModel`, `AddField`, `AlterField`); dependências só do próprio app.
+- [ ] `sqlmigrate`: sem `REFERENCES`; `nr_`/`cd_` em `varchar`; `vl_` em `numeric(15, 2)`; índices.
+
+### Loader e comando
+- [ ] `partial(carregar_tabela_generica, "<fonte>", Model)` com o nome idêntico ao do `sources.py`.
+- [ ] Entrada em `_LOADERS_<APP>`; nenhum comando novo por tabela.
+- [ ] `pandas` importado dentro das funções.
+
+### View gold
+- [ ] Arquivo e cabeçalho no padrão da §7; grão declarado.
+- [ ] Toda 1:N agregada antes da junção; nenhuma tabela com ALERTA de grão em junção direta.
+- [ ] `COUNT(*) = COUNT(DISTINCT chave)` quando o grão é 1 linha por chave.
+- [ ] Model `managed=False` com `db_table` qualificado e `primary_key` no grão.
+
+### Aba
+- [ ] Usa o componente compartilhado (ou `_grp_render` até a S1-10).
+- [ ] `colunas`, `campos` e `larguras` com o mesmo tamanho; `min-width` = soma das larguras.
+- [ ] Filtros pela querystring; paginação no servidor; exportação respeita filtros.
+- [ ] Formatação por prefixo; nada de regra por tipo Python.
+- [ ] URL, menu e permissão.
+
+---
+
+## §10. Validação e qualidade de dados (modo `testar`)
+
+| # | Teste | Como | Esperado |
+|---|---|---|---|
+| T1 | Contagem | linhas no banco × `len(parquet)` | iguais |
+| T2 | Grão | `GROUP BY <grao> HAVING COUNT(*) > 1` | nenhuma linha |
+| T3 | Chave nula | `WHERE <chave> IS NULL` | zero ou explicado (ex.: propostas sem `nr_grp`) |
+| T4 | Órfãos | `LEFT JOIN` filho → pai `WHERE pai IS NULL` | zero ou explicado |
+| T5 | Somas | soma dos filhos × valor do pai | diferenças explicáveis |
+| T6 | Zeros à esquerda | `LENGTH(cd_*)` fora do esperado (CNPJ 14, município 7, UF 2) | nenhuma |
+| T7 | View gold | `COUNT(*)` × `COUNT(DISTINCT chave)` e contagem esperada no cabeçalho | iguais |
+| T8 | Paridade | amostra de registros e totais × QlikView (legado) ou × BO (GRP) | diferenças explicadas |
+
+- Resultado **ERRO**: bloqueia o avanço para a gold. **ALERTA**: problema da fonte conhecido e
+  registrado; a gold contorna (deduplicação, junção evitada).
+- Registro em `docs/qualidade_dados.md`, no formato já usado no arquivo.
+- ALERTAs conhecidos: `grp_emenda` (emendas repetidas no mesmo `nr_grp`), `grp_cronograma_fisico`
+  (sem nº de meta/etapa), `grp_tabela_uo` (um código com dois nomes), `cd_proposta` vazio nos
+  instrumentos do GRP; no SIGCON, `pt_codigo` duplicado e planos órfãos de SIAFI.
+
+---
+
+## §11. Chaves e ligações
+
+### GRP
+- `nr_grp`: chave do instrumento em todas as consultas. Propostas ainda não conveniadas vêm com
+  `nr_grp` vazio e só elas têm `cd_proposta` preenchido.
+- `nr_instrumento_financiado` guarda o `nr_grp` do instrumento financiado.
+- Ligação instrumento × UO por `nr_grp` (não por CNPJ). `grp_tabela_uo` é apoio para filtros e nomes.
+- Concedente identificado por CNPJ.
+
+### SIGCON
+- `siafi_uo` (sequencial SIAFI + código da UO): espinha que liga o convênio às tabelas filhas.
+- `cd_plano_trabalho` (`pt_codigo`) e `cd_convenio_sequencial` como chaves secundárias.
+- Pontes (`chave_convenio`, `chave_termo_aditivo` e equivalentes) são mapeamentos de negócio legítimos,
+  não candidatas a remoção.
+- Plano de trabalho por convênio: plano original (via `chave_convenio`) UNION planos dos aditivos
+  (via `chave_termo_aditivo`) na view `vw_plano_trabalho_sigcon`.
+- Só tem vínculo com convênio o plano que chega a um `siafi_uo`. Planos de cadastro de instrumento,
+  suplementação e remanejamento não têm ligação por SIAFI e ficam fora da gold (`qualidade_dados.md` S7).
+
+### Execução Estadual
+- `siafi_uo` + exercício. Anos fechados carregados uma vez; diário só exercício corrente e restos a
+  pagar **(alvo v1.1)**.
+
+### Entre sistemas
+- SIGCON × GRP: de-para `siafi_uo ↔ nr_grp` no app `referencia`, com origem, data e responsável
+  (chave a definir com a equipe do GRP: número do instrumento, SIAFI ou processo SEI) **(alvo S6)**.
+- SIGCON × federal: `chaves_convenio` e `siafi2` no app `referencia` **(alvo S9)**. Até lá, convênios
+  só com SIAFI antigo ficam sem ligação com a base federal.
+
+---
+
+## §12. Convenção de nomes
+
+### Colunas (snake_case, sem acento)
+`nr_` número · `cd_` código · `nm_` nome · `ds_` descrição · `sg_` sigla · `tp_` tipo · `dt_` data ·
+`dh_` data e hora · `vl_` valor · `qt_` quantidade · `fl_` flag · `tx_` texto longo.
+Sufixos: `_inicial` (pactuado, sem aditivos), `_fin` / `_nao_fin` (contrapartida).
+
+### Objetos
+| Objeto | Padrão | Exemplo |
+|---|---|---|
+| Fonte (sources.py = YAML = parquet = partial) | `<sistema>_<tabela>`, conforme registrado | `grp_concedente` |
+| Tabela | `<app>_<tabela>` | `sigcon_convenio` |
+| Model | `<App><Tabela>` | `GrpRecursoConcedente` |
+| View gold | `gold.vw_<nome>` | `gold.vw_convenio` |
+| Model gold | `Gold<Nome>` | `GoldInstrumento` |
+| Arquivo gold | `NNN_vw_<nome>.sql` | `002_vw_convenio.sql` |
+| Loader | `carregar_<fonte>` | `carregar_grp_emenda` |
+| Registro de loaders | `_LOADERS_<APP>` | `_LOADERS_SIGCON` |
+| Comando | `carregar_<app>` | `carregar_sigcon` |
+| Branch | `feat/`, `fix/`, `refactor/` + assunto | `feat/gold-sigcon` |
+
+---
+
+## §13. ETL de produção (alvo v1.1)
+
+Pasta `etl/` independente do Django; `python etl/run.py --fluxo diario|completo` ou `--fonte <nome>`.
+Disparada pelo Agendador do Windows (~6h), com conta de serviço.
+
+| Etapa | Funções | Registro |
+|---|---|---|
+| Orquestração | `executar_fluxo`, `executar_fonte`, `adquirir_trava`, `liberar_trava`, `registrar_execucao` | `ctrl.execucao` (início, fim, status, linhas) |
+| Coleta | `buscar_emails_novos`, `baixar_anexo`, `calcular_hash`, `arquivo_ja_recebido`, `salvar_no_raw`, `marcar_email_processado` | `ctrl.arquivo_recebido` (fonte, data, hash, tamanho, id do e-mail) |
+| Portões | `checar_colunas_esperadas`, `checar_grao`, `checar_queda_volume` (limite por fonte, ex.: 10%) | falha = fonte não carrega, motivo registrado, alerta por e-mail |
+| Carga | `copiar_para_staging` (COPY), `aplicar_upsert`, `marcar_ausentes`, `gravar_historico` | tudo numa transação; falha = nada muda |
+
+- Raw datado: `raw/<sistema>/<fonte>/<aaaa>/<mm>/<dd>/<hhmm>_<arquivo>`; arquivo repetido (mesmo hash)
+  não é guardado de novo.
+- Colunas de controle nas tabelas: `dt_primeira_carga`, `dt_ultima_carga`, `fl_presente_fonte`,
+  `dt_saida_fonte`. Linha que sai da fonte é marcada, não excluída.
+- Histórico em `hist.*` para situação, valores e vigência.
+- Retenção do raw: 90 dias (BO), 7 dias (federais), depois uma cópia mensal compactada.
+- Robôs (e-mail de pré-qualificação, decreto) em `etl/robos/`, lendo a silver com o papel de leitura.
+
+### Quando a carga diária falha
+1. Ver em `ctrl.execucao` qual fonte falhou e o motivo.
+2. Queda de volume: arquivo cortado → pedir reenvio ao BO; queda real → ajustar o limite da fonte.
+3. Arquivo faltando: conferir o Gmail e o assunto.
+4. Reprocessar só a fonte: `python etl/run.py --fonte <nome>`.
+5. O painel segue com os dados do dia anterior até a carga passar.
+
+---
+
+## §14. Banco e segurança
+
+### Schemas
+Hoje: tabelas de dados em `public`, views em `gold`. Alvo (v1.1): `silver`, `ref`, `gold`, `ctrl`,
+`app`, `stg`, `hist`.
+
+### Papéis do banco (alvo v1.1)
+`painel_web` (Django), `painel_etl` (cargas), `painel_leitura` (robôs, só leitura).
+
+### Aplicação
+- Acesso só pela rede do Estado ou VPN; HTTPS (IIS ou Caddy) na frente do Waitress.
+- Login com o AD (`django-auth-ldap`) ou contas locais provisórias. Grupos: setorialista, órgão
+  executor, diretor, administrador. Permissão por aba via mixin nas views.
+- Contas bancárias: permissão própria, mascaradas por padrão, log em `ctrl.acesso_sensivel`.
+- LGPD: só os dados pessoais necessários. `grp_matriz_responsabilidade` (CPF, e-mail, telefone)
+  fica fora por ora.
+- Segredos em variáveis de ambiente ou `secrets/`, nunca no Git.
+- Backup: `pg_dump` diário + cópia do raw fora da VM; teste de restauração mensal.
+
+---
+
+## §15. Ambiente, deploy e release
+
+### Local
+Windows, PowerShell, `.venv`, PostgreSQL local (psycopg2-binary), VS Code + Claude Code.
+
+### VM (alvo v1.1)
+Windows Server 2022/2025, 8 vCPU, 32 GB, SSD 512 GB (C: 100 GB sistema; D: 412 GB dados).
+Python 3.12, PostgreSQL 16 (dados em `D:\postgres`), Git, Waitress + NSSM, IIS ou Caddy, pgAdmin 4.
+Pastas: `D:\painel` (código e venv), `D:\dados\raw`, `D:\dados\silver`, `D:\backups`.
+Saída para a internet só para Gmail API, Microsoft Graph, TransfereGov e SIGA Brasil.
+
+### Settings de produção
+`DEBUG=False`, `ALLOWED_HOSTS`, segredos em variáveis de ambiente, cookies seguros, HSTS,
+`collectstatic`.
+
+### Receita: release de versão
+1. Testes e validação das fontes alteradas.
+2. Merge na branch principal e tag (`v1.0`, `v1.1`…).
+3. Notas de versão em `docs/`.
+4. Deploy: `git pull` → `migrate` → aplicar SQL da gold → `collectstatic` → reiniciar o serviço.
+5. Homologação com 2 setorialistas e comunicado aos usuários.
+
+---
+
+## §16. Registro de decisões
+
+Uma linha por decisão: data, decisão, motivo. Mais recentes no fim.
+
+| Data | Decisão | Motivo |
+|---|---|---|
+| set/2026 | Arquitetura medallion (raw → bronze → silver → gold) com YAML por fonte | Regras escritas uma vez por fonte; auditabilidade |
+| set/2026 | Fonte nunca alterada; curadoria e quarentena separadas | Exigência do Tribunal de Contas |
+| out/2026 | Gold em views SQL versionadas, não em pandas; desenvolvimento direto em PostgreSQL | Cruzamentos legíveis e reproduzíveis |
+| out/2026 | Um app por aba do menu; sub-abas como módulos | Escopo claro por app |
+| out/2026 | Modelo de extração GRP em 22 consultas, uma por grão | Evitar fan-out e agregação automática do BO |
+| out/2026 | De-para de nomes no bloco `renomear:` do YAML | Uma única fonte de verdade por coluna |
+| out/2026 | Loader genérico + `functools.partial` | Fonte nova sem código novo de carga |
+| out/2026 | Telas em Django puro, sem DRF | Padrão já existente; menos camadas |
+| out/2026 | Colunas inteiras corrigidas na silver (categoria `inteiro`) | Tipo certo desde a origem |
+| out/2026 | Linhas 100% vazias descartadas na silver, com log | Ruído da exportação do BO |
+| nov/2026 | Ligação instrumento × UO no GRP por `nr_grp`; de-para por CNPJ desfeito | CNPJ × UO não é obtível no BO |
+| 09/11/2026 | Cabeçalhos do BO não são renomeados na origem | Normalização só no YAML |
+| 09/11/2026 | Refatoração legada restrita ao SIGCON (15 tabelas); de-paras, `siconv_*` e `controle_sei` em ondas futuras | Foco na v1.0 |
+| 12/11/2026 | App `sigcon` com label `sigcon`, no padrão do `grp` | Padronização antes da produção |
+| 13/11/2026 | Padrão do GRP replicado para todos os apps de dados; ajustes conforme necessidade | Previsibilidade e menos retrabalho |
+| 16/11/2026 | `core` vira app Django sem models, com os comandos de pipeline, a carga e a validação genéricas | Código global em um lugar só |
+| 16/11/2026 | Regra de dependência: `core` ↛ `apps.*`; app ↛ outro app | Evitar acoplamento circular |
+| 17/11/2026 | `apps/painel` → `apps/dashboard` (label e namespace); `painel_filters` no core, `querystring_grp` no grp | Nome coerente com a arquitetura |
+| 17/11/2026 | Label do app `sigcon` trocado de `convenios` para `sigcon`; SQL em `docs/sql/renomear_label_sigcon.sql` | Pacote, label e tabelas com o mesmo nome |
+| 17/11/2026 | Schema `gold` criado uma vez, em `core/sql/000_schema_gold.sql` (`CREATE SCHEMA IF NOT EXISTS`, sem `DROP`); apps não têm `000_schema` | O `DROP SCHEMA ... CASCADE` do GRP apagaria as views de todos os apps |
+| 17/11/2026 | Plano de trabalho do SIGCON em `gold.vw_plano_trabalho_sigcon`, grão convênio (`siafi_uo`) × plano, ponte = plano original (`chave_convenio` + `geral`) UNION planos dos aditivos (`chave_termo_aditivo`); substitui `vw_plano_aplicacao_convenio`, que ligava o plano ao convênio só por `cd_plano_trabalho` e duplicava linhas | O plano não identifica um convênio só (erros de origem, ver `qualidade_dados.md` S7) e os planos dos aditivos ficavam sem convênio |
+| 17/11/2026 | Planos de cadastro, suplementação e remanejamento (sem `siafi_uo`) ficam no banco e fora da gold; recorte na gold, não na carga | Banco é derivado da silver; carga continua tabela a tabela; testes silver × banco mantêm a referência |
+| 17/11/2026 | Views gold do SIGCON que dependem de plano de trabalho (plano de aplicação, cronograma, nt_emenda) entram pela ponte `vw_plano_trabalho_sigcon`, com join interno | Garante só planos com `siafi_uo` e 1 linha por convênio × plano; valores somam por `siafi_uo`, nunca por plano |
+
+---
+
+## §17. Roadmap
+
+| Versão | Data | Entrega |
+|---|---|---|
+| v1.0 | 31/12/2026 | Consultas SIGCON (6 abas), Execução Estadual (9 abas) e GRP pronto |
+| v1.1 | 29/01/2027 | Produção na VM, ETL automático sem apagar linhas, backup, segurança, visão única SIGCON × GRP |
+| v1.2 | 26/02/2027 | Indicadores, Gráficos, testes automatizados, desempenho |
+| v1.3 | 25/03/2027 | Consultas União (TransfereGov) e Painel de Emendas |
+| v1.4 | 23/04/2027 | Monitoramento, Alertas, Relatório Individual; desligamento do QlikView |
+| v1.5 | 21/05/2027 | Painel do diretor, robô de e-mails com histórico, relatório orçamentário (PDF e Excel) |
+| v1.6 | 18/06/2027 | Calculadora de suplementação, gerador de decreto, orientações, links úteis |
+| — | 30/06/2027 | Estabilização e manuais |
+| v2.0 | 2º sem/2027 | Oportunidades de captação |

@@ -8,7 +8,7 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 
 ## Onde parei (16/11/2026)
 
-**Fases 1 a 6 concluídas (a 6 exige o SQL do Gabriel). Próxima: Fase 7.** Fases 6 e 7 pendentes.
+**Fases 1 a 7 concluídas (7 aguarda commit; 6 exige o SQL do Gabriel).** Fases 6 e 7 pendentes.
 
 | Fase | Estado | Commit |
 |---|---|---|
@@ -17,8 +17,8 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
 | 3. Validação genérica (`core/validacao/`) e `ComandoValidacao` | feita | `dbd406d` |
 | 4. `painel` → `dashboard`; filtros e formatação no core | feita | `7f92118` |
 | 5. Gold legado sai do `core` (core ↛ apps) | feita | `832b26e` |
-| 6. Label `convenios` → `sigcon` (exige SQL que o Gabriel roda) | código feito; **SQL ainda não rodado** | (commit desta fase) |
-| 7. Documentação (ARQUITETURA §3/§5/§6/§8/§16, CLAUDE.md §3/§4/§5) | pendente | — |
+| 6. Label `convenios` → `sigcon` (exige SQL que o Gabriel roda) | código feito; **SQL ainda não rodado** | `95279ca` |
+| 7. Documentação (ARQUITETURA §3/§6/§8/§16, CLAUDE.md §3/§4/§5) | feita, aguardando commit | — |
 
 ## Decisões tomadas (D1–D4, resposta do Gabriel em 16/11/2026)
 
@@ -71,3 +71,4 @@ Linha de base dos testes: **1082 passed, 4 skipped, 1 xfailed**. Todas as fases 
   Redis em `prod.py`, `apps/grp/sql/teste.sql`, `apps/grp/serializers.py` vazio.
 
 - **Fase 6, ordem obrigatória:** (1) `pg_dump -Fc`; (2) rodar `docs/sql/renomear_label_sigcon.sql` (confere 21/35 e termina em ROLLBACK; trocar por COMMIT para valer); (3) só então `manage.py migrate`/subir o app. Com o código novo e o banco ainda no label antigo, o Django vê as migrations do `sigcon` como não aplicadas e tentaria recriar as tabelas.
+- **README.md** ainda descreve a estrutura antiga (`apps/convenios/`, `/painel/`, `core/gold/convenios.py`); não foi alterado (fora do plano). Reescrever quando o Gabriel quiser.

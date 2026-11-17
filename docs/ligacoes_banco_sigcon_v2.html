@@ -3424,8 +3424,8 @@ const src = `erDiagram
   sigcon_plano_trabalho ||--o{ sigcon_plano_aplicacao : "cd_plano_trabalho"
   sigcon_plano_trabalho ||--o| sigcon_nt_emenda : "cd_plano_trabalho"
   sigcon_plano_trabalho }o--|| sigcon_concedente : "nr_cnpj_concedente"
-  sigcon_convenio ||--o{ gold_vw_plano_trabalho_convenio : "siafi_uo"
-  gold_vw_plano_trabalho_convenio }o--|| sigcon_plano_trabalho : "cd_plano_trabalho"
+  sigcon_convenio ||--o{ gold_vw_plano_trabalho_sigcon : "siafi_uo"
+  gold_vw_plano_trabalho_sigcon }o--|| sigcon_plano_trabalho : "cd_plano_trabalho"
   sigcon_convenio ||--|| sigcon_chave_plano_trabalho : "siafi_uo (redundante)"
   sigcon_convenio ||--|| sigcon_chave_declaracao : "siafi_uo (redundante)"
   sigcon_convenio {
@@ -3484,7 +3484,7 @@ const src = `erDiagram
     text nr_cnpj_concedente PK
     text ds_esfera
   }
-  gold_vw_plano_trabalho_convenio {
+  gold_vw_plano_trabalho_sigcon {
     text siafi_uo FK
     text cd_plano_trabalho FK
     text origem
