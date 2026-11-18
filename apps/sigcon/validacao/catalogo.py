@@ -26,6 +26,7 @@ from functools import partial
 
 from apps.sigcon.models import SigconHistoricoCarga
 from apps.sigcon.validacao.limites import LIMITES_CONHECIDOS as LIM
+from core.tipos_siafi import carregar_tipos_siafi
 from core.validacao.arquivos import (
     teste_arquivos_antigos,
     teste_arquivos_ausentes,
@@ -771,9 +772,11 @@ DOMINIOS = {
     ("sigcon_plano_trabalho", "tp_plano_trabalho"): [
         "Termo Aditivo", "Convênio Novo", "C", "M", NAO_INFORMADO,
     ],
-    ("sigcon_plano_trabalho", "tp_instrumento_siafi"): [
-        "Convênio de Entrada", "Portaria", "11", "15", "17", "99",
-    ],
+    # Único mapa de Tipo SIAFI: core/referencia/tipos_siafi.csv (códigos e descrições).
+    # "99" é o código da linha sentinela 99999999, fora do mapa.
+    ("sigcon_plano_trabalho", "tp_instrumento_siafi"): sorted(
+        set(carregar_tipos_siafi()) | set(carregar_tipos_siafi().values()) | {"99"}
+    ),
     ("sigcon_plano_trabalho", "ds_origem_cadastro"): [
         "Não importado do SIAFI", "Importado do SIAFI - passivo", NAO_INFORMADO,
     ],

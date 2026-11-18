@@ -496,6 +496,7 @@ Uma linha por decisão: data, decisão, motivo. Mais recentes no fim.
 | 17/11/2026 | Plano de trabalho do SIGCON em `gold.vw_plano_trabalho_sigcon`, grão convênio (`siafi_uo`) × plano, ponte = plano original (`chave_convenio` + `geral`) UNION planos dos aditivos (`chave_termo_aditivo`); substitui `vw_plano_aplicacao_convenio`, que ligava o plano ao convênio só por `cd_plano_trabalho` e duplicava linhas | O plano não identifica um convênio só (erros de origem, ver `qualidade_dados.md` S7) e os planos dos aditivos ficavam sem convênio |
 | 17/11/2026 | Planos de cadastro, suplementação e remanejamento (sem `siafi_uo`) ficam no banco e fora da gold; recorte na gold, não na carga | Banco é derivado da silver; carga continua tabela a tabela; testes silver × banco mantêm a referência |
 | 17/11/2026 | Views gold do SIGCON que dependem de plano de trabalho (plano de aplicação, cronograma, nt_emenda) entram pela ponte `vw_plano_trabalho_sigcon`, com join interno | Garante só planos com `siafi_uo` e 1 linha por convênio × plano; valores somam por `siafi_uo`, nunca por plano |
+| 18/11/2026 | Tipo SIAFI tem um mapa só: `core/referencia/tipos_siafi.csv` (4, 5, 8, 11, 15, 17). ETL lê por `core.transform.referencias.tipos_siafi()`, web e validação por `core.tipos_siafi` (sem pandas) e o template pelo filtro `tipo_siafi` | Instrumento (SIGCON/GRP) e Execução usam o mesmo de-para |
 
 ---
 

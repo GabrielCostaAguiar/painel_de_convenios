@@ -62,3 +62,10 @@ def brl(value, decimais=2):
     # "1,100,000.00" → "1.100.000,00"
     resultado = fmt.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {resultado}"
+
+@register.filter(name="tipo_siafi")
+def tipo_siafi(value):
+    """Código do Tipo SIAFI -> descrição (core/referencia/tipos_siafi.csv)."""
+    from core.tipos_siafi import descricao_tipo_siafi
+
+    return descricao_tipo_siafi(value)
