@@ -1,12 +1,19 @@
 {% extends "base.html" %}
+{% load painel_filters %}
 {% block title %}GRP — {{ titulo }}{% endblock %}
 
 {% block content %}
-<div class="crumbs">Consulta <span>›</span> <b>GRP</b></div>
-<div class="page-h"><h1>{{ titulo }}</h1></div>
+<div class="panel page-card">
 
-{% include "grp/_subtabs_grp.html" %}
-{% include "grp/_abas_internas.html" %}
+  <div class="page-card-head">
+    <div class="crumbs">Consulta <span>›</span> <b>GRP</b></div>
+    <h1>{{ titulo }}</h1>
+  </div>
+
+  <div class="subtabs"> {% include "grp/_subtabs_grp.html" %} </div>
+  <div class="subtabs"> {% include "grp/_abas_internas.html" %} </div>
+
+</div>
 
 <form method="get" action="{{ request.path }}">
 {% if aba_atual %}<input type="hidden" name="aba" value="{{ aba_atual }}">{% endif %}
@@ -36,22 +43,14 @@
   {% endif %}
 
   <div class="filter-grid">
-    <div class="field">
-      <label for="f-cd_uo">UO do instrumento</label>
-      <select id="f-cd_uo" name="cd_uo">
-        <option value="">Todas</option>
-        {% for uo in uos %}
-          <option value="{{ uo }}"{% if cd_uo_sel == uo|stringformat:"s" %} selected{% endif %}>{{ uo }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    {% include "_filtro_multi.html" with nome="cd_uo" rotulo="UO do instrumento" opcoes=uos selecionados=cd_uo_sel vazio="Todas" %}
     <div class="field">
       <label for="f-nr_instrumento">Número do Instrumento</label>
       <input 
       id="f-nr_instrumento" 
       name="nr_instrumento" 
       type="text" 
-      placeholder="Digite o número do instrumento" 
+      placeholder="Um ou mais, separados por ; ou ," 
       value="{{ nr_instrumento_sel }}"
       autocomplete="off"
       list="lista-nr_instrumento"
@@ -73,7 +72,7 @@
         id="f-nr_grp"
         name="nr_grp"
         type="text"
-        placeholder="Um ou mais números GRP, separados por espaço"
+        placeholder="Um ou mais, separados por ; , ou espaço"
         list="lista-nr_grp"
         value="{{ nr_grp_sel }}"
         autocomplete="off"
@@ -92,6 +91,16 @@
 <div class="panel table-wrap">
   <div class="table-head">
     <div class="count"><b>{{ total }}</b> resultado{{ total|pluralize }}</div>
+    <div class="table-tools">
+      <a class="btn" href="{{ url_export_xlsx }}">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+        Exportar Excel (.xlsx)
+      </a>
+      <a class="btn" href="{{ url_export_csv }}">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+        Exportar CSV (.csv)
+      </a>
+    </div>
   </div>
 
   <div class="tabela-container">
@@ -121,18 +130,32 @@
   </div>
 
   <div class="pager">
-    <div class="info">
-      {% if total %}
-        Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
-      {% else %}
-        <b>0</b> resultados
+    <div class="pager-left">
+      <div class="info">
+        {% if total %}
+          Mostrando <b>{{ page_obj.start_index }}–{{ page_obj.end_index }}</b> de <b>{{ total }}</b>
+        {% else %}
+          <b>0</b> resultados
+        {% endif %}
+      </div>
+      {% if totais_cards %}
+      <div class="totais">
+        <div class="t-titulo">{% if filtros_ativos %}Total filtrado{% else %}Total geral{% endif %}</div>
+        {% for card in totais_cards %}
+        <div class="total-card">
+          <div class="t-label">{{ card.label }}</div>
+          <div class="t-val">{{ card.valor|brl }}</div>
+        </div>
+        {% endfor %}
+      </div>
       {% endif %}
     </div>
+
     <div class="pages">
       {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="nav"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="pg-nav"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></a>
       {% else %}
-        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+        <button class="pg-nav" disabled><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
       {% endif %}
 
       {% for p in visible_pages %}
@@ -146,9 +169,9 @@
       {% endfor %}
 
       {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="nav"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></a>
+        <a href="?page={{ page_obj.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="pg-nav"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></a>
       {% else %}
-        <button class="nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="pg-nav" disabled><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
       {% endif %}
     </div>
   </div>

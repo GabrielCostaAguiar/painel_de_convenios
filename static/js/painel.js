@@ -11,7 +11,8 @@
   var app    = document.getElementById('app');
   if (toggle && app) {
     toggle.addEventListener('click', function () {
-      app.classList.toggle('collapsed');
+      var recolhido = app.classList.toggle('collapsed');
+      try { localStorage.setItem('sidebarRecolhida', recolhido ? '1' : '0'); } catch (e) {}
     });
   }
 
@@ -41,6 +42,23 @@
   document.addEventListener('click', function () {
     if (loadPop)   loadPop.classList.remove('open');
     if (exportPop) exportPop.classList.remove('open');
+  });
+
+  // ── Filtro multivalorado (dropdown de checkboxes) ──────────
+  function resumoMulti(det) {
+    var marcados = det.querySelectorAll('input:checked');
+    var txt = det.querySelector('.multi-txt');
+    if (!txt) return;
+    if (marcados.length === 0) txt.textContent = det.getAttribute('data-vazio') || 'Todos';
+    else if (marcados.length === 1) txt.textContent = marcados[0].value;
+    else txt.textContent = marcados.length + ' selecionados';
+  }
+  document.querySelectorAll('details.multi').forEach(function (det) {
+    det.addEventListener('change', function () { resumoMulti(det); });
+    det.addEventListener('click', function (e) { e.stopPropagation(); });
+  });
+  document.addEventListener('click', function () {
+    document.querySelectorAll('details.multi[open]').forEach(function (d) { d.removeAttribute('open'); });
   });
 
   // ── Sub-abas (presentes apenas em páginas com .subtabs) ────

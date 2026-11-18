@@ -18,63 +18,33 @@
   </div>
 
   <div class="filter-grid">
-    <div class="field">
-      <label for="f-ano">Ano do instrumento</label>
-      <select id="f-ano" name="ano">
-        <option value="">Todos</option>
-        {% for v in anos %}<option value="{{ v }}"{% if f.ano == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endfor %}
-      </select>
-    </div>
+    {% include "_filtro_multi.html" with nome="ano" rotulo="Ano do instrumento" opcoes=anos selecionados=f.ano vazio="Todos" %}
     <div class="field">
       <label for="f-nr_convenio">Código SIGCON</label>
-      <input id="f-nr_convenio" name="nr_convenio" type="text" placeholder="ex.: CV 98/2020" value="{{ f.nr_convenio }}" autocomplete="off" list="lista-nr_convenio">
+      <input id="f-nr_convenio" name="nr_convenio" type="text" placeholder="ex.: CV 98/2020; CV 99/2020" value="{{ f.nr_convenio|join:"; " }}" autocomplete="off" list="lista-nr_convenio">
       <datalist id="lista-nr_convenio">
         {% for v in sigcons %}<option value="{{ v }}">{% endfor %}
       </datalist>
     </div>
     <div class="field">
       <label for="f-nr_siafi">Código SIAFI</label>
-      <input id="f-nr_siafi" name="nr_siafi" type="text" placeholder="ex.: 9032193" value="{{ f.nr_siafi }}" autocomplete="off" list="lista-nr_siafi">
+      <input id="f-nr_siafi" name="nr_siafi" type="text" placeholder="ex.: 9032193; 9032194" value="{{ f.nr_siafi|join:"; " }}" autocomplete="off" list="lista-nr_siafi">
       <datalist id="lista-nr_siafi">
         {% for v in siafis %}<option value="{{ v }}">{% endfor %}
       </datalist>
     </div>
     <div class="field">
       <label for="f-proponente">Proponente</label>
-      <input id="f-proponente" name="proponente" type="text" placeholder="Parte do nome" value="{{ f.proponente }}" autocomplete="off">
+      <input id="f-proponente" name="proponente" type="text" placeholder="Parte do nome; outro nome" value="{{ f.proponente|join:"; " }}" autocomplete="off">
     </div>
     <div class="field">
       <label for="f-concedente">Concedente</label>
-      <input id="f-concedente" name="concedente" type="text" placeholder="Parte do nome" value="{{ f.concedente }}" autocomplete="off">
+      <input id="f-concedente" name="concedente" type="text" placeholder="Parte do nome; outro nome" value="{{ f.concedente|join:"; " }}" autocomplete="off">
     </div>
-    <div class="field">
-      <label for="f-caracteristica_contrapartida">Característica da contrapartida</label>
-      <select id="f-caracteristica_contrapartida" name="caracteristica_contrapartida">
-        <option value="">Todas</option>
-        {% for v in caracteristicas_contrapartida %}<option value="{{ v }}"{% if f.caracteristica_contrapartida == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="field">
-      <label for="f-situacao">Status do convênio</label>
-      <select id="f-situacao" name="situacao">
-        <option value="">Todos</option>
-        {% for v in situacoes %}<option value="{{ v }}"{% if f.situacao == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="field">
-      <label for="f-termo_aditivo">Termo aditivo</label>
-      <select id="f-termo_aditivo" name="termo_aditivo">
-        <option value="">Todos</option>
-        {% for v in termos_aditivo %}<option value="{{ v }}"{% if f.termo_aditivo == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="field">
-      <label for="f-instrumento">Instrumento (tipo)</label>
-      <select id="f-instrumento" name="instrumento">
-        <option value="">Todos</option>
-        {% for v in instrumentos %}<option value="{{ v }}"{% if f.instrumento == v|stringformat:"s" %} selected{% endif %}>{{ v }}</option>{% endfor %}
-      </select>
-    </div>
+    {% include "_filtro_multi.html" with nome="caracteristica_contrapartida" rotulo="Característica da contrapartida" opcoes=caracteristicas_contrapartida selecionados=f.caracteristica_contrapartida vazio="Todas" %}
+    {% include "_filtro_multi.html" with nome="situacao" rotulo="Status do convênio" opcoes=situacoes selecionados=f.situacao vazio="Todos" %}
+    {% include "_filtro_multi.html" with nome="termo_aditivo" rotulo="Termo aditivo" opcoes=termos_aditivo selecionados=f.termo_aditivo vazio="Todos" %}
+    {% include "_filtro_multi.html" with nome="instrumento" rotulo="Instrumento (tipo)" opcoes=instrumentos selecionados=f.instrumento vazio="Todos" %}
   </div>
 </div>
 </form>

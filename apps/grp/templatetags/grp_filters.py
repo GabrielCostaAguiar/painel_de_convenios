@@ -6,9 +6,9 @@ Uso no template:
     {% querystring_grp as qs_grp %}
 """
 
-from urllib.parse import urlencode
-
 from django import template
+
+from core.web import querystring_de
 
 register = template.Library()
 
@@ -27,5 +27,4 @@ def querystring_grp(context):
     request = context.get("request")
     if request is None:
         return ""
-    params = {k: v for k, v in request.GET.items() if k in GRP_PARAMS and v}
-    return urlencode(params)
+    return querystring_de(request.GET, GRP_PARAMS)

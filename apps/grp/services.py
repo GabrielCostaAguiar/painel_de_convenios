@@ -12,11 +12,22 @@ from functools import reduce
 from django.db.models import Q
 
 from apps.grp import models
+from core.web import Filtro, aplicar_filtros, como_lista
 
 
 logger = logging.getLogger(__name__)
 
 _LIMITE_TERMOS = 200
+
+# Filtros do GRP, todos multivalorados (core/web/filtros.py). nr_grp aceita
+# também espaço como separador; nr_grp e nr_instrumento são "contém".
+SPEC_FILTROS_GRP = (
+    Filtro("nr_grp", "nr_grp", "contem", texto=True, espaco=True),
+    Filtro("nr_instrumento", "nr_instrumento", "contem", texto=True),
+    Filtro("cd_uo", "cd_uo"),
+)
+_SPEC_NR_GRP = SPEC_FILTROS_GRP[:1]
+_SPEC_INSTRUMENTO = SPEC_FILTROS_GRP[1:]
 
 
 def _filtrar_nr_grp_multiplo(qs, valor: str, campo: str = "nr_grp"):
@@ -53,13 +64,7 @@ def get_grp_dados_qs(filtros: dict):
     """
     from .models import GrpGoldInstrumento
 
-    qs = GrpGoldInstrumento.objects.all()
-
-    qs = _filtrar_nr_grp_multiplo(qs, filtros.get("nr_grp", ""))
-    if filtros.get("nr_instrumento"):
-        qs = qs.filter(nr_instrumento__icontains=filtros["nr_instrumento"])
-    if filtros.get("cd_uo"):
-        qs = qs.filter(cd_uo=filtros["cd_uo"])
+    qs = aplicar_filtros(GrpGoldInstrumento.objects.all(), filtros, SPEC_FILTROS_GRP)
 
     return qs.order_by("nr_grp")
 
@@ -84,18 +89,10 @@ def _grp_filtrar_por_nr_grp(qs, filtros: dict):
     """
     from .models import GrpGoldInstrumento
 
-    qs = _filtrar_nr_grp_multiplo(qs, filtros.get("nr_grp", ""))
+    qs = aplicar_filtros(qs, filtros, _SPEC_NR_GRP)
 
-    dados = None
-    if filtros.get("nr_instrumento"):
-        dados = GrpGoldInstrumento.objects.filter(
-            nr_instrumento__icontains=filtros["nr_instrumento"]
-        )
-    if filtros.get("cd_uo"):
-        dados = (
-            dados if dados is not None else GrpGoldInstrumento.objects.all()
-        ).filter(cd_uo=filtros["cd_uo"])
-    if dados is not None:
+    if any(como_lista(filtros.get(f.chave)) for f in _SPEC_INSTRUMENTO):
+        dados = aplicar_filtros(GrpGoldInstrumento.objects.all(), filtros, _SPEC_INSTRUMENTO)
         qs = qs.filter(nr_grp__in=dados.values("nr_grp"))
 
     return qs

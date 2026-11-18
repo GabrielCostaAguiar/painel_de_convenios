@@ -24,14 +24,14 @@ TEMPLATE = (
 def test_querystring_e_lida_pela_chave_cd_uo():
     filtros = _ler_filtros_grp({"cd_uo": "1261", "uo_cod": "9999"})
 
-    assert filtros["cd_uo"] == "1261"
+    assert filtros["cd_uo"] == ["1261"]
     assert "uo_cod" not in filtros
 
 
 def test_formulario_envia_cd_uo_e_marca_a_opcao_escolhida():
     html = TEMPLATE.read_text(encoding="utf-8")
 
-    assert 'name="cd_uo"' in html
+    assert 'nome="cd_uo"' in html  # include do dropdown multivalorado
     assert "cd_uo_sel" in html
     assert "uo_cod" not in html
 

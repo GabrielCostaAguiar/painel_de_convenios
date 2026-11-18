@@ -9,12 +9,23 @@ do dashboard.
 Pode importar Django. **Nao pode importar apps.\*** — core/ nao conhece os apps.
 """
 
-from .exportacao import exportar_xlsx, resposta_csv
+from .exportacao import exportar_objetos, exportar_xlsx, resposta_csv
+from .filtros import Filtro, aplicar_filtros, como_lista, ler_filtros, querystring_de
 from .formatacao import fmt_data, fmt_valor, formatar_celula
 from .paginacao import paginas_visiveis
 from .stubs import view_em_construcao
+from .totais import calcular_totais, cards_totais, filtros_ativos
 
 __all__ = [
+    "Filtro",
+    "aplicar_filtros",
+    "como_lista",
+    "ler_filtros",
+    "querystring_de",
+    "calcular_totais",
+    "cards_totais",
+    "filtros_ativos",
+    "exportar_objetos",
     "exportar_xlsx",
     "fmt_data",
     "fmt_valor",

@@ -17,8 +17,17 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.urls import reverse
 
-from apps.sigcon.services import FILTROS, get_opcoes_filtros
-from core.web import exportar_xlsx, formatar_celula, paginas_visiveis, resposta_csv
+from apps.sigcon.services import SPEC_FILTROS, get_opcoes_filtros
+from core.web import (
+    calcular_totais,
+    cards_totais,
+    exportar_xlsx,
+    filtros_ativos,
+    formatar_celula,
+    ler_filtros,
+    paginas_visiveis,
+    resposta_csv,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +40,7 @@ def ler_filtros_sigcon(get_params):
     modulo proprio, e nao dentro da view: os dois precisam ler exatamente os
     mesmos parametros, senao o arquivo baixado nao bate com o que esta em tela.
     """
-    return {chave: get_params.get(chave, "").strip() for chave in FILTROS}
+    return ler_filtros(get_params, SPEC_FILTROS)
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +71,9 @@ def sigcon_render(
         )
         larguras = None
 
+    # totais sobre TODO o queryset filtrado, antes do Paginator
+    totais = calcular_totais(qs, campos)
+
     paginator = Paginator(qs, 25)
     page_obj = paginator.get_page(request.GET.get("page", 1))
     objetos = list(page_obj.object_list)
@@ -77,6 +89,9 @@ def sigcon_render(
         "larguras": larguras,
         "largura_total": sum(larguras) if larguras else None,
         "colunas_numericas": [i for i, c in enumerate(campos) if c.startswith("vl_")],
+        "totais": totais,
+        "totais_cards": cards_totais(totais, colunas, campos),
+        "filtros_ativos": filtros_ativos(request.GET),
         "page_obj": page_obj,
         "total": paginator.count,
         "querystring": params.urlencode(),

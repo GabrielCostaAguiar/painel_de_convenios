@@ -20,6 +20,8 @@ Como o filtro chega a cada gold:
 
 from django.db import models
 
+from core.web import Filtro, aplicar_filtros, como_lista
+
 from .models import (
     GoldSigconConvenio,
     GoldSigconCronogramaDesembolso,
@@ -79,50 +81,40 @@ ORDENACAO_UNIDADE_EXECUTORA = (
 # Filtros
 # ---------------------------------------------------------------------------
 
+# Cada filtro aceita VÁRIOS valores (OR dentro do campo, AND entre campos) —
+# ver core/web/filtros.py. nr_convenio/nr_siafi são exatos (IN); proponente e
+# concedente, "contém". termo_aditivo (campo=None) entra por subquery, abaixo.
+SPEC_FILTROS = (
+    Filtro("ano", "nr_ano_convenio", "inteiro"),
+    Filtro("nr_convenio", "nr_convenio", texto=True),
+    Filtro("nr_siafi", "nr_siafi", texto=True),
+    Filtro("proponente", "nm_uo", "contem", texto=True),
+    Filtro("concedente", "nm_concedente", "contem", texto=True),
+    Filtro("caracteristica_contrapartida", "ds_caracteristica_contrapartida"),
+    Filtro("situacao", "ds_situacao_convenio"),
+    Filtro("instrumento", "tp_instrumento_siafi"),
+    Filtro("termo_aditivo"),
+)
+FILTROS = tuple(f.chave for f in SPEC_FILTROS)
+
+_SPEC_TERMO = (Filtro("termo_aditivo", "tp_termo_aditivo"),)
+
+
 def _filtrar_convenios(qs, filtros: dict):
     """Aplica os 9 filtros a um QuerySet[GoldSigconConvenio]."""
-    ano = filtros.get("ano", "")
-    if ano.isdigit():
-        qs = qs.filter(nr_ano_convenio=int(ano))
-    if filtros.get("nr_convenio"):
-        qs = qs.filter(nr_convenio=filtros["nr_convenio"])
-    if filtros.get("nr_siafi"):
-        qs = qs.filter(nr_siafi=filtros["nr_siafi"])
-    if filtros.get("proponente"):
-        qs = qs.filter(nm_uo__icontains=filtros["proponente"])
-    if filtros.get("concedente"):
-        qs = qs.filter(nm_concedente__icontains=filtros["concedente"])
-    if filtros.get("caracteristica_contrapartida"):
-        qs = qs.filter(ds_caracteristica_contrapartida=filtros["caracteristica_contrapartida"])
-    if filtros.get("situacao"):
-        qs = qs.filter(ds_situacao_convenio=filtros["situacao"])
-    if filtros.get("instrumento"):
-        qs = qs.filter(tp_instrumento_siafi=filtros["instrumento"])
-    if filtros.get("termo_aditivo"):
-        termos = GoldSigconTermoAditivo.objects.filter(tp_termo_aditivo=filtros["termo_aditivo"])
+    qs = aplicar_filtros(qs, filtros, SPEC_FILTROS)
+    if como_lista(filtros.get("termo_aditivo")):
+        termos = aplicar_filtros(GoldSigconTermoAditivo.objects.all(), filtros, _SPEC_TERMO)
         qs = qs.filter(siafi_uo__in=termos.values("siafi_uo"))
     return qs
 
 
 def _filtrar_por_convenio(qs, filtros: dict):
     """Aplica os filtros a qualquer gold que tenha siafi_uo (via a gold mestre)."""
-    if any(filtros.get(chave) for chave in FILTROS):
+    if any(como_lista(filtros.get(chave)) for chave in FILTROS):
         convenios = _filtrar_convenios(GoldSigconConvenio.objects.all(), filtros)
         qs = qs.filter(siafi_uo__in=convenios.values("siafi_uo"))
     return qs
-
-
-FILTROS = (
-    "ano",
-    "nr_convenio",
-    "nr_siafi",
-    "proponente",
-    "concedente",
-    "caracteristica_contrapartida",
-    "situacao",
-    "termo_aditivo",
-    "instrumento",
-)
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +147,7 @@ def get_termos_aditivos_qs(filtros: dict):
     todos os termos dos convênios que têm um termo daquele tipo).
     """
     qs = _filtrar_por_convenio(GoldSigconTermoAditivo.objects.all(), filtros)
-    if filtros.get("termo_aditivo"):
-        qs = qs.filter(tp_termo_aditivo=filtros["termo_aditivo"])
+    qs = aplicar_filtros(qs, filtros, _SPEC_TERMO)
     return qs.order_by(*ORDENACAO_TERMO_ADITIVO)
 
 def get_prorrogacao_oficio_qs(filtros: dict):

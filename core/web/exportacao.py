@@ -68,6 +68,29 @@ def exportar_xlsx(linhas, colunas, nome_arquivo: str) -> HttpResponse:
     return response
 
 
+def exportar_objetos(objetos, colunas, campos, nome, formato):
+    """
+    Exporta objetos de model (campos pelo nome) em "csv" ou "xlsx", com valores
+    crus: CSV com data em ISO e `;` como separador; XLSX com tipos nativos.
+    """
+    import csv
+
+    objetos = list(objetos)
+    if formato == "xlsx":
+        linhas = [[getattr(o, c, None) for c in campos] for o in objetos]
+        return exportar_xlsx(linhas, colunas, nome)
+
+    response = resposta_csv(nome)
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow(colunas)
+    for obj in objetos:
+        writer.writerow([
+            "" if v is None else (v.isoformat() if hasattr(v, "isoformat") else v)
+            for v in (getattr(obj, c, None) for c in campos)
+        ])
+    return response
+
+
 def _valor_serializavel(valor):
     """openpyxl grava str/int/float/bool/date/datetime/None direto; Decimal precisa virar float."""
     if valor is None or isinstance(valor, (str, int, float, bool, date, datetime)):

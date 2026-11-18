@@ -1,0 +1,13 @@
+{% comment %}Dropdown de checkboxes (filtro multivalorado). Parâmetros do include: nome, rotulo, opcoes,
+selecionados (lista de strings lida por core.web.ler_filtros) e vazio (texto sem seleção).{% endcomment %}
+<div class="field">
+  <label>{{ rotulo }}</label>
+  <details class="multi" data-vazio="{{ vazio|default:'Todos' }}">
+    <summary><span class="multi-txt">{% if selecionados|length == 1 %}{{ selecionados.0 }}{% elif selecionados %}{{ selecionados|length }} selecionados{% else %}{{ vazio|default:"Todos" }}{% endif %}</span></summary>
+    <div class="multi-pop">
+      {% for v in opcoes %}
+      <label class="multi-opt"><input type="checkbox" name="{{ nome }}" value="{{ v }}"{% if v|stringformat:"s" in selecionados %} checked{% endif %}><span>{{ v }}</span></label>
+      {% endfor %}
+    </div>
+  </details>
+</div>

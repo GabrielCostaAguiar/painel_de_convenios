@@ -7,9 +7,9 @@ Uso no template:
     {{ valor|brl:"0" }}   → "R$ 1.100.000" (sem decimais)
 """
 
-from urllib.parse import urlencode
-
 from django import template
+
+from core.web import querystring_de
 
 register = template.Library()
 
@@ -31,8 +31,7 @@ def querystring_global(context):
     request = context.get("request")
     if request is None:
         return ""
-    params = {k: v for k, v in request.GET.items() if k in GLOBAL_PARAMS and v}
-    return urlencode(params)
+    return querystring_de(request.GET, GLOBAL_PARAMS)
 
 
 @register.filter(name="badge_class")

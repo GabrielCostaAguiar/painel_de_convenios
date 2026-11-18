@@ -22,23 +22,30 @@
   --ambar-bg:#f7ecd9;
   --vermelho:#a1303a;
   --vermelho-bg:#f6e4e5;
+  --page-bg:#faf4f4;        /* fundo da página: rosado bem clarinho */
+  --vinho-100:#f1dcde;      /* fundo do botão ativo */
+  --vinho-borda:#dcb0b5;    /* contorno do botão ativo/hover */
   --sidebar-w:248px;
   --sidebar-w-collapsed:66px;
   --radius:10px;
   --shadow:0 1px 2px rgba(33,28,29,.05),0 4px 16px rgba(33,28,29,.04);
+  --font-titulo:'Source Serif 4',serif;
+  --font-corpo:'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:'IBM Plex Mono', monospace;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;
-  background:var(--bg);
+  font-family:var(--font-corpo);
+  background:var(--page-bg);   /* era var(--bg) */
   color:var(--ink);
   font-size:14px;
   line-height:1.45;
   -webkit-font-smoothing:antialiased;
 }
 button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
 ::selection{background:var(--vinho-050)}
 
 /* ---------- Layout shell ---------- */
@@ -69,7 +76,7 @@ button{font-family:inherit;cursor:pointer}
   flex:0 0 34px;height:34px;border-radius:8px;
   background:linear-gradient(150deg,var(--vinho) 0%,var(--vinho-700) 100%);
   display:flex;align-items:center;justify-content:center;
-  font-family:'IBM Plex Serif',serif;font-weight:600;font-size:15px;color:#fff;
+  font-family:var(--font-titulo);font-weight:600;font-size:15px;color:#fff;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
 }
 .brand-text{display:flex;flex-direction:column;line-height:1.2}
@@ -77,7 +84,7 @@ button{font-family:inherit;cursor:pointer}
 .brand-text span{font-size:11px;color:#cfa9ac;letter-spacing:.3px}
 .collapsed .brand-text{opacity:0;width:0}
 
-.nav{padding:10px 10px;flex:1;overflow-y:auto}
+.nav{padding:10px 10px;flex:1;overflow-y:auto;overflow-x:hidden}
 .nav-label{
   font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;
   color:#b98d90;padding:14px 10px 7px;font-weight:600;
@@ -126,7 +133,7 @@ button{font-family:inherit;cursor:pointer}
 .icon-btn:hover{background:var(--bg);border-color:var(--ink-3)}
 .icon-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none}
 
-.topbar-title{font-family:'IBM Plex Serif',serif;font-size:19px;font-weight:600;letter-spacing:.2px}
+.topbar-title{font-family:var(--font-titulo);font-size:19px;font-weight:600;letter-spacing:.2px}
 .topbar-title span{color:var(--ink-3);font-weight:500}
 
 .search{
@@ -161,24 +168,88 @@ button{font-family:inherit;cursor:pointer}
 .load-row{display:flex;justify-content:space-between;padding:6px 8px;border-radius:6px;font-size:12.5px}
 .load-row:hover{background:var(--bg)}
 .load-row b{font-weight:500}
-.load-row span{font-family:'IBM Plex Mono',monospace;color:var(--ink-2);font-size:12px}
+.load-row span{font-family:var(--font-mono);color:var(--ink-2);font-size:12px}
 
 /* ---------- Content scroll area ---------- */
 .content{flex:1;overflow-y:auto;padding:22px 26px 40px}
 
-.crumbs{display:flex;align-items:center;gap:7px;color:var(--ink-3);font-size:12.5px;margin-bottom:4px}
+/* .crumbs{display:flex;align-items:center;gap:7px;color:var(--ink-3);font-size:12.5px;margin-bottom:4px}
 .crumbs b{color:var(--ink-2);font-weight:500}
 .page-h{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
-.page-h h1{font-family:'IBM Plex Serif',serif;font-size:24px;font-weight:600}
+.page-h h1{font-family:var(--font-titulo);font-size:24px;font-weight:600} */
+/* ---------- Card de cabeçalho de página (breadcrumb + título + abas) ---------- */
+.page-card{
+  padding:16px 20px;
+  margin-bottom:16px;
+}
+
+.page-card-head{
+  display:flex;
+  align-items:baseline;     /* alinha pela linha de base do texto */
+  flex-wrap:wrap;           /* se o título for longo, quebra em vez de estourar */
+  gap:14px;
+  margin-bottom:14px;
+}
+
+.page-card-head .crumbs{
+  margin-bottom:0;          /* o .crumbs original tem 4px embaixo; aqui não queremos */
+  padding-right:14px;
+  border-right:1px solid var(--line);   /* divisória entre breadcrumb e título */
+}
+
+.page-card-head h1{
+  font-family:var(--font-titulo);
+  font-size:20px;
+  font-weight:600;
+}
+
+/* a última linha de abas não precisa de espaço embaixo: o padding do card já cobre */
+.page-card .subtabs:last-child{margin-bottom:0}
+
+/* dentro do card o fundo já é branco, então o hover usa o tom da página */
+.page-card .subtab:hover{background:var(--page-bg)}
+
+/* linha separando as abas (nível 1) das subabas (nível 2) */
+.page-card .subtabs:not(:last-child){
+  border-bottom:2px solid var(--page-bg);   /* mesma cor do fundo da tela */
+  padding-bottom:14px;                      /* espaço entre as abas e a linha */
+  margin-bottom:14px;                       /* espaço entre a linha e as subabas */
+}
 
 /* sub-tabs */
-.subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
+/* .subtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
 .subtab{
   padding:9px 14px;font-size:13.5px;font-weight:500;color:var(--ink-2);
   border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0;
 }
 .subtab:hover{background:var(--line-2)}
-.subtab.active{color:var(--vinho);border-bottom-color:var(--vinho);font-weight:600}
+.subtab.active{color:var(--vinho);border-bottom-color:var(--vinho);font-weight:600} */
+/* abas (botões) */
+.subtabs{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-bottom:14px;
+  /* removi o border-bottom: com botões, a linha vira ruído */
+}
+.subtab{
+  padding:7px 14px;font-size:13.5px;font-weight:500;color:var(--ink-2);
+  background:transparent;
+  border:1px solid transparent;   /* reserva o espaço da borda: evita "pulo" no hover */
+  border-radius:8px;
+  text-decoration:none;           /* tira o sublinhado, caso sejam <a> */
+  transition:background .15s,border-color .15s,color .15s;
+}
+.subtab:hover{background:var(--surface);border-color:var(--line)}
+.subtab.active{
+  background:var(--vinho-100);
+  border-color:var(--vinho-borda);
+  color:var(--vinho);
+  font-weight:600;
+}
+
+/* segundo .subtabs imediatamente depois do primeiro = nível 2 */
+.subtabs + .subtabs .subtab{
+  padding:5px 12px;font-size:12.5px;border-radius:999px;
+}
 
 /* kpi chips */
 .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
@@ -187,7 +258,7 @@ button{font-family:inherit;cursor:pointer}
   padding:13px 16px;min-width:150px;flex:1;box-shadow:var(--shadow);
 }
 .kpi .k-label{font-size:11.5px;color:var(--ink-2);letter-spacing:.02em;margin-bottom:5px}
-.kpi .k-val{font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;letter-spacing:-.5px}
+.kpi .k-val{font-family:var(--font-mono);font-size:21px;font-weight:600;letter-spacing:-.5px}
 .kpi .k-val small{font-size:12px;color:var(--ink-3);font-weight:500;margin-left:3px}
 .kpi.accent{border-top:2px solid var(--ouro)}
 
@@ -217,7 +288,7 @@ button{font-family:inherit;cursor:pointer}
   height:38px;border:1px solid var(--line);border-radius:8px;background:var(--bg);
   padding:0 11px;font-family:inherit;font-size:13.5px;color:var(--ink);
 }
-.field input{font-family:'IBM Plex Mono',monospace;font-size:13px}
+.field input{font-family:var(--font-mono);font-size:13px}
 .field select:focus,.field input:focus{outline:none;border-color:var(--vinho);background:var(--surface)}
 .more-link{margin-top:12px;font-size:13px;color:var(--vinho);font-weight:600;background:none;border:none;display:inline-flex;align-items:center;gap:6px}
 .more-link svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
@@ -226,7 +297,7 @@ button{font-family:inherit;cursor:pointer}
 .table-wrap{overflow:hidden}
 .table-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line)}
 .table-head .count{font-size:13px;color:var(--ink-2)}
-.table-head .count b{color:var(--ink);font-family:'IBM Plex Mono',monospace}
+.table-head .count b{color:var(--ink);font-family:var(--font-mono)}
 .table-tools{display:flex;gap:9px}
 .export-wrap{position:relative}
 .export-pop{
@@ -283,7 +354,7 @@ tbody td {
 tbody tr:hover { background: #fbf9f7 }
 
 td.mono {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: var(--font-corpo);
   font-size: 12.5px;
   color: var(--ink);
   white-space: normal;
@@ -293,7 +364,7 @@ td.mono {
 
 th.num, td.num { text-align: right }
 td.val {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12.5px;
   white-space: nowrap;
 }
@@ -326,7 +397,7 @@ td.obj {
 /* ---------- Pagination ---------- */
 .pager{display:flex;align-items:center;justify-content:space-between;padding:14px 16px}
 .pager .info{font-size:12.5px;color:var(--ink-2)}
-.pager .info b{font-family:'IBM Plex Mono',monospace;color:var(--ink)}
+.pager .info b{font-family:var(--font-mono);color:var(--ink)}
 .pages{display:flex;gap:5px}
 .pages button,.pages a{
   display:inline-flex;align-items:center;justify-content:center;
@@ -336,7 +407,27 @@ td.obj {
 .pages button:hover,.pages a:hover{background:var(--bg)}
 .pages button.cur{background:var(--vinho);border-color:var(--vinho);color:#fff;font-weight:600}
 .pages button[disabled]:not(.cur){cursor:default;opacity:.45}
-.pages button.nav svg,.pages a.nav svg{width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none;vertical-align:middle}
+.pages .pg-nav svg{width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none;vertical-align:middle}
+
+/* rodapé em 3 colunas: info à esquerda, totais centralizados, paginação à direita */
+.pager{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px 16px}
+.pager-left{display:contents}
+.pager .info{justify-self:start}
+.pager .totais{justify-self:center;justify-content:center}
+.pager .pages{justify-self:end}
+@media (max-width:1100px){
+  .pager{grid-template-columns:1fr auto}
+  .pager .totais{grid-column:1 / -1;grid-row:2;justify-self:center}
+}
+.table-tools a.btn{color:inherit;text-decoration:none}
+
+/* ---------- Totais (linha discreta no rodapé, ao lado de "Mostrando…") ---------- */
+.totais{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px}
+.totais .t-titulo{font-size:11.5px;color:var(--ink-3)}
+.totais .t-titulo::after{content:":"}
+.total-card{display:flex;align-items:center;gap:6px;border-left:1px solid var(--line);padding-left:12px}
+.t-label{font-size:11.5px;color:var(--ink-3)}
+.t-val{font-family:var(--font-mono,'IBM Plex Mono',monospace);font-size:12.5px;font-weight:600;color:var(--ink-2)}
 
 /* ---------- Em construção ---------- */
 .construcao-wrap{
@@ -344,7 +435,7 @@ td.obj {
   padding:64px 32px;text-align:center;color:var(--ink-2);
 }
 .construcao-wrap svg{width:44px;height:44px;stroke:var(--ink-3);stroke-width:1.4;fill:none;margin-bottom:16px}
-.construcao-wrap h2{font-family:'IBM Plex Serif',serif;font-size:20px;font-weight:600;color:var(--ink);margin-bottom:8px}
+.construcao-wrap h2{font-family:var(--font-titulo);font-size:20px;font-weight:600;color:var(--ink);margin-bottom:8px}
 .construcao-wrap p{font-size:13.5px;max-width:360px;line-height:1.6}
 
 /* ---------- Responsive ---------- */
@@ -355,3 +446,21 @@ td.obj {
   .search{width:160px}
   .topbar-title span{display:none}
 }
+/* ---------- Filtro multivalorado (dropdown de checkboxes) ---------- */
+.multi{position:relative}
+.multi summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  height:38px;border:1px solid var(--line);border-radius:8px;background:var(--bg);
+  padding:0 11px;font-size:13.5px;color:var(--ink);
+}
+.multi summary::-webkit-details-marker{display:none}
+.multi summary::after{content:"";width:6px;height:6px;border:solid var(--ink-2);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);margin-top:-3px;flex:none}
+.multi[open] summary{border-color:var(--vinho);background:var(--surface)}
+.multi-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.multi-pop{
+  position:absolute;z-index:20;top:42px;left:0;min-width:100%;max-width:420px;max-height:280px;overflow:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:4px;
+}
+.field .multi-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;font-weight:400;color:var(--ink);cursor:pointer}
+.field .multi-opt:hover{background:var(--bg)}
+.field .multi-opt input{height:auto;width:auto;padding:0;border:0;background:none;flex:none;accent-color:var(--vinho)}

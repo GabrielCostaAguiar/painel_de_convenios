@@ -2,7 +2,13 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from core.web import formatar_celula, paginas_visiveis
-from ._filtros import _ler_filtros_grp, _grp_listas
+from ._filtros import (
+    _grp_contexto_pagina,
+    _grp_exportar,
+    _grp_selecionados,
+    _grp_listas,
+    _ler_filtros_grp,
+)
 
 from apps.grp.services import get_grp_dados_qs
 
@@ -14,13 +20,6 @@ from apps.grp.services import get_grp_dados_qs
 def grp_instrumentos(request):
     filtros = _ler_filtros_grp(request.GET)
     qs = get_grp_dados_qs(filtros)
-
-    paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page", 1))
-
-    params = request.GET.copy()
-    params.pop("page", None)
-    querystring = params.urlencode()
 
     # monta as linhas da tabela
     colunas = [
@@ -73,6 +72,12 @@ def grp_instrumentos(request):
         "vl_instrumento_total",
         "dt_vigencia_termino_inicial",
     ]
+    download = _grp_exportar(request, qs, colunas, campos, "grp_dados")
+    if download is not None:
+        return download
+
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
     linhas = [
         [formatar_celula(c, getattr(obj, c)) for c in campos] for obj in page_obj
     ]
@@ -111,10 +116,8 @@ def grp_instrumentos(request):
         "linhas": linhas,
         "larguras": larguras,
         "largura_total": sum(larguras),
-        "nr_grp_sel": filtros["nr_grp"],
-        "nr_instrumento_sel": filtros["nr_instrumento"],
-        "cd_uo_sel": filtros["cd_uo"],
-        "querystring": querystring,
+        **_grp_selecionados(filtros),
+        **_grp_contexto_pagina(request, qs, colunas, campos),
         "visible_pages": paginas_visiveis(page_obj),
         "secao_ativa": "grp",
         "secao_sub": "grp_dados",
